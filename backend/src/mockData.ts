@@ -79,8 +79,10 @@ export interface Order {
   discountAmount: number;
   finalAmount: number;
   status: "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPING" | "DELIVERED" | "CANCELLED";
-  paymentMethod: "COD" | "VNPAY";
+  paymentMethod: "COD" | "VNPAY" | "MOMO";
   paymentStatus: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+  momoTransId?: string;
+  momoPayUrl?: string;
   createdAt: string;
   updatedAt: string;
   items?: OrderItem[];
@@ -98,6 +100,9 @@ export interface SystemSettings {
   openaiModel?: string;
   aiServiceUrl: string;
   vnpayTmnCode: string;
+  momoPartnerCode?: string;
+  momoAccessKey?: string;
+  momoSecretKey?: string;
 }
 
 export const INITIAL_USERS: User[] = [
@@ -676,5 +681,8 @@ export const INITIAL_SETTINGS: SystemSettings = {
   openaiApiKey: "",
   openaiModel: "gpt-5.4-mini",
   aiServiceUrl: process.env.AI_SERVICE_URL || "http://ai_service:8000",
-  vnpayTmnCode: "SANDBOX_STORE_AI"
+  vnpayTmnCode: "SANDBOX_STORE_AI",
+  momoPartnerCode: "MOMO",
+  momoAccessKey: "F8BBA842ECF85",
+  momoSecretKey: "K951B6PE1waDMi640xX08PD3vg6EkVlz"
 };

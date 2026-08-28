@@ -32,7 +32,10 @@ export const AdminSettings: React.FC = () => {
     openaiApiKey: "",
     openaiModel: "gpt-4o-mini",
     aiServiceUrl: "http://localhost:8000",
-    vnpayTmnCode: "SANDBOX_STORE_AI"
+    vnpayTmnCode: "SANDBOX_STORE_AI",
+    momoPartnerCode: "MOMO",
+    momoAccessKey: "F8BBA842ECF85",
+    momoSecretKey: "K951B6PE1waDMi640xX08PD3vg6EkVlz"
   });
 
   const [isLoading, setIsLoading] = useState(true);
@@ -488,6 +491,57 @@ export const AdminSettings: React.FC = () => {
               onChange={(e) => setSettings({ ...settings, vnpayTmnCode: e.target.value })}
               className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-violet-500"
             />
+          </div>
+        </div>
+
+        {/* Section 4: MoMo Sandbox Gateway v2 Config */}
+        <div className="p-6 rounded-3xl bg-[#131c2e] border border-pink-900/40 space-y-4 shadow-xl">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <span className="w-5 h-5 rounded-md bg-[#a50064] text-white flex items-center justify-center font-black text-[9px]">
+                MM
+              </span>
+              4. CỔNG THANH TOÁN VÍ MOMO SANDBOX (GATEWAY V2)
+            </h3>
+            <span className="px-2 py-0.5 rounded-full bg-pink-500/10 text-pink-300 border border-pink-500/20 text-[10px] font-semibold">
+              MoMo Developer v2
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-400">
+            Thông số tài khoản thử nghiệm dành cho sinh viên và nhà phát triển (Developers MoMo).
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block font-semibold text-slate-300 mb-1 text-xs">Partner Code</label>
+              <input
+                type="text"
+                value={settings.momoPartnerCode || "MOMO"}
+                onChange={(e) => setSettings({ ...settings, momoPartnerCode: e.target.value })}
+                className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-pink-500 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-300 mb-1 text-xs">Access Key</label>
+              <input
+                type="text"
+                value={settings.momoAccessKey || "F8BBA842ECF85"}
+                onChange={(e) => setSettings({ ...settings, momoAccessKey: e.target.value })}
+                className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-pink-500 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-300 mb-1 text-xs">Secret Key</label>
+              <input
+                type="password"
+                value={settings.momoSecretKey || "K951B6PE1waDMi640xX08PD3vg6EkVlz"}
+                onChange={(e) => setSettings({ ...settings, momoSecretKey: e.target.value })}
+                className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-pink-500 text-xs"
+              />
+            </div>
           </div>
         </div>
 

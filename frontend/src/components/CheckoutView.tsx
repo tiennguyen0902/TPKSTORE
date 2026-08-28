@@ -14,6 +14,7 @@ import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 import { VnpayModal } from "./VnpayModal";
+import { MomoModal } from "./MomoModal";
 
 interface CheckoutViewProps {
   onBackToCart: () => void;
@@ -31,7 +32,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const [phone, setPhone] = useState(user?.phone || "0912345678");
   const [shippingAddress, setShippingAddress] = useState(user?.address || "Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội");
   const [note, setNote] = useState("Giao hàng giờ hành chính");
-  const [paymentMethod, setPaymentMethod] = useState<"COD" | "VNPAY">("COD");
+  const [paymentMethod, setPaymentMethod] = useState<"COD" | "VNPAY" | "MOMO">("COD");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -43,8 +44,9 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     }
   }, [user]);
 
-  // VNPAY Modal state
+  // Payment Modals state
   const [showVnpayModal, setShowVnpayModal] = useState(false);
+  const [showMomoModal, setShowMomoModal] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string>("");
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
@@ -71,6 +73,9 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       if (paymentMethod === "VNPAY") {
         setPendingOrderId(orderId);
         setShowVnpayModal(true);
+      } else if (paymentMethod === "MOMO") {
+        setPendingOrderId(orderId);
+        setShowMomoModal(true);
       } else {
         await clearCart();
         onOrderSuccess(orderId);
@@ -90,6 +95,12 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     }
     await clearCart();
     setShowVnpayModal(false);
+    onOrderSuccess(pendingOrderId);
+  };
+
+  const handleMomoSuccess = async () => {
+    await clearCart();
+    setShowMomoModal(false);
     onOrderSuccess(pendingOrderId);
   };
 
@@ -230,7 +241,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 onClick={() => setPaymentMethod("VNPAY")}
                 className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${
                   paymentMethod === "VNPAY"
-                    ? "bg-violet-600/15 border-violet-500 shadow-sm"
+                    ? "bg-blue-600/15 border-blue-500 shadow-sm"
                     : "bg-[#18233a] border-slate-700 hover:border-slate-600"
                 }`}
               >
@@ -240,7 +251,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     name="payment"
                     checked={paymentMethod === "VNPAY"}
                     onChange={() => {}}
-                    className="accent-violet-600"
+                    className="accent-blue-600"
                   />
                   <div>
                     <p className="font-bold text-white flex items-center gap-2">
@@ -253,7 +264,41 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                   </div>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-semibold">
-                  Khuyên dùng
+                  Thẻ / VNPAY-QR
+                </span>
+              </label>
+
+              {/* Option 3: MoMo Sandbox (Gateway v2) */}
+              <label
+                onClick={() => setPaymentMethod("MOMO")}
+                className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${
+                  paymentMethod === "MOMO"
+                    ? "bg-pink-600/15 border-pink-500 shadow-sm"
+                    : "bg-[#18233a] border-slate-700 hover:border-slate-600"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    name="payment"
+                    checked={paymentMethod === "MOMO"}
+                    onChange={() => {}}
+                    className="accent-pink-500"
+                  />
+                  <div>
+                    <p className="font-bold text-white flex items-center gap-2">
+                      <span className="w-4 h-4 rounded bg-[#a50064] text-white flex items-center justify-center font-black text-[7px]">
+                        MM
+                      </span>
+                      Ví Điện Tử MoMo Sandbox (Gateway v2)
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Quét mã MoMo QR hoặc mở trực tiếp Cổng thanh toán MoMo Sandbox
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 font-semibold">
+                  Siêu tốc ⭐
                 </span>
               </label>
             </div>
@@ -315,7 +360,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               disabled={isLoading || items.length === 0}
               className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 text-white font-black text-sm shadow-xl shadow-violet-600/30 transition-all hover:scale-[1.02] active:scale-98"
             >
-              {isLoading ? "Đang xử lý đơn hàng..." : paymentMethod === "VNPAY" ? "Thanh Toán Qua VNPAY" : "Xác Nhận Đặt Hàng"}
+              {isLoading 
+                ? "Đang xử lý đơn hàng..." 
+                : paymentMethod === "MOMO"
+                ? "Thanh Toán Qua Ví MoMo"
+                : paymentMethod === "VNPAY" 
+                ? "Thanh Toán Qua VNPAY" 
+                : "Xác Nhận Đặt Hàng"}
             </button>
 
             <p className="text-[10px] text-slate-500 text-center flex items-center justify-center gap-1">
@@ -332,6 +383,16 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
           amount={total}
           onSuccess={handleVnpaySuccess}
           onCancel={() => setShowVnpayModal(false)}
+        />
+      )}
+
+      {/* MoMo Gateway v2 Simulator Modal */}
+      {showMomoModal && (
+        <MomoModal
+          orderId={pendingOrderId}
+          amount={total}
+          onSuccess={handleMomoSuccess}
+          onCancel={() => setShowMomoModal(false)}
         />
       )}
     </div>

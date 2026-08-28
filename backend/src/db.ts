@@ -190,7 +190,7 @@ class DatabaseStore {
     phone: string;
     shippingAddress: string;
     note?: string;
-    paymentMethod: "COD" | "VNPAY";
+    paymentMethod: "COD" | "VNPAY" | "MOMO";
     items: { productId: string; quantity: number }[];
   }): Order {
     let totalAmount = 0;
@@ -242,7 +242,7 @@ class DatabaseStore {
       finalAmount,
       status: "PENDING",
       paymentMethod: data.paymentMethod,
-      paymentStatus: data.paymentMethod === "VNPAY" ? "COMPLETED" : "PENDING",
+      paymentStatus: "PENDING",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       items: orderItems

@@ -220,7 +220,7 @@ export const api = {
     phone: string;
     shippingAddress: string;
     note?: string;
-    paymentMethod: "COD" | "VNPAY";
+    paymentMethod: "COD" | "VNPAY" | "MOMO";
     items?: { productId: string; quantity: number }[];
   }) {
     const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
@@ -291,6 +291,31 @@ export const api = {
       body: JSON.stringify({ orderId, responseCode, transactionNo: `VNPAY_${Date.now()}` })
     });
     return res.json();
+  },
+
+  // Payment MoMo Sandbox (MoMo Gateway v2)
+  async createMomoUrl(orderId: string, amount: number, orderInfo?: string, redirectUrl?: string) {
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
+    const res = await fetch(`${API_BASE}/payment/create-momo-url`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ orderId, amount, orderInfo, redirectUrl })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Không thể tạo liên kết thanh toán MoMo");
+    return json;
+  },
+
+  async confirmMomoPayment(orderId: string, resultCode: number = 0, transId?: string) {
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
+    const res = await fetch(`${API_BASE}/payment/momo-confirm`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ orderId, resultCode, transId: transId || `MOMO_${Date.now()}` })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Xác nhận thanh toán MoMo thất bại");
+    return json;
   },
 
   // AI Services

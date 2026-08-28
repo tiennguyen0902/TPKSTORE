@@ -36,7 +36,7 @@ router.post("/", authenticateToken, (req: AuthenticatedRequest, res: Response) =
       phone,
       shippingAddress,
       note,
-      paymentMethod: paymentMethod === "VNPAY" ? "VNPAY" : "COD",
+      paymentMethod: paymentMethod === "MOMO" ? "MOMO" : (paymentMethod === "VNPAY" ? "VNPAY" : "COD"),
       items: checkoutItems
     });
 

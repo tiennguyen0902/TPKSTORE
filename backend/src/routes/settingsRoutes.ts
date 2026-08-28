@@ -22,7 +22,10 @@ router.put("/", authenticateToken, authorize(["ADMIN"]), (req: AuthenticatedRequ
     openaiApiKey,
     openaiModel,
     aiServiceUrl, 
-    vnpayTmnCode 
+    vnpayTmnCode,
+    momoPartnerCode,
+    momoAccessKey,
+    momoSecretKey
   } = req.body;
 
   if (storeName) db.settings.storeName = storeName;
@@ -36,6 +39,9 @@ router.put("/", authenticateToken, authorize(["ADMIN"]), (req: AuthenticatedRequ
   if (openaiModel) db.settings.openaiModel = openaiModel;
   if (aiServiceUrl) db.settings.aiServiceUrl = aiServiceUrl;
   if (vnpayTmnCode) db.settings.vnpayTmnCode = vnpayTmnCode;
+  if (momoPartnerCode !== undefined) db.settings.momoPartnerCode = momoPartnerCode;
+  if (momoAccessKey !== undefined) db.settings.momoAccessKey = momoAccessKey;
+  if (momoSecretKey !== undefined) db.settings.momoSecretKey = momoSecretKey;
 
   return res.json({
     message: "Lưu cấu hình hệ thống thành công!",

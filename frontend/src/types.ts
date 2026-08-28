@@ -79,8 +79,10 @@ export interface Order {
   discountAmount: number;
   finalAmount: number;
   status: "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPING" | "DELIVERED" | "CANCELLED";
-  paymentMethod: "COD" | "VNPAY";
+  paymentMethod: "COD" | "VNPAY" | "MOMO";
   paymentStatus: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+  momoTransId?: string;
+  momoPayUrl?: string;
   createdAt: string;
   updatedAt: string;
   items?: OrderItem[];
@@ -144,6 +146,9 @@ export interface SystemSettings {
   openaiModel?: string;
   aiServiceUrl: string;
   vnpayTmnCode: string;
+  momoPartnerCode?: string;
+  momoAccessKey?: string;
+  momoSecretKey?: string;
 }
 
 export interface ArchitectureComponent {
