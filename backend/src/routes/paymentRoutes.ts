@@ -79,6 +79,7 @@ router.post("/create-momo-url", authenticateToken, async (req: AuthenticatedRequ
 
     if (momoResult.success && momoResult.data) {
       order.momoPayUrl = momoResult.data.payUrl;
+      (order as any).momoOrderId = momoResult.data.orderId;
       order.updatedAt = new Date().toISOString();
 
       return res.json({
@@ -86,7 +87,8 @@ router.post("/create-momo-url", authenticateToken, async (req: AuthenticatedRequ
         payUrl: momoResult.data.payUrl,
         deeplink: momoResult.data.deeplink,
         qrCodeUrl: momoResult.data.qrCodeUrl,
-        orderId: momoResult.data.orderId,
+        orderId: order.id,
+        momoOrderId: momoResult.data.orderId,
         requestId: momoResult.data.requestId,
         amount: momoResult.data.amount,
         message: momoResult.data.message
@@ -105,10 +107,21 @@ router.post("/create-momo-url", authenticateToken, async (req: AuthenticatedRequ
 // POST /api/payment/momo-ipn (MoMo Instant Payment Notification Webhook)
 router.post("/momo-ipn", (req: Request, res: Response) => {
   try {
-    const { orderId, resultCode, message, transId, amount } = req.body;
+    const { orderId, resultCode, message, transId, amount, extraData } = req.body;
     console.log(`[MoMo IPN] Nhận callback đơn hàng ${orderId}, ResultCode: ${resultCode}, TransId: ${transId}`);
 
-    const order = db.orders.find(o => o.id === orderId);
+    let origOrderId = "";
+    if (extraData) {
+      try {
+        origOrderId = Buffer.from(extraData, "base64").toString("utf-8");
+      } catch {}
+    }
+
+    const order = db.orders.find(o => 
+      o.id === orderId || 
+      (o as any).momoOrderId === orderId ||
+      (origOrderId && o.id === origOrderId)
+    );
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -119,11 +132,11 @@ router.post("/momo-ipn", (req: Request, res: Response) => {
       order.status = "CONFIRMED";
       order.momoTransId = String(transId || `MOMO_${Date.now()}`);
       order.updatedAt = new Date().toISOString();
-      return res.status(200).json({ message: "Thành công", orderId });
+      return res.status(200).json({ message: "Thành công", orderId: order.id });
     } else {
       order.paymentStatus = "FAILED";
       order.updatedAt = new Date().toISOString();
-      return res.status(200).json({ message: `Giao dịch thất bại: ${message}`, orderId });
+      return res.status(200).json({ message: `Giao dịch thất bại: ${message}`, orderId: order.id });
     }
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -134,7 +147,10 @@ router.post("/momo-ipn", (req: Request, res: Response) => {
 router.post("/momo-confirm", authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   const { orderId, resultCode = 0, transId } = req.body;
 
-  const order = db.orders.find(o => o.id === orderId);
+  const order = db.orders.find(o => 
+    o.id === orderId || 
+    (o as any).momoOrderId === orderId
+  );
   if (!order) {
     return res.status(404).json({ error: "Không tìm thấy đơn hàng." });
   }

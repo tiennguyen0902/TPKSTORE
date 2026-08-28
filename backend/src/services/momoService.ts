@@ -52,18 +52,22 @@ export class MomoPaymentService {
     const secretKey = config.secretKey;
 
     const amount = Math.round(params.amount).toString();
-    const orderId = params.orderId;
-    const requestId = `${partnerCode}_${Date.now()}`;
-    const orderInfo = params.orderInfo || `Thanh toan don hang ${orderId} tai SHOPBEE`;
+    const rawOrderId = params.orderId;
+    // Chuẩn hóa orderId: loại bỏ ký tự '#' và ký tự không hợp lệ tuân thủ regex MoMo: ^[0-9a-zA-Z]+([-_.:]+[0-9a-zA-Z]+)*$
+    const cleanId = rawOrderId.replace(/^#+/, "").replace(/[^a-zA-Z0-9_-]/g, "");
+    // Tạo orderId duy nhất cho mỗi giao dịch MoMo Sandbox (tránh lỗi duplicate orderId)
+    const momoOrderId = `${cleanId}_${Date.now()}`;
+    const requestId = `REQ_${Date.now()}`;
+    const orderInfo = (params.orderInfo || `Thanh toan don hang ${cleanId} tai SHOPBEE`).replace(/[#]/g, "");
     const redirectUrl = params.redirectUrl || config.defaultRedirectUrl;
     const ipnUrl = params.ipnUrl || config.defaultIpnUrl;
     const requestType = "captureWallet";
-    const extraData = params.extraData || "";
+    const extraData = Buffer.from(rawOrderId).toString("base64");
     const autoCapture = true;
     const lang = "vi";
 
     // Format rawSignature: accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=$ipnUrl&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=$redirectUrl&requestId=$requestId&requestType=$requestType
-    const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
+    const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${momoOrderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
 
     const signature = crypto
       .createHmac("sha256", secretKey)
@@ -76,7 +80,7 @@ export class MomoPaymentService {
       storeId: "ShopbeeStore",
       requestId,
       amount,
-      orderId,
+      orderId: momoOrderId,
       orderInfo,
       redirectUrl,
       ipnUrl,
@@ -128,22 +132,10 @@ export class MomoPaymentService {
       });
 
       req.on("error", (err) => {
-        // Dự phòng: Nếu mất kết nối tới máy chủ test MoMo, tạo URL giả lập để phục vụ demo đồ án
-        console.warn("Momo API call failed, generating simulated response:", err.message);
+        console.error("Momo API network error:", err.message);
         resolve({
-          success: true,
-          data: {
-            partnerCode,
-            orderId,
-            requestId,
-            amount: Number(amount),
-            responseTime: Date.now(),
-            message: "Thành công (Chế độ Thử nghiệm Offline)",
-            resultCode: 0,
-            payUrl: `https://test-payment.momo.vn/v2/gateway/pay?orderId=${encodeURIComponent(orderId)}&amount=${amount}`,
-            deeplink: `momo://app?action=payWithApp&orderId=${orderId}`,
-            qrCodeUrl: `momo://app?action=payWithApp&isScanQR=true&orderId=${orderId}`
-          }
+          success: false,
+          error: `Không thể kết nối đến máy chủ MoMo Sandbox: ${err.message}`
         });
       });
 
