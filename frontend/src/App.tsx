@@ -27,12 +27,32 @@ import { Product } from "./types";
 import { ShieldAlert } from "lucide-react";
 
 const MainApp: React.FC = () => {
-  const { user } = useAuth();
-  // Trang chủ mặc định khi vào dự án là phần Đăng nhập / Đăng ký (auth)
-  const [currentView, setCurrentView] = useState<string>("auth");
+  const { user, isLoading } = useAuth();
+
+  // Khởi tạo view:
+  // - Nếu đã đăng nhập (có token) -> vào thẳng màn hình chính "storefront" (Hình 2)
+  // - Nếu chưa đăng nhập -> hiển thị form đăng nhập / đăng ký "auth" (Hình 1)
+  const [currentView, setCurrentView] = useState<string>(() => {
+    const token = localStorage.getItem("store_ai_access_token");
+    return token ? "storefront" : "auth";
+  });
+
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
+
+  // Tự động chuyển hướng:
+  // - Đã đăng nhập nhưng đang ở view "auth" -> chuyển vào "storefront" (màn hình chính)
+  // - Chưa đăng nhập nhưng không ở "auth" -> chuyển về "auth" (form đăng nhập)
+  React.useEffect(() => {
+    if (!isLoading) {
+      if (user && currentView === "auth") {
+        setCurrentView("storefront");
+      } else if (!user && currentView !== "auth") {
+        setCurrentView("auth");
+      }
+    }
+  }, [user, isLoading, currentView]);
 
   const isAdminRoute = currentView.startsWith("admin_");
 
@@ -164,22 +184,17 @@ const MainApp: React.FC = () => {
           />
 
           <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 w-full">
-            {/* View Đăng nhập / Đăng ký (Mặc định khi mở dự án) */}
-            {currentView === "auth" && (
+            {/* View Đăng nhập / Đăng ký: Chỉ hiển thị khi CHƯA đăng nhập (Hình 1) */}
+            {currentView === "auth" && !user && (
               <AuthView 
-                onSuccess={(role) => {
-                  if (role === "ADMIN") {
-                    setCurrentView("admin_dashboard");
-                  } else if (role === "STAFF") {
-                    setCurrentView("staff_dashboard");
-                  } else {
-                    setCurrentView("storefront");
-                  }
+                onSuccess={() => {
+                  setCurrentView("storefront");
                 }} 
               />
             )}
 
-            {currentView === "storefront" && (
+            {/* Màn hình chính Storefront (Hình 2): Hiện khi view là storefront hoặc nếu người dùng đã đăng nhập */}
+            {(currentView === "storefront" || (currentView === "auth" && user)) && (
               <StorefrontHome
                 onSelectProduct={(p) => setActiveProduct(p)}
                 onNavigateCatalog={(catSlug) => {
