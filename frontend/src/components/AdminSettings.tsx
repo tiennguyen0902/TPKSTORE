@@ -314,21 +314,21 @@ export const AdminSettings: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Mô hình AI Gemini Mới Nhất</label>
+                <label className="block font-semibold text-slate-300 mb-1">Mô hình AI Gemini</label>
                 <select
-                  value={settings.geminiModel || "gemini-3.6-flash"}
+                  value={settings.geminiModel || "gemini-2.5-flash"}
                   onChange={(e) => {
                     setSettings({ ...settings, geminiModel: e.target.value });
                     if (testResult) setTestResult(null);
                   }}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500"
+                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500 text-xs"
                 >
-                  <option value="gemini-3.6-flash">gemini-3.6-flash ⭐ (Khuyên dùng - Nhanh, Thông minh, Hoạt động 100%)</option>
-                  <option value="gemini-3.7-flash">gemini-3.7-flash 🚀 (Bản mới nhất - Phản hồi siêu tốc)</option>
-                  <option value="gemini-flash-latest">gemini-flash-latest ⚡ (Tự động cập nhật Flash)</option>
-                  <option value="gemini-pro-latest">gemini-pro-latest 🧠 (Tự động cập nhật Pro)</option>
-                  <option value="gemini-3.5-flash">gemini-3.5-flash (Bản Flash 3.5)</option>
-                  <option value="gemini-2.5-flash">gemini-2.5-flash (Bản Flash 2.5)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash ⭐ (Khuyên dùng - Siêu tốc, Thế hệ mới 2026)</option>
+                  <option value="gemini-2.0-flash">gemini-2.0-flash 🚀 (Ổn định, phản hồi cực nhanh)</option>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash ⚡ (Độ trễ thấp, tiết kiệm quota)</option>
+                  <option value="gemini-flash-latest">gemini-flash-latest 🔄 (Tự động trỏ bản Flash mới nhất)</option>
+                  <option value="gemini-1.5-pro">gemini-1.5-pro 🧠 (Tư vấn chuyên sâu, lập luận phức tạp)</option>
+                  <option value="gemini-pro-latest">gemini-pro-latest 🌟 (Tự động trỏ bản Pro)</option>
                 </select>
               </div>
             </div>

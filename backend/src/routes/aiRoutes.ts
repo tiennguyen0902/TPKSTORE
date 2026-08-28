@@ -5,7 +5,7 @@ import { authenticateToken, authorize, AuthenticatedRequest } from "../middlewar
 
 const router = Router();
 
-const AI_SERVICE_TIMEOUT_MS = 25000;
+const AI_SERVICE_TIMEOUT_MS = 45000;
 
 // Helper to call AI Service with Circuit Breaker Fallback
 async function callAiService(endpoint: string, payload: any) {

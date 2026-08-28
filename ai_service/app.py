@@ -204,15 +204,15 @@ def test_ai_api_key(req: TestKeyRequest):
             "message": "Chưa có Google Gemini API Key. Vui lòng nhập mã API Key để kiểm tra."
         }
 
-    target_model = req.model or req.geminiModel or "gemini-3.6-flash"
+    target_model = req.model or req.geminiModel or "gemini-2.5-flash"
     candidate_models = [
         target_model,
-        "gemini-3.6-flash",
-        "gemini-3.7-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
         "gemini-flash-latest",
-        "gemini-3.5-flash",
-        "gemini-pro-latest",
-        "gemini-2.5-flash"
+        "gemini-1.5-pro",
+        "gemini-pro-latest"
     ]
     
     unique_models = []
@@ -237,7 +237,7 @@ def test_ai_api_key(req: TestKeyRequest):
                     "maxOutputTokens": 100
                 }
             }
-            resp = requests.post(gemini_url, json=payload, timeout=10)
+            resp = requests.post(gemini_url, json=payload, timeout=8)
             if resp.status_code == 200:
                 res_data = resp.json()
                 sample_reply = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -257,9 +257,19 @@ def test_ai_api_key(req: TestKeyRequest):
                 except Exception:
                     pass
                 msg = err_data.get("message", "API Key không hợp lệ hoặc không có quyền truy cập.")
-                last_error = f"Google từ chối ({resp.status_code}): {msg}"
+                return {
+                    "status": "error",
+                    "valid": False,
+                    "provider": "gemini",
+                    "message": f"Google từ chối ({resp.status_code}): {msg}"
+                }
             elif resp.status_code == 429:
-                last_error = "Google Gemini Quota (429): Đã vượt quá hạn mức sử dụng (Rate limit / Quota exceeded)."
+                return {
+                    "status": "warning",
+                    "valid": True,
+                    "provider": "gemini",
+                    "message": "Google Gemini Quota (429): Đã vượt quá hạn mức sử dụng (Rate limit / Quota exceeded). Vui lòng thử lại sau."
+                }
             else:
                 last_error = f"Mã lỗi HTTP {resp.status_code}: {resp.text[:120]}"
         except Exception as e:
@@ -426,13 +436,13 @@ def rag_chat(req: ChatRequest):
     gemini_key = (req.geminiApiKey or "").strip() or os.getenv("GEMINI_API_KEY", "").strip()
     if gemini_key:
         candidate_models = [
-            req.geminiModel or "gemini-3.6-flash",
-            "gemini-3.6-flash",
-            "gemini-3.7-flash",
+            req.geminiModel or "gemini-2.5-flash",
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
             "gemini-flash-latest",
-            "gemini-3.5-flash",
-            "gemini-pro-latest",
-            "gemini-2.5-flash"
+            "gemini-1.5-pro",
+            "gemini-pro-latest"
         ]
         unique_models = []
         for m in candidate_models:
