@@ -4,6 +4,8 @@ import crypto from "crypto";
 import { db } from "../db";
 import { User } from "../mockData";
 
+// WARNING: Fallback secrets dưới đây CHỈ dùng cho môi trường dev.
+// Trong production, bắt buộc set JWT_ACCESS_SECRET và JWT_REFRESH_SECRET qua biến môi trường.
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "store_ai_access_secret_key_2026";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "store_ai_refresh_secret_key_2026";
 

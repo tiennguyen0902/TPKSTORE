@@ -153,7 +153,11 @@ def get_hybrid_recommendations(
     # Fallback to Top items if not enough
     results = [item[1] for item in scored_products[:limit]]
     if len(results) < limit:
-        remaining = [p for p in all_products if p not in results and p.get("id") != target_product_id]
-        results.extend(remaining[:(limit - len(results))])
+        result_ids = {p.get("id") for p in results}
+        remaining = [
+            p for p in all_products
+            if p.get("id") not in result_ids and p.get("id") != target_product_id
+        ]
+        results.extend(remaining[: (limit - len(results))])
 
     return results
