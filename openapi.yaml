@@ -1,0 +1,158 @@
+openapi: 3.0.3
+info:
+  title: SHOPBEE / STORE AI RESTful API Specification
+  description: API đặc tả cho Hệ thống Quản lý Bán hàng & Thương mại điện tử tích hợp AI
+  version: 2.1.0
+servers:
+  - url: http://localhost:5000/api
+    description: Core Backend API Server
+  - url: http://localhost:8000/api
+    description: AI Microservices Server
+paths:
+  /auth/register:
+    post:
+      summary: Đăng ký tài khoản khách hàng mới
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, fullName]
+              properties:
+                email: { type: string, example: customer@example.com }
+                password: { type: string, example: Password123@ }
+                fullName: { type: string, example: Lê Hoàng Nam }
+                phone: { type: string, example: "0912345678" }
+      responses:
+        201: { description: Đăng ký thành công }
+        400: { description: Lỗi dữ liệu đầu vào }
+
+  /auth/login:
+    post:
+      summary: Đăng nhập hệ thống & cấp phát JWT + Refresh Token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: admin@example.com }
+                password: { type: string, example: Password123@ }
+      responses:
+        200: { description: Đăng nhập thành công }
+        401: { description: Sai thông tin đăng nhập }
+
+  /auth/refresh-token:
+    post:
+      summary: Xoay vòng Refresh Token (Token Rotation & Blacklist)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        200: { description: Cấp mới token pair thành công }
+        403: { description: Token không hợp lệ }
+
+  /products:
+    get:
+      summary: Lấy danh sách sản phẩm có phân trang, lọc và tìm kiếm
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: minPrice
+          in: query
+          schema: { type: number }
+        - name: maxPrice
+          in: query
+          schema: { type: number }
+        - name: sortBy
+          in: query
+          schema: { type: string, enum: [price_asc, price_desc, rating_desc, newest] }
+      responses:
+        200: { description: Danh sách sản phẩm }
+    post:
+      summary: Thêm sản phẩm mới (Admin/Staff)
+      security:
+        - BearerAuth: []
+      responses:
+        201: { description: Thêm sản phẩm thành công }
+
+  /cart:
+    get:
+      summary: Lấy thông tin giỏ hàng của người dùng hiện tại
+      security:
+        - BearerAuth: []
+      responses:
+        200: { description: Chi tiết giỏ hàng }
+  /cart/items:
+    post:
+      summary: Thêm sản phẩm vào giỏ hàng
+      security:
+        - BearerAuth: []
+      responses:
+        201: { description: Đã thêm vào giỏ }
+
+  /orders:
+    post:
+      summary: Tạo đơn đặt hàng mới (Atomic Transaction & Deduct Stock)
+      security:
+        - BearerAuth: []
+      responses:
+        201: { description: Đặt hàng thành công }
+    get:
+      summary: Danh sách tất cả đơn hàng (Admin/Staff)
+      security:
+        - BearerAuth: []
+      responses:
+        200: { description: Danh sách đơn hàng }
+
+  /orders/my:
+    get:
+      summary: Lấy lịch sử đơn hàng của khách hàng đang đăng nhập
+      security:
+        - BearerAuth: []
+      responses:
+        200: { description: Lịch sử đơn hàng }
+
+  /ai/recommend:
+    post:
+      summary: Gợi ý sản phẩm lai (Hybrid Recommendation Engine)
+      responses:
+        200: { description: Top sản phẩm gợi ý }
+
+  /ai/chat:
+    post:
+      summary: Trò chuyện RAG AI Chatbot với cơ sở tri thức và Gemini LLM
+      responses:
+        200: { description: Câu trả lời từ AI kèm Product Cards }
+
+  /ai/forecast:
+    post:
+      summary: Dự báo doanh thu & nhu cầu chuỗi thời gian (Hybrid-Prophet-ARIMA)
+      responses:
+        200: { description: Dữ liệu dự báo 30 ngày & metrics }
+
+  /ai/inventory-alerts:
+    post:
+      summary: Phân tích và cảnh báo cạn kho thông minh (Safety Stock)
+      responses:
+        200: { description: Danh sách cảnh báo tồn kho và khuyến nghị nhập }
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

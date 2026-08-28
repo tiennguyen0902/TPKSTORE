@@ -1,0 +1,214 @@
+// Prisma Schema for SHOPBEE / STORE AI (10 Relational Tables)
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPING
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  COD
+  VNPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// 1. Bảng User
+model User {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  passwordHash   String
+  fullName       String
+  phone          String?
+  avatar         String?
+  role           Role            @default(CUSTOMER)
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  refreshTokens  RefreshToken[]
+  cart           Cart?
+  orders         Order[]
+  aiInteractions AIInteraction[]
+
+  @@map("users")
+}
+
+// 2. Bảng RefreshToken (Quản lý phiên đăng nhập & xoay vòng token)
+model RefreshToken {
+  id         String   @id @default(uuid())
+  tokenHash  String   @unique
+  userId     String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// 3. Bảng Category (Danh mục sản phẩm phân cấp)
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  description String?
+  icon        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  products    Product[]
+
+  @@map("categories")
+}
+
+// 4. Bảng Product (Thông tin chi tiết sản phẩm và tồn kho)
+model Product {
+  id            String      @id @default(uuid())
+  name          String
+  slug          String      @unique
+  description   String
+  price         Float
+  originalPrice Float?
+  stock         Int         @default(0)
+  thumbnail     String
+  images        String[]    @default([])
+  rating        Float       @default(5.0)
+  reviewCount   Int         @default(0)
+  isFeatured    Boolean     @default(false)
+  isNew         Boolean     @default(false)
+  categoryId    String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  category      Category    @relation(fields: [categoryId], references: [id])
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+
+  @@map("products")
+}
+
+// 5. Bảng Cart (Giỏ hàng của người dùng 1-1)
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+
+  @@map("carts")
+}
+
+// 6. Bảng CartItem (Chi tiết các mặt hàng trong giỏ)
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  productId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+// 7. Bảng Order (Thông tin đơn đặt hàng)
+model Order {
+  id              String        @id @default(uuid())
+  userId          String
+  totalAmount     Float
+  shippingFee     Float         @default(0)
+  discountAmount  Float         @default(0)
+  finalAmount     Float
+  status          OrderStatus   @default(PENDING)
+  paymentMethod   PaymentMethod @default(COD)
+  paymentStatus   PaymentStatus @default(PENDING)
+  shippingAddress String
+  phone           String
+  customerName    String
+  note            String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user            User          @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  payment         Payment?
+
+  @@map("orders")
+}
+
+// 8. Bảng OrderItem (Chi tiết các sản phẩm trong đơn hàng)
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float    // Snapshot price at purchase time
+  createdAt DateTime @default(now())
+
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+// 9. Bảng Payment (Ghi nhận thông tin giao dịch thanh toán)
+model Payment {
+  id            String        @id @default(uuid())
+  orderId       String        @unique
+  amount        Float
+  paymentMethod PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionNo String?
+  bankCode      String?
+  payload       Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+// 10. Bảng AIInteraction (Nhật ký tương tác và hội thoại AI)
+model AIInteraction {
+  id        String   @id @default(uuid())
+  userId    String?
+  sessionId String
+  query     String
+  response  String
+  type      String   // RECOMMENDATION | CHAT | FORECAST
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("ai_interactions")
+}

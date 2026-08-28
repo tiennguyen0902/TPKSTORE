@@ -1,0 +1,107 @@
+version: "3.8"
+
+services:
+  # 1. PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: store_ai_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-store_ai_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-store_ai_password_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-store_ai_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - store_ai_network
+
+  # 2. Redis Cache & Token Blacklist
+  redis:
+    image: redis:7-alpine
+    container_name: store_ai_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - store_ai_network
+
+  # 3. Python FastAPI AI Microservices
+  ai_service:
+    build:
+      context: ./ai_service
+      dockerfile: Dockerfile
+    container_name: store_ai_microservice
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    networks:
+      - store_ai_network
+
+  # 4. Core Backend (Node.js / Express / TypeScript)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: store_ai_backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DATABASE_URL=postgresql://store_ai_user:store_ai_password_2026@postgres:5432/store_ai_db?schema=public
+      - REDIS_URL=redis://redis:6379
+      - AI_SERVICE_URL=http://ai_service:8000
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-store_ai_access_secret_key_2026}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-store_ai_refresh_secret_key_2026}
+    depends_on:
+      - postgres
+      - redis
+      - ai_service
+    networks:
+      - store_ai_network
+
+  # 5. Frontend Storefront & Admin (React / Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: store_ai_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:5000/api
+      - VITE_AI_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+    networks:
+      - store_ai_network
+
+  # 6. Nginx Gateway & Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: store_ai_nginx
+    restart: always
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - store_ai_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  store_ai_network:
+    driver: bridge
