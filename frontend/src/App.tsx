@@ -246,11 +246,11 @@ const MainApp: React.FC = () => {
             setSelectedCategory(catSlug);
             setCurrentView("catalog");
           }} />
-
-          {/* Floating AI Chatbot Widget */}
-          <FloatingChatWidget onSelectProduct={(p) => setActiveProduct(p)} />
         </>
       )}
+
+      {/* Floating AI Chatbot Widget - Luôn khả dụng cho tất cả mọi người dùng trên toàn hệ thống */}
+      <FloatingChatWidget onSelectProduct={(p) => setActiveProduct(p)} />
 
       {/* Global Product Details Modal */}
       {activeProduct && (
