@@ -12,6 +12,7 @@ router.get("/", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Authenti
     email: u.email,
     fullName: u.fullName,
     phone: u.phone,
+    address: u.address,
     avatar: u.avatar,
     role: u.role,
     isActive: u.isActive,
@@ -28,7 +29,8 @@ router.get("/", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Authenti
     list = list.filter(u => 
       u.fullName.toLowerCase().includes(q) || 
       u.email.toLowerCase().includes(q) || 
-      (u.phone && u.phone.includes(q))
+      (u.phone && u.phone.includes(q)) ||
+      (u.address && u.address.toLowerCase().includes(q))
     );
   }
 

@@ -29,11 +29,19 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 
   const [customerName, setCustomerName] = useState(user?.fullName || "Lê Hoàng Nam");
   const [phone, setPhone] = useState(user?.phone || "0912345678");
-  const [shippingAddress, setShippingAddress] = useState("Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội");
+  const [shippingAddress, setShippingAddress] = useState(user?.address || "Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội");
   const [note, setNote] = useState("Giao hàng giờ hành chính");
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "VNPAY">("COD");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  React.useEffect(() => {
+    if (user) {
+      if (user.fullName) setCustomerName(user.fullName);
+      if (user.phone) setPhone(user.phone);
+      if (user.address) setShippingAddress(user.address);
+    }
+  }, [user]);
 
   // VNPAY Modal state
   const [showVnpayModal, setShowVnpayModal] = useState(false);

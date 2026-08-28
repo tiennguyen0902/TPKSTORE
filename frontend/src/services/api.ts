@@ -40,7 +40,7 @@ export const api = {
     return data;
   },
 
-  async updateProfile(data: { fullName?: string; phone?: string; avatar?: string }) {
+  async updateProfile(data: { fullName?: string; phone?: string; address?: string; avatar?: string }) {
     const res = await fetch(`${API_BASE}/auth/profile`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...getAuthHeader() },

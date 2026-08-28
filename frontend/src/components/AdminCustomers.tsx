@@ -99,6 +99,7 @@ export const AdminCustomers: React.FC = () => {
                 <th className="p-4">Người Dùng</th>
                 <th className="p-4">Email</th>
                 <th className="p-4">Số Điện Thoại</th>
+                <th className="p-4">Địa Chỉ</th>
                 <th className="p-4">Vai Trò (RBAC)</th>
                 <th className="p-4">Trạng Thái</th>
                 <th className="p-4 text-right">Khóa / Mở Khóa</th>
@@ -107,7 +108,7 @@ export const AdminCustomers: React.FC = () => {
             <tbody className="divide-y divide-slate-800/60 text-slate-300">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-400">Đang tải danh sách người dùng...</td>
+                  <td colSpan={7} className="p-8 text-center text-slate-400">Đang tải danh sách người dùng...</td>
                 </tr>
               ) : (
                 users.map((u) => (
@@ -123,6 +124,13 @@ export const AdminCustomers: React.FC = () => {
                     </td>
                     <td className="p-4 text-slate-300">{u.email}</td>
                     <td className="p-4 text-slate-400 font-mono">{u.phone || "Chưa cập nhật"}</td>
+                    <td className="p-4 text-slate-300 max-w-[200px]">
+                      {u.address ? (
+                        <span className="line-clamp-2 text-[11px]" title={u.address}>{u.address}</span>
+                      ) : (
+                        <span className="text-slate-500 italic text-[11px]">Chưa cập nhật</span>
+                      )}
+                    </td>
                     <td className="p-4 whitespace-nowrap">
                       <select
                         value={u.role}

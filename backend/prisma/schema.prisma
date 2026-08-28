@@ -43,6 +43,7 @@ model User {
   passwordHash   String
   fullName       String
   phone          String?
+  address        String?
   avatar         String?
   role           Role            @default(CUSTOMER)
   isActive       Boolean         @default(true)

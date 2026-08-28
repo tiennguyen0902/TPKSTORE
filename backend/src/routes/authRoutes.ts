@@ -11,7 +11,7 @@ const router = Router();
 // POST /api/auth/register
 router.post("/register", async (req: Request, res: Response) => {
   try {
-    const { email, password, fullName, phone } = req.body;
+    const { email, password, fullName, phone, address } = req.body;
 
     if (!email || !password || !fullName) {
       return res.status(400).json({ error: "Vui lòng nhập đầy đủ Email, Mật khẩu và Họ tên." });
@@ -33,6 +33,7 @@ router.post("/register", async (req: Request, res: Response) => {
       passwordHash,
       fullName,
       phone: phone || "",
+      address: address || "",
       avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
       role: "CUSTOMER",
       isActive: true,
@@ -51,6 +52,7 @@ router.post("/register", async (req: Request, res: Response) => {
         fullName: newUser.fullName,
         role: newUser.role,
         phone: newUser.phone,
+        address: newUser.address,
         avatar: newUser.avatar
       },
       tokens
@@ -93,6 +95,7 @@ router.post("/login", async (req: Request, res: Response) => {
         fullName: user.fullName,
         role: user.role,
         phone: user.phone,
+        address: user.address,
         avatar: user.avatar
       },
       tokens
@@ -147,6 +150,7 @@ router.get("/me", authenticateToken, (req: AuthenticatedRequest, res: Response) 
       fullName: user.fullName,
       role: user.role,
       phone: user.phone,
+      address: user.address,
       avatar: user.avatar,
       createdAt: user.createdAt
     }
@@ -156,10 +160,11 @@ router.get("/me", authenticateToken, (req: AuthenticatedRequest, res: Response) 
 // PUT /api/auth/profile
 router.put("/profile", authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
-  const { fullName, phone, avatar } = req.body;
+  const { fullName, phone, address, avatar } = req.body;
 
   if (fullName) user.fullName = fullName;
   if (phone !== undefined) user.phone = phone;
+  if (address !== undefined) user.address = address;
   if (avatar !== undefined) user.avatar = avatar;
   user.updatedAt = new Date().toISOString();
 
@@ -171,6 +176,7 @@ router.put("/profile", authenticateToken, (req: AuthenticatedRequest, res: Respo
       fullName: user.fullName,
       role: user.role,
       phone: user.phone,
+      address: user.address,
       avatar: user.avatar
     }
   });

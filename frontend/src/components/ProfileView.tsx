@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { User, Lock, Save, CheckCircle2, AlertCircle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { User, Lock, Save, CheckCircle2, AlertCircle, MapPin } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 
@@ -8,7 +8,17 @@ export const ProfileView: React.FC = () => {
 
   const [fullName, setFullName] = useState(user?.fullName || "");
   const [phone, setPhone] = useState(user?.phone || "");
+  const [address, setAddress] = useState(user?.address || "");
   const [avatar, setAvatar] = useState(user?.avatar || "");
+
+  useEffect(() => {
+    if (user) {
+      setFullName(user.fullName || "");
+      setPhone(user.phone || "");
+      setAddress(user.address || "");
+      setAvatar(user.avatar || "");
+    }
+  }, [user]);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -22,8 +32,8 @@ export const ProfileView: React.FC = () => {
     e.preventDefault();
     try {
       setErrorMsg("");
-      await api.updateProfile({ fullName, phone, avatar });
-      updateUser({ fullName, phone, avatar });
+      await api.updateProfile({ fullName, phone, address, avatar });
+      updateUser({ fullName, phone, address, avatar });
       setProfileMsg("Cập nhật thông tin cá nhân thành công!");
       setTimeout(() => setProfileMsg(""), 3000);
     } catch (err: any) {
@@ -82,6 +92,13 @@ export const ProfileView: React.FC = () => {
               <p className="text-xs text-slate-400 mt-0.5">{user?.email}</p>
             </div>
 
+            {user?.address && (
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 px-2 py-1.5 rounded-xl bg-slate-800/40 border border-slate-800">
+                <MapPin className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                <span className="truncate text-slate-300" title={user.address}>{user.address}</span>
+              </div>
+            )}
+
             <div className="pt-2">
               <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                 user?.role === "ADMIN" ? "bg-violet-600/20 text-violet-300 border border-violet-500/30" :
@@ -122,24 +139,41 @@ export const ProfileView: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-300 mb-1">Số điện thoại</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500 text-xs"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-slate-300 mb-1">Số điện thoại</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="0912..."
+                    className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-300 mb-1">Link ảnh đại diện (Avatar URL)</label>
+                  <input
+                    type="url"
+                    value={avatar}
+                    onChange={(e) => setAvatar(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500 text-xs"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Link ảnh đại diện (Avatar URL)</label>
-                <input
-                  type="url"
-                  value={avatar}
-                  onChange={(e) => setAvatar(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500 text-xs"
+                <label className="block font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-violet-400" />
+                  Địa chỉ nhận hàng (Giao hàng mặc định)
+                </label>
+                <textarea
+                  rows={2}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Ví dụ: Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội"
+                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500 text-xs resize-none"
                 />
               </div>
 

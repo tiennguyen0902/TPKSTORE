@@ -9,6 +9,7 @@ export interface User {
   passwordHash: string;
   fullName: string;
   phone?: string;
+  address?: string;
   avatar?: string;
   role: "ADMIN" | "STAFF" | "CUSTOMER";
   isActive: boolean;
@@ -106,6 +107,7 @@ export const INITIAL_USERS: User[] = [
     passwordHash: DEFAULT_PASSWORD_HASH,
     fullName: "Thang Quốc Khải (Admin)",
     phone: "0901234567",
+    address: "Tòa nhà Keangnam Landmark 72, Phạm Hùng, Q. Nam Từ Liêm, Hà Nội",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
     role: "ADMIN",
     isActive: true,
@@ -118,6 +120,7 @@ export const INITIAL_USERS: User[] = [
     passwordHash: DEFAULT_PASSWORD_HASH,
     fullName: "Nguyễn Đình Tiến (Staff)",
     phone: "0902345678",
+    address: "123 Cầu Giấy, P. Dịch Vọng, Q. Cầu Giấy, Hà Nội",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     role: "STAFF",
     isActive: true,
@@ -130,6 +133,7 @@ export const INITIAL_USERS: User[] = [
     passwordHash: DEFAULT_PASSWORD_HASH,
     fullName: "Nguyễn Hồng Phúc (Staff)",
     phone: "0903456789",
+    address: "456 Nguyễn Trãi, P. Thanh Xuân Trung, Q. Thanh Xuân, Hà Nội",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
     role: "STAFF",
     isActive: true,
@@ -142,6 +146,7 @@ export const INITIAL_USERS: User[] = [
     passwordHash: DEFAULT_PASSWORD_HASH,
     fullName: "Lê Hoàng Nam",
     phone: "0912345678",
+    address: "Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội",
     avatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
     role: "CUSTOMER",
     isActive: true,
@@ -154,6 +159,7 @@ export const INITIAL_USERS: User[] = [
     passwordHash: DEFAULT_PASSWORD_HASH,
     fullName: "Trần Thị Mai Anh",
     phone: "0913456789",
+    address: "Số 18 Đường Hai Bà Trưng, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh",
     avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
     role: "CUSTOMER",
     isActive: true,
@@ -166,6 +172,7 @@ export const INITIAL_USERS: User[] = [
     passwordHash: DEFAULT_PASSWORD_HASH,
     fullName: "Phạm Quốc Bảo",
     phone: "0914567890",
+    address: "Số 88 Trần Hưng Đạo, P. An Hải Tây, Q. Sơn Trà, Đà Nẵng",
     avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
     role: "CUSTOMER",
     isActive: true,
@@ -178,6 +185,7 @@ export const INITIAL_USERS: User[] = [
     passwordHash: DEFAULT_PASSWORD_HASH,
     fullName: "Đỗ Ngọc Ánh",
     phone: "0915678901",
+    address: "24 Đường Lê Lợi, Phường 4, TP. Vũng Tàu, Bà Rịa - Vũng Tàu",
     avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
     role: "CUSTOMER",
     isActive: true,
@@ -190,6 +198,7 @@ export const INITIAL_USERS: User[] = [
     passwordHash: DEFAULT_PASSWORD_HASH,
     fullName: "Vũ Minh Trí",
     phone: "0916789012",
+    address: "56 Nguyễn Thị Minh Khai, P. Đa Kao, Quận 1, TP. Hồ Chí Minh",
     avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
     role: "CUSTOMER",
     isActive: true,
