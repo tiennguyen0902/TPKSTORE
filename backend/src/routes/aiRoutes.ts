@@ -19,8 +19,8 @@ async function callAiService(endpoint: string, payload: any) {
   }
 }
 
-// POST /api/ai/test-key (Verify Google Gemini or OpenAI API Key connection & status)
-router.post("/test-key", async (req: Request, res: Response) => {
+// POST /api/ai/test-key (Verify Google Gemini or OpenAI API Key connection & status - Chỉ ADMIN)
+router.post("/test-key", authenticateToken, authorize(["ADMIN"]), async (req: AuthenticatedRequest, res: Response) => {
   const provider = req.body.provider || db.settings.aiProvider || "gemini";
   const geminiApiKey = req.body.geminiApiKey || db.settings.geminiApiKey;
   const geminiModel = req.body.geminiModel || db.settings.geminiModel;

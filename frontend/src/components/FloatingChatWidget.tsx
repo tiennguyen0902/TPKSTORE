@@ -17,6 +17,7 @@ import {
 import { api } from "../services/api";
 import { Product } from "../types";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 
 interface ChatMessage {
   id: string;
@@ -31,6 +32,9 @@ interface ChatMessage {
 }
 
 export const FloatingChatWidget: React.FC<{ onSelectProduct?: (product: Product) => void }> = ({ onSelectProduct }) => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
   const [isOpen, setIsOpen] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [customKey, setCustomKey] = useState("");
@@ -183,19 +187,21 @@ export const FloatingChatWidget: React.FC<{ onSelectProduct?: (product: Product)
             </div>
 
             <div className="flex items-center gap-1">
-              {/* API Key Connection Diagnostic Button */}
-              <button
-                onClick={() => setShowKeyModal(!showKeyModal)}
-                title="Kiểm tra trạng thái kết nối Google Gemini API Key"
-                className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-semibold ${
-                  showKeyModal 
-                    ? "bg-pink-600 text-white shadow-sm" 
-                    : "text-slate-300 hover:text-white hover:bg-slate-800"
-                }`}
-              >
-                <Key className="w-4 h-4 text-pink-400" />
-                <span className="hidden sm:inline text-[10px]">Kiểm tra Key</span>
-              </button>
+              {/* API Key Connection Diagnostic Button - CHỈ ADMIN MỚI ĐƯỢC DÙNG */}
+              {isAdmin && (
+                <button
+                  onClick={() => setShowKeyModal(!showKeyModal)}
+                  title="Kiểm tra trạng thái kết nối Google Gemini API Key (Chỉ dành cho Quản trị viên)"
+                  className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-semibold ${
+                    showKeyModal 
+                      ? "bg-pink-600 text-white shadow-sm" 
+                      : "text-slate-300 hover:text-white hover:bg-slate-800"
+                  }`}
+                >
+                  <Key className="w-4 h-4 text-pink-400" />
+                  <span className="hidden sm:inline text-[10px]">Kiểm tra Key</span>
+                </button>
+              )}
 
               <button
                 onClick={() => setMessages([messages[0]])}
@@ -213,8 +219,8 @@ export const FloatingChatWidget: React.FC<{ onSelectProduct?: (product: Product)
             </div>
           </div>
 
-          {/* Quick API Key Tester Drawer */}
-          {showKeyModal && (
+          {/* Quick API Key Tester Drawer - CHỈ ADMIN MỚI ĐƯỢC DÙNG */}
+          {isAdmin && showKeyModal && (
             <div className="p-3.5 bg-[#0f172a] border-b border-slate-700/80 text-xs animate-in fade-in slide-in-from-top-2 duration-150 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-white flex items-center gap-1.5">
