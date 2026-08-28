@@ -8,16 +8,11 @@ import {
   RotateCcw, 
   AlertCircle,
   ExternalLink,
-  Key,
-  CheckCircle2,
-  AlertTriangle,
-  Loader2,
   Globe
 } from "lucide-react";
 import { api } from "../services/api";
 import { Product } from "../types";
 import { useCart } from "../context/CartContext";
-import { useAuth } from "../context/AuthContext";
 
 interface ChatMessage {
   id: string;
@@ -32,15 +27,7 @@ interface ChatMessage {
 }
 
 export const FloatingChatWidget: React.FC<{ onSelectProduct?: (product: Product) => void }> = ({ onSelectProduct }) => {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
-
   const [isOpen, setIsOpen] = useState(false);
-  const [showKeyModal, setShowKeyModal] = useState(false);
-  const [customKey, setCustomKey] = useState("");
-  const [isTestingKey, setIsTestingKey] = useState(false);
-  const [testResult, setTestResult] = useState<{ valid: boolean; message: string; model?: string; sampleResponse?: string } | null>(null);
-  
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { addToCart } = useCart();
@@ -71,32 +58,6 @@ export const FloatingChatWidget: React.FC<{ onSelectProduct?: (product: Product)
       scrollToBottom();
     }
   }, [messages, isOpen]);
-
-  const [testProvider, setTestProvider] = useState<"gemini" | "openai">("gemini");
-
-  const handleTestApiKey = async () => {
-    setIsTestingKey(true);
-    setTestResult(null);
-    try {
-      const res = await api.testAiKey({
-        provider: testProvider,
-        apiKey: customKey.trim() || undefined
-      });
-      setTestResult({
-        valid: res.valid,
-        model: res.model,
-        message: res.message,
-        sampleResponse: res.sampleResponse
-      });
-    } catch (err: any) {
-      setTestResult({
-        valid: false,
-        message: `Lỗi kết nối: ${err.message || "Không thể kiểm tra API Key"}`
-      });
-    } finally {
-      setIsTestingKey(false);
-    }
-  };
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputMessage).trim();
@@ -189,20 +150,6 @@ export const FloatingChatWidget: React.FC<{ onSelectProduct?: (product: Product)
             </div>
 
             <div className="flex items-center gap-1">
-              {/* API Key Connection Diagnostic Button - CẤP QUYỀN CHO TẤT CẢ MỌI NGƯỜI DÙNG */}
-              <button
-                onClick={() => setShowKeyModal(!showKeyModal)}
-                title="Kiểm tra trạng thái kết nối Google Gemini & OpenAI API Key"
-                className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-semibold ${
-                  showKeyModal 
-                    ? "bg-pink-600 text-white shadow-sm" 
-                    : "text-slate-300 hover:text-white hover:bg-slate-800"
-                }`}
-              >
-                <Key className="w-4 h-4 text-pink-400" />
-                <span className="hidden sm:inline text-[10px]">Kiểm tra Key</span>
-              </button>
-
               <button
                 onClick={() => setMessages([messages[0]])}
                 title="Làm mới đoạn hội thoại"
@@ -218,101 +165,6 @@ export const FloatingChatWidget: React.FC<{ onSelectProduct?: (product: Product)
               </button>
             </div>
           </div>
-
-          {/* Quick API Key Tester Drawer - CẤP QUYỀN CHO TẤT CẢ MỌI NGƯỜI DÙNG */}
-          {showKeyModal && (
-            <div className="p-3.5 bg-[#0f172a] border-b border-slate-700/80 text-xs animate-in fade-in slide-in-from-top-2 duration-150 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5 text-pink-400" /> Kiểm Tra Kết Nối AI API Key
-                </span>
-                <button
-                  onClick={() => setShowKeyModal(false)}
-                  className="text-slate-400 hover:text-white text-[10px]"
-                >
-                  Đóng ✕
-                </button>
-              </div>
-
-              {/* Provider Selection inside Widget */}
-              <div className="flex bg-[#1e293b] p-0.5 rounded-lg text-[10px] font-semibold">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTestProvider("gemini");
-                    setTestResult(null);
-                  }}
-                  className={`flex-1 py-1 rounded-md transition-all ${
-                    testProvider === "gemini"
-                      ? "bg-violet-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  Google Gemini
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTestProvider("openai");
-                    setTestResult(null);
-                  }}
-                  className={`flex-1 py-1 rounded-md transition-all ${
-                    testProvider === "openai"
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  OpenAI ChatGPT
-                </button>
-              </div>
-
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  placeholder={testProvider === "gemini" ? "Để trống test Key CSDL, hoặc dán AIzaSy..." : "Để trống test Key CSDL, hoặc dán sk-..."}
-                  value={customKey}
-                  onChange={(e) => setCustomKey(e.target.value)}
-                  className="flex-1 bg-[#1e293b] border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono text-[11px] placeholder-slate-500 focus:outline-none focus:border-pink-500"
-                />
-                <button
-                  onClick={handleTestApiKey}
-                  disabled={isTestingKey}
-                  className={`px-3 py-1.5 rounded-lg text-white font-bold text-[11px] flex items-center gap-1 shrink-0 disabled:opacity-50 ${
-                    testProvider === "gemini" ? "bg-violet-600 hover:bg-violet-500" : "bg-emerald-600 hover:bg-emerald-500"
-                  }`}
-                >
-                  {isTestingKey ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                  <span>Test Key</span>
-                </button>
-              </div>
-
-              {testResult && (
-                <div
-                  className={`p-2.5 rounded-xl border text-[11px] ${
-                    testResult.valid
-                      ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-200"
-                      : "bg-rose-950/40 border-rose-500/40 text-rose-200"
-                  }`}
-                >
-                  <div className="flex items-start gap-1.5">
-                    {testResult.valid ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                    )}
-                    <div className="space-y-1">
-                      <p className="font-semibold">{testResult.message}</p>
-                      {testResult.sampleResponse && (
-                        <p className="text-[10px] italic text-slate-300 bg-slate-900/60 p-1.5 rounded border border-emerald-500/20">
-                          "{testResult.sampleResponse}"
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Messages Area */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4 text-xs">
