@@ -28,7 +28,7 @@ export const AdminSettings: React.FC = () => {
     freeShippingThreshold: 500000,
     aiProvider: "gemini",
     geminiApiKey: "",
-    geminiModel: "gemini-2.5-flash",
+    geminiModel: "gemini-3.6-flash",
     openaiApiKey: "",
     openaiModel: "gpt-4o-mini",
     aiServiceUrl: "http://localhost:8000",
@@ -246,10 +246,10 @@ export const AdminSettings: React.FC = () => {
           {/* TAB 1: GOOGLE GEMINI */}
           {activeAiTab === "gemini" && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-violet-900/30 via-indigo-900/20 to-slate-900/40 border border-violet-700/30 text-slate-300 leading-relaxed text-[11px] space-y-1">
-                <p className="font-semibold text-violet-200 flex items-center gap-1.5">
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-violet-950/40 via-indigo-900/30 to-slate-900/40 border border-violet-700/30 text-slate-300 leading-relaxed text-[11px] space-y-1">
+                <p className="font-semibold text-violet-300 flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  Mô hình Google Gemini (2.5 Flash, 2.5 Pro, 2.0 Flash):
+                  Mô hình Google Gemini (Gemini 3.6 Flash, 3.7 Flash, 3.5 Flash, 2.5 Flash):
                 </p>
                 <p>
                   Xử lý siêu tốc mọi câu hỏi trong và ngoài CSDL cửa hàng, hỗ trợ ngữ cảnh lớn và phân tích kỹ thuật chuẩn xác.
@@ -317,21 +317,24 @@ export const AdminSettings: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Mô hình AI Gemini</label>
+                <label className="block font-semibold text-slate-300 mb-1">Mô hình AI Gemini Mới Nhất</label>
                 <select
-                  value={settings.geminiModel || "gemini-2.5-flash"}
+                  value={settings.geminiModel || "gemini-3.6-flash"}
                   onChange={(e) => {
                     setSettings({ ...settings, geminiModel: e.target.value });
                     if (testResult) setTestResult(null);
                   }}
                   className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500 text-xs"
                 >
-                  <option value="gemini-2.5-flash">gemini-2.5-flash ⭐ (Khuyên dùng - Siêu tốc, Thế hệ mới 2026)</option>
-                  <option value="gemini-2.0-flash">gemini-2.0-flash 🚀 (Ổn định, phản hồi cực nhanh)</option>
-                  <option value="gemini-1.5-flash">gemini-1.5-flash ⚡ (Độ trễ thấp, tiết kiệm quota)</option>
-                  <option value="gemini-flash-latest">gemini-flash-latest 🔄 (Tự động trỏ bản Flash mới nhất)</option>
-                  <option value="gemini-1.5-pro">gemini-1.5-pro 🧠 (Tư vấn chuyên sâu, lập luận phức tạp)</option>
-                  <option value="gemini-pro-latest">gemini-pro-latest 🌟 (Tự động trỏ bản Pro)</option>
+                  <option value="gemini-3.6-flash">gemini-3.6-flash ⭐ (Khuyên dùng - Nhanh, Thông minh, Hoạt động 100%)</option>
+                  <option value="gemini-3.7-flash">gemini-3.7-flash 🚀 (Bản mới nhất - Phản hồi siêu tốc)</option>
+                  <option value="gemini-flash-latest">gemini-flash-latest ⚡ (Tự động cập nhật Flash)</option>
+                  <option value="gemini-pro-latest">gemini-pro-latest 🧠 (Tự động cập nhật Pro)</option>
+                  <option value="gemini-3.5-flash">gemini-3.5-flash (Bản Flash 3.5)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (Bản Flash 2.5 Thế hệ mới 2026)</option>
+                  <option value="gemini-2.0-flash">gemini-2.0-flash (Bản Flash 2.0 Ổn định)</option>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash (Bản Flash 1.5 Tiết kiệm)</option>
+                  <option value="gemini-1.5-pro">gemini-1.5-pro (Bản Pro 1.5 Chuyên sâu)</option>
                 </select>
               </div>
             </div>

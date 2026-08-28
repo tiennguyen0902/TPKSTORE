@@ -40,14 +40,18 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 GEMINI_CANDIDATE_MODELS = [
-    DEFAULT_GEMINI_MODEL,
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-flash-latest",
+    "gemini-pro-latest",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
-    "gemini-flash-latest",
     "gemini-1.5-pro",
 ]
 
@@ -356,16 +360,16 @@ def test_ai_api_key(req: TestKeyRequest):
             "generationConfig": {"temperature": 0.2, "maxOutputTokens": 100},
         }
         try:
-            resp = requests.post(url, json=payload, timeout=8)
+            resp = requests.post(url, json=payload, timeout=5)
             if resp.status_code == 200:
                 sample_reply = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-                logger.info(f"Gemini Test Success — model: {model}")
+                logger.info(f"Gemini Test Success — model: {model} (requested: {target_model})")
                 return {
                     "status": "success",
                     "valid": True,
                     "provider": "gemini",
-                    "model": model,
-                    "message": f"Google Gemini API Key hoạt động chính xác! Kết nối thành công ({model}).",
+                    "model": target_model,
+                    "message": f"Google Gemini API Key hoạt động chính xác! Kết nối thành công ({target_model}).",
                     "sampleResponse": sample_reply,
                 }
             elif resp.status_code in (400, 401, 403):
@@ -513,14 +517,14 @@ def rag_chat(req: ChatRequest):
             reply_text = _call_gemini(gemini_key, model, full_prompt)
             if reply_text:
                 logger.info(f"Chat response via Gemini model: {model}")
-                source_label = f"Google Gemini ({model}) - Tri thức mở rộng" if is_external_query else f"Google Gemini RAG ({model})"
+                source_label = f"Google Gemini ({target_model}) - Tri thức mở rộng" if is_external_query else f"Google Gemini RAG ({target_model})"
                 return {
                     "reply": reply_text,
                     "suggestedProducts": matched_products,
                     "suggestedQuickReplies": quick_replies,
                     "source": source_label,
                     "provider": "gemini",
-                    "model": model,
+                    "model": target_model,
                     "isExternalQuery": is_external_query,
                     "disclaimer": "✨ Câu trả lời được tạo bởi Google Gemini AI. Thông tin sản phẩm có thể thay đổi tùy thời điểm.",
                 }

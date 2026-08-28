@@ -677,7 +677,7 @@ export const INITIAL_SETTINGS: SystemSettings = {
   freeShippingThreshold: 500000,
   aiProvider: "gemini",
   geminiApiKey: "",
-  geminiModel: "gemini-2.5-flash",
+  geminiModel: "gemini-3.6-flash",
   openaiApiKey: "",
   openaiModel: "gpt-5.4-mini",
   aiServiceUrl: process.env.AI_SERVICE_URL || "http://ai_service:8000",
