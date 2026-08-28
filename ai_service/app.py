@@ -40,16 +40,16 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 GEMINI_CANDIDATE_MODELS = [
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
     "gemini-3.6-flash",
     "gemini-3.7-flash",
     "gemini-flash-latest",
     "gemini-pro-latest",
-    "gemini-3.5-flash",
-    "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
     "gemini-1.5-pro",
@@ -182,7 +182,7 @@ def _call_openai(
     api_key: str,
     model: str,
     messages: list,
-    timeout: int = 12,
+    timeout: int = 30,
 ) -> Optional[str]:
     """
     Call OpenAI Chat Completions API. Returns the reply text or None on failure.
@@ -191,7 +191,7 @@ def _call_openai(
         resp = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model, "messages": messages, "temperature": 0.5, "max_tokens": 1000},
+            json={"model": model, "messages": messages, "temperature": 0.6, "max_tokens": 4096},
             timeout=timeout,
         )
         if resp.status_code == 200:
@@ -206,7 +206,7 @@ def _call_gemini(
     api_key: str,
     model: str,
     prompt: str,
-    timeout: int = 10,
+    timeout: int = 18,
 ) -> Optional[str]:
     """
     Call Google Gemini generateContent API. Returns the reply text or None on failure.
@@ -214,12 +214,19 @@ def _call_gemini(
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.5, "maxOutputTokens": 1000},
+        "generationConfig": {
+            "temperature": 0.6,
+            "maxOutputTokens": 8192,
+        },
     }
     try:
         resp = requests.post(url, json=payload, timeout=timeout)
         if resp.status_code == 200:
-            return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+            candidate = resp.json().get("candidates", [{}])[0]
+            parts = candidate.get("content", {}).get("parts", [])
+            text_parts = [p.get("text", "") for p in parts if "text" in p]
+            if text_parts:
+                return "".join(text_parts).strip()
         logger.warning(f"Gemini model {model} returned {resp.status_code}: {resp.text[:120]}")
     except Exception as exc:
         logger.warning(f"Error calling Gemini model {model}: {exc}")
@@ -454,19 +461,27 @@ def rag_chat(req: ChatRequest):
     matched_products = []
     if req.products:
         scored: List[tuple] = []
+        COMMON_STOPWORDS = {
+            "ban", "co", "biet", "khong", "cho", "toi", "minh", "nay", "duoc",
+            "khach", "muon", "hoi", "ve", "gi", "sao", "the", "nao", "o", "dau",
+            "va", "la", "cac", "nhung", "mot", "hai", "hay", "xin", "chao", "voi",
+            "ai", "dang", "rat", "nhe", "a", "da", "di", "nhu", "giup", "admin"
+        }
+        query_words = [w for w in norm_query.split() if len(w) > 2 and w not in COMMON_STOPWORDS]
+
         for p in req.products:
             p_norm = remove_accents(f"{p.get('name', '')} {p.get('description', '')}")
             price = float(p.get("price", 0))
 
             budget_ok = (min_p is None or price >= min_p) and (max_p is None or price <= max_p)
-            query_words = [w for w in norm_query.split() if len(w) > 2]
             word_match = sum(1 for w in query_words if w in p_norm)
 
-            if budget_ok and (word_match > 0 or min_p is not None or max_p is not None):
+            if budget_ok and ((word_match > 0 and query_words) or (min_p is not None or max_p is not None)):
                 scored.append((word_match, p))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        matched_products = [item[1] for item in scored[:3]]
+        if query_words or min_p is not None or max_p is not None:
+            matched_products = [item[1] for item in scored[:3] if item[0] > 0 or min_p is not None or max_p is not None]
 
     is_external_query = not matched_products and not matched_policies
 

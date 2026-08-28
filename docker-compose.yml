@@ -39,7 +39,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     networks:
       - store_ai_network
 
@@ -57,6 +57,7 @@ services:
       - DATABASE_URL=postgresql://store_ai_user:store_ai_password_2026@postgres:5432/store_ai_db?schema=public
       - REDIS_URL=redis://redis:6379
       - AI_SERVICE_URL=http://ai_service:8000
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-store_ai_access_secret_key_2026}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-store_ai_refresh_secret_key_2026}
     depends_on:

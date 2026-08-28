@@ -201,7 +201,25 @@ export const FloatingChatWidget: React.FC<{ onSelectProduct?: (product: Product)
                     </div>
                   )}
 
-                  <div className="whitespace-pre-line break-words">{msg.text}</div>
+                  <div className="break-words space-y-1 text-slate-200 leading-relaxed text-[12px]">
+                    {msg.text.split("\n").map((line, lIdx) => {
+                      const parts = line.split(/(\*\*[^*]+\*\*)/g);
+                      return (
+                        <span key={lIdx} className="block min-h-[1.25em]">
+                          {parts.map((part, pIdx) => {
+                            if (part.startsWith("**") && part.endsWith("**")) {
+                              return (
+                                <strong key={pIdx} className="font-bold text-white">
+                                  {part.slice(2, -2)}
+                                </strong>
+                              );
+                            }
+                            return part;
+                          })}
+                        </span>
+                      );
+                    })}
+                  </div>
 
                   {/* Embedded Product Cards inside AI Message */}
                   {msg.suggestedProducts && msg.suggestedProducts.length > 0 && (
