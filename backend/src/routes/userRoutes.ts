@@ -41,7 +41,7 @@ router.get("/", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Authenti
 });
 
 // PUT /api/users/:id/role (Admin update role)
-router.put("/:id/role", authenticateToken, authorize(["ADMIN"]), (req: AuthenticatedRequest, res: Response) => {
+router.put("/:id/role", authenticateToken, authorize(["ADMIN"]), async (req: AuthenticatedRequest, res: Response) => {
   const user = db.users.find(u => u.id === req.params.id);
   if (!user) {
     return res.status(404).json({ error: "Không tìm thấy người dùng." });
@@ -54,6 +54,7 @@ router.put("/:id/role", authenticateToken, authorize(["ADMIN"]), (req: Authentic
 
   user.role = role;
   user.updatedAt = new Date().toISOString();
+  await db.updateUser(user);
 
   return res.json({
     message: `Đã cập nhật vai trò người dùng thành ${role}!`,
@@ -67,7 +68,7 @@ router.put("/:id/role", authenticateToken, authorize(["ADMIN"]), (req: Authentic
 });
 
 // PUT /api/users/:id/toggle-active (Admin lock / unlock account)
-router.put("/:id/toggle-active", authenticateToken, authorize(["ADMIN"]), (req: AuthenticatedRequest, res: Response) => {
+router.put("/:id/toggle-active", authenticateToken, authorize(["ADMIN"]), async (req: AuthenticatedRequest, res: Response) => {
   const user = db.users.find(u => u.id === req.params.id);
   if (!user) {
     return res.status(404).json({ error: "Không tìm thấy người dùng." });
@@ -79,6 +80,7 @@ router.put("/:id/toggle-active", authenticateToken, authorize(["ADMIN"]), (req: 
 
   user.isActive = !user.isActive;
   user.updatedAt = new Date().toISOString();
+  await db.updateUser(user);
 
   return res.json({
     message: user.isActive ? "Đã mở khóa tài khoản người dùng." : "Đã tạm khóa tài khoản người dùng.",

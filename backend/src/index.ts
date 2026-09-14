@@ -11,6 +11,7 @@ import paymentRoutes from "./routes/paymentRoutes";
 import aiRoutes from "./routes/aiRoutes";
 import userRoutes from "./routes/userRoutes";
 import settingsRoutes from "./routes/settingsRoutes";
+import { db } from "./db";
 
 dotenv.config();
 
@@ -63,9 +64,10 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 SHOPBEE Core Backend Server running on port ${PORT}`);
   console.log(`📡 API Endpoints available at http://localhost:${PORT}/api`);
+  await db.init();
 });
 
 export default app;

@@ -132,6 +132,7 @@ router.put("/:id/status", authenticateToken, authorize(["ADMIN", "STAFF"]), (req
   }
 
   order.updatedAt = new Date().toISOString();
+  db.updateOrder(order);
 
   return res.json({
     message: "Cập nhật trạng thái đơn hàng thành công!",

@@ -43,6 +43,8 @@ router.put("/", authenticateToken, authorize(["ADMIN"]), (req: AuthenticatedRequ
   if (momoAccessKey !== undefined) db.settings.momoAccessKey = momoAccessKey;
   if (momoSecretKey !== undefined) db.settings.momoSecretKey = momoSecretKey;
 
+  db.updateSettings(db.settings);
+
   return res.json({
     message: "Lưu cấu hình hệ thống thành công!",
     settings: db.settings

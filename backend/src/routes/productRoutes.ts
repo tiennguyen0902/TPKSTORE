@@ -43,7 +43,7 @@ router.get("/:idOrSlug", (req: Request, res: Response) => {
 });
 
 // POST /api/products (Admin & Staff)
-router.post("/", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Request, res: Response) => {
+router.post("/", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: Request, res: Response) => {
   try {
     const { name, description, price, originalPrice, stock, categoryId, thumbnail, images, isFeatured, isNew } = req.body;
 
@@ -89,7 +89,7 @@ router.post("/", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Request
       updatedAt: new Date().toISOString()
     };
 
-    db.products.unshift(newProduct);
+    await db.addProduct(newProduct);
 
     return res.status(201).json({
       message: "Thêm mới sản phẩm thành công!",
@@ -101,7 +101,7 @@ router.post("/", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Request
 });
 
 // PUT /api/products/:id (Admin & Staff)
-router.put("/:id", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Request, res: Response) => {
+router.put("/:id", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: Request, res: Response) => {
   const prod = db.products.find(p => p.id === req.params.id);
   if (!prod) {
     return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
@@ -128,6 +128,8 @@ router.put("/:id", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Reque
   if (isNew !== undefined) prod.isNew = Boolean(isNew);
   prod.updatedAt = new Date().toISOString();
 
+  await db.updateProduct(prod);
+
   return res.json({
     message: "Cập nhật sản phẩm thành công!",
     product: db.getProductWithCategory(prod)
@@ -135,13 +137,13 @@ router.put("/:id", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Reque
 });
 
 // DELETE /api/products/:id (Admin & Staff)
-router.delete("/:id", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Request, res: Response) => {
-  const idx = db.products.findIndex(p => p.id === req.params.id);
-  if (idx === -1) {
+router.delete("/:id", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: Request, res: Response) => {
+  const prod = db.products.find(p => p.id === req.params.id);
+  if (!prod) {
     return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
   }
 
-  db.products.splice(idx, 1);
+  await db.deleteProduct(req.params.id);
   return res.json({ message: "Xóa sản phẩm thành công!" });
 });
 

@@ -41,7 +41,7 @@ router.post("/register", async (req: Request, res: Response) => {
       updatedAt: new Date().toISOString()
     };
 
-    db.users.push(newUser);
+    await db.addUser(newUser);
     const tokens = generateTokens(newUser);
 
     return res.status(201).json({
@@ -158,7 +158,7 @@ router.get("/me", authenticateToken, (req: AuthenticatedRequest, res: Response) 
 });
 
 // PUT /api/auth/profile
-router.put("/profile", authenticateToken, (req: AuthenticatedRequest, res: Response) => {
+router.put("/profile", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
   const { fullName, phone, address, avatar } = req.body;
 
@@ -167,6 +167,7 @@ router.put("/profile", authenticateToken, (req: AuthenticatedRequest, res: Respo
   if (address !== undefined) user.address = address;
   if (avatar !== undefined) user.avatar = avatar;
   user.updatedAt = new Date().toISOString();
+  await db.updateUser(user);
 
   return res.json({
     message: "Cập nhật thông tin thành công!",
@@ -202,6 +203,7 @@ router.put("/change-password", authenticateToken, async (req: AuthenticatedReque
 
   user.passwordHash = await bcrypt.hash(newPassword, 10);
   user.updatedAt = new Date().toISOString();
+  await db.updateUser(user);
 
   return res.json({ message: "Đổi mật khẩu thành công!" });
 });

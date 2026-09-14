@@ -27,6 +27,7 @@ enum OrderStatus {
 enum PaymentMethod {
   COD
   VNPAY
+  MOMO
 }
 
 enum PaymentStatus {
@@ -213,3 +214,23 @@ model AIInteraction {
 
   @@map("ai_interactions")
 }
+
+// 11. Bảng SystemSettings (Cấu hình hệ thống & AI)
+model SystemSettings {
+  id                    String   @id @default("default_settings")
+  freeShippingThreshold Float    @default(500000)
+  aiProvider            String   @default("GEMINI")
+  geminiApiKey          String?
+  geminiModel           String?  @default("gemini-2.5-flash")
+  openaiApiKey          String?
+  openaiModel           String?
+  aiServiceUrl          String   @default("http://localhost:8000")
+  vnpayTmnCode          String   @default("SANDBOX_STORE_AI")
+  momoPartnerCode       String?
+  momoAccessKey         String?
+  momoSecretKey         String?
+  updatedAt             DateTime @updatedAt
+
+  @@map("system_settings")
+}
+

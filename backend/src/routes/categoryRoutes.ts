@@ -23,7 +23,7 @@ router.get("/", (req: Request, res: Response) => {
 });
 
 // POST /api/categories (Admin)
-router.post("/", authenticateToken, authorize(["ADMIN"]), (req: Request, res: Response) => {
+router.post("/", authenticateToken, authorize(["ADMIN"]), async (req: Request, res: Response) => {
   const { name, description, icon } = req.body;
   if (!name) {
     return res.status(400).json({ error: "Tên danh mục không được để trống." });
@@ -47,7 +47,7 @@ router.post("/", authenticateToken, authorize(["ADMIN"]), (req: Request, res: Re
     updatedAt: new Date().toISOString()
   };
 
-  db.categories.push(newCategory);
+  await db.addCategory(newCategory);
   return res.status(201).json({
     message: "Tạo danh mục mới thành công!",
     category: newCategory
@@ -55,7 +55,7 @@ router.post("/", authenticateToken, authorize(["ADMIN"]), (req: Request, res: Re
 });
 
 // PUT /api/categories/:id (Admin)
-router.put("/:id", authenticateToken, authorize(["ADMIN"]), (req: Request, res: Response) => {
+router.put("/:id", authenticateToken, authorize(["ADMIN"]), async (req: Request, res: Response) => {
   const cat = db.categories.find(c => c.id === req.params.id);
   if (!cat) {
     return res.status(404).json({ error: "Không tìm thấy danh mục." });
@@ -76,6 +76,8 @@ router.put("/:id", authenticateToken, authorize(["ADMIN"]), (req: Request, res: 
   if (icon !== undefined) cat.icon = icon;
   cat.updatedAt = new Date().toISOString();
 
+  await db.updateCategory(cat);
+
   return res.json({
     message: "Cập nhật danh mục thành công!",
     category: cat
@@ -83,9 +85,9 @@ router.put("/:id", authenticateToken, authorize(["ADMIN"]), (req: Request, res: 
 });
 
 // DELETE /api/categories/:id (Admin)
-router.delete("/:id", authenticateToken, authorize(["ADMIN"]), (req: Request, res: Response) => {
-  const idx = db.categories.findIndex(c => c.id === req.params.id);
-  if (idx === -1) {
+router.delete("/:id", authenticateToken, authorize(["ADMIN"]), async (req: Request, res: Response) => {
+  const cat = db.categories.find(c => c.id === req.params.id);
+  if (!cat) {
     return res.status(404).json({ error: "Không tìm thấy danh mục." });
   }
 
@@ -95,7 +97,7 @@ router.delete("/:id", authenticateToken, authorize(["ADMIN"]), (req: Request, re
     return res.status(400).json({ error: "Không thể xóa danh mục đang có sản phẩm trực thuộc." });
   }
 
-  db.categories.splice(idx, 1);
+  await db.deleteCategory(req.params.id);
   return res.json({ message: "Xóa danh mục thành công!" });
 });
 
