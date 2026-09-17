@@ -34,36 +34,227 @@ async function getSettings() {
   };
 }
 
+// Direct Test for Google Gemini API Key when AI microservice is offline
+async function directTestGemini(apiKey?: string, model?: string) {
+  const cleanKey = (apiKey || process.env.GEMINI_API_KEY || "").trim();
+  if (!cleanKey) {
+    return {
+      status: "error",
+      valid: false,
+      provider: "gemini",
+      message: "Chưa có Google Gemini API Key. Vui lòng nhập mã API Key để kiểm tra."
+    };
+  }
+
+  const requestedModel = (model || "gemini-2.5-flash").replace("models/", "").trim();
+  const candidateModels = [
+    requestedModel,
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro"
+  ].filter((v, i, a) => v && a.indexOf(v) === i);
+
+  let lastError = "";
+
+  for (const m of candidateModels) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${cleanKey}`;
+    try {
+      const resp = await axios.post(
+        url,
+        {
+          contents: [{ role: "user", parts: [{ text: "Xin chào! Hãy phản hồi ngắn gọn đúng 1 câu bằng tiếng Việt xác nhận kết nối Google Gemini hoạt động tốt." }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 100 }
+        },
+        { timeout: 8000 }
+      );
+
+      if (resp.status === 200) {
+        const text = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Kết nối thành công!";
+        return {
+          status: "success",
+          valid: true,
+          provider: "gemini",
+          model: m,
+          message: `Google Gemini API Key hoạt động chính xác! Kết nối thành công (${m}).`,
+          sampleResponse: text
+        };
+      }
+    } catch (err: any) {
+      const status = err.response?.status;
+      const data = err.response?.data;
+      const msg = data?.error?.message || err.message || "";
+
+      if (status === 401 || (status === 400 && (msg.includes("API_KEY_INVALID") || msg.includes("API key not valid")))) {
+        return {
+          status: "error",
+          valid: false,
+          provider: "gemini",
+          message: `Google từ chối (${status}): API Key không chính xác hoặc không tồn tại.`
+        };
+      }
+      if (status === 403) {
+        return {
+          status: "error",
+          valid: false,
+          provider: "gemini",
+          message: `Google từ chối (403): API Key bị giới hạn quyền truy cập hoặc IP bị hạn chế (${msg}).`
+        };
+      }
+      if (status === 429) {
+        return {
+          status: "warning",
+          valid: true,
+          provider: "gemini",
+          message: "Google Gemini Quota (429): API Key hợp lệ nhưng đã vượt quá hạn mức sử dụng (Rate limit). Vui lòng thử lại sau."
+        };
+      }
+      lastError = msg || `Mã lỗi: ${status}`;
+    }
+  }
+
+  return {
+    status: "error",
+    valid: false,
+    provider: "gemini",
+    message: `Kiểm tra Google Gemini thất bại: ${lastError}`
+  };
+}
+
+// Direct Test for OpenAI API Key when AI microservice is offline
+async function directTestOpenAI(apiKey?: string, model?: string) {
+  const cleanKey = (apiKey || process.env.OPENAI_API_KEY || "").trim();
+  if (!cleanKey) {
+    return {
+      status: "error",
+      valid: false,
+      provider: "openai",
+      message: "Chưa có OpenAI API Key. Vui lòng nhập mã OpenAI API Key (sk-...) để kiểm tra."
+    };
+  }
+
+  const targetModel = model || "gpt-4o-mini";
+
+  try {
+    const resp = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: targetModel,
+        messages: [{ role: "user", content: "Xin chào! Hãy phản hồi đúng 1 câu ngắn gọn bằng tiếng Việt xác nhận kết nối OpenAI hoạt động tốt." }],
+        max_tokens: 80,
+        temperature: 0.2
+      },
+      {
+        headers: { Authorization: `Bearer ${cleanKey}`, "Content-Type": "application/json" },
+        timeout: 10000
+      }
+    );
+
+    if (resp.status === 200) {
+      const text = resp.data?.choices?.[0]?.message?.content?.trim() || "Kết nối thành công!";
+      return {
+        status: "success",
+        valid: true,
+        provider: "openai",
+        model: targetModel,
+        message: `OpenAI API Key hoạt động hoàn hảo! Đã kết nối thành công (${targetModel}).`,
+        sampleResponse: text
+      };
+    }
+  } catch (err: any) {
+    const status = err.response?.status;
+    const data = err.response?.data;
+    if (status === 401 || status === 403) {
+      return {
+        status: "error",
+        valid: false,
+        provider: "openai",
+        message: "OpenAI từ chối (401/403): API Key không chính xác hoặc đã bị vô hiệu hóa."
+      };
+    }
+    if (status === 429) {
+      return {
+        status: "warning",
+        valid: true,
+        provider: "openai",
+        model: targetModel,
+        message: "OpenAI API Key hợp lệ nhưng tài khoản đã hết hạn mức tín dụng ($0 balance / Quota exceeded)."
+      };
+    }
+    return {
+      status: "error",
+      valid: false,
+      provider: "openai",
+      message: `Kiểm tra OpenAI thất bại: ${data?.error?.message || err.message}`
+    };
+  }
+}
+
+// Direct Chat with Google Gemini when AI microservice is offline
+async function directGeminiChat(apiKey: string, model: string, userMessage: string, products: any[]) {
+  const cleanModel = (model || "gemini-2.5-flash").replace("models/", "").trim();
+  const candidateModels = [cleanModel, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"].filter((v, i, a) => v && a.indexOf(v) === i);
+  const productContext = (products || []).slice(0, 8).map(p => `- ${p.name}: ${Number(p.price).toLocaleString("vi-VN")} VND (Tồn kho: ${p.stock}) - ${p.description}`).join("\n");
+  const prompt = `Bạn là Trợ lý AI Bán hàng thông minh của SHOPBEE STORE AI. Hãy tư vấn thân thiện, nhiệt tình, chuyên nghiệp bằng tiếng Việt cho khách hàng dựa trên danh mục sản phẩm sau:
+${productContext}
+
+Khách hàng hỏi: "${userMessage}"
+Hãy trả lời súc tích, tự nhiên, gợi ý sản phẩm phù hợp nếu có và nhắc khách hàng về chính sách đổi trả miễn phí trong 7 ngày và giao hàng nhanh 2 giờ.`;
+
+  for (const m of candidateModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+      const resp = await axios.post(
+        url,
+        {
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.6, maxOutputTokens: 2048 }
+        },
+        { timeout: 20000 }
+      );
+      const text = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      if (text) return text;
+    } catch (e: any) {
+      if (e.response?.status === 404) continue;
+      throw e;
+    }
+  }
+  return null;
+}
+
 // POST /api/ai/test-key (Verify Google Gemini or OpenAI API Key connection & status - Cấp quyền cho mọi người dùng)
 router.post("/test-key", async (req: Request, res: Response) => {
   const settings = await getSettings();
-  const provider = req.body.provider || settings.aiProvider;
-  const geminiApiKey = req.body.geminiApiKey || settings.geminiApiKey;
-  const geminiModel = req.body.geminiModel || settings.geminiModel;
-  const openaiApiKey = req.body.openaiApiKey || settings.openaiApiKey;
-  const openaiModel = req.body.openaiModel || settings.openaiModel;
-  const apiKey = req.body.apiKey;
-  const model = req.body.model;
+  const provider = (req.body.provider || settings.aiProvider || "gemini").toLowerCase();
+  const geminiApiKey = req.body.geminiApiKey || req.body.apiKey || settings.geminiApiKey;
+  const geminiModel = req.body.geminiModel || req.body.model || settings.geminiModel;
+  const openaiApiKey = req.body.openaiApiKey || req.body.apiKey || settings.openaiApiKey;
+  const openaiModel = req.body.openaiModel || req.body.model || settings.openaiModel;
 
+  // 1. Thử gọi qua Python AI Microservice nếu đang chạy (Container / Local)
   const aiRes = await callAiService("/api/ai/test-key", {
     provider,
     geminiApiKey,
     geminiModel,
     openaiApiKey,
     openaiModel,
-    apiKey,
-    model
+    apiKey: req.body.apiKey,
+    model: req.body.model
   });
 
   if (aiRes.success) {
     return res.json(aiRes.data);
   }
 
-  return res.json({
-    status: "error",
-    valid: false,
-    message: `Không thể kết nối đến AI Microservice (${aiRes.error}). Hãy đảm bảo container AI Service đang chạy.`
-  });
+  // 2. Dự phòng tự động (Serverless Fallback): Kiểm tra API Key trực tiếp qua REST API
+  // Đảm bảo hoạt động 100% trên Hosting ngay cả khi không chạy container Python!
+  if (provider === "openai") {
+    const directRes = await directTestOpenAI(openaiApiKey, openaiModel);
+    return res.json(directRes);
+  } else {
+    const directRes = await directTestGemini(geminiApiKey, geminiModel);
+    return res.json(directRes);
+  }
 });
 
 // POST /api/ai/recommend (AI Recommendation Engine)
@@ -136,6 +327,37 @@ router.post("/chat", async (req: Request, res: Response) => {
   }
 
   // Fallback response if AI microservice is offline
+  const activeGeminiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
+  if ((selectedProvider === "gemini" || !selectedProvider) && activeGeminiKey) {
+    try {
+      const directReply = await directGeminiChat(
+        activeGeminiKey,
+        settings.geminiModel || "gemini-2.5-flash",
+        message,
+        products
+      );
+      if (directReply) {
+        await db.aIInteraction.create({
+          data: {
+            sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
+            query: message,
+            response: directReply,
+            type: "CHAT",
+          }
+        });
+        return res.json({
+          reply: directReply,
+          suggestedProducts: products.slice(0, 3),
+          suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành", "Miễn phí vận chuyển"],
+          source: "Node.js Direct Gemini Fallback",
+          model: settings.geminiModel || "gemini-2.5-flash"
+        });
+      }
+    } catch (directErr: any) {
+      console.warn("Direct Gemini chat fallback error:", directErr?.message || directErr);
+    }
+  }
+
   return res.json({
     reply: "Xin chào bạn! Tôi là Trợ lý AI Bán hàng của SHOPBEE. Hiện tại hệ thống đang kết nối trực tiếp với danh mục sản phẩm của cửa hàng. Bạn có thể duyệt các sản phẩm nổi bật và nhận ưu đãi giao hàng hỏa tốc 2h!",
     suggestedProducts: products.slice(0, 3),
