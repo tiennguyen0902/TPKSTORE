@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import fs from "fs";
 
 import { prisma } from "./db";
 import authRoutes from "./routes/authRoutes";
@@ -55,6 +57,34 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/settings", settingsRoutes);
 
+// Static files & SPA fallback for Frontend (Fullstack / Tenten / Plesk Production)
+const possibleFrontendPaths = [
+  path.resolve(process.cwd(), "frontend/dist"),
+  path.resolve(__dirname, "../../frontend/dist"),
+  path.resolve(__dirname, "../frontend/dist"),
+  path.resolve(__dirname, "public"),
+  path.resolve(process.cwd(), "dist")
+];
+
+let frontendDistPath = "";
+for (const p of possibleFrontendPaths) {
+  if (fs.existsSync(p) && fs.existsSync(path.join(p, "index.html"))) {
+    frontendDistPath = p;
+    break;
+  }
+}
+
+if (frontendDistPath) {
+  console.log(`📦 Serving frontend static assets from: ${frontendDistPath}`);
+  app.use(express.static(frontendDistPath));
+  app.get("*", (req: Request, res: Response, next: NextFunction) => {
+    if (req.originalUrl.startsWith("/api") || req.originalUrl.startsWith("/health")) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDistPath, "index.html"));
+  });
+}
+
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error("Unhandled Server Error:", err);
@@ -69,28 +99,27 @@ async function main() {
   try {
     await prisma.$connect();
     console.log("✅ Kết nối PostgreSQL thành công qua Prisma ORM!");
-
-    app.listen(PORT, () => {
-      console.log(`🚀 SHOPBEE Core Backend Server running on port ${PORT}`);
-      console.log(`📡 API Endpoints available at http://localhost:${PORT}/api`);
-      console.log(`🗄️  Database: PostgreSQL (Prisma ORM)`);
-    });
   } catch (err) {
-    console.error("❌ Không thể kết nối database:", err);
-    process.exit(1);
+    console.warn("⚠️ Cảnh báo: Chưa thể kết nối database PostgreSQL (Vui lòng kiểm tra DATABASE_URL):", err);
   }
+
+  app.listen(PORT, () => {
+    console.log(`🚀 SHOPBEE Fullstack Server running on port ${PORT}`);
+    console.log(`📡 API Endpoints available at /api`);
+    console.log(`🗄️  Database: PostgreSQL (Prisma ORM)`);
+  });
 }
 
 // Graceful Shutdown
 process.on("SIGINT", async () => {
   console.log("\n🔄 Đang đóng kết nối database...");
-  await prisma.$disconnect();
+  await prisma.$disconnect().catch(() => {});
   console.log("✅ Đã ngắt kết nối database.");
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
-  await prisma.$disconnect();
+  await prisma.$disconnect().catch(() => {});
   process.exit(0);
 });
 

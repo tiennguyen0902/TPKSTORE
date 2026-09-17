@@ -1,6 +1,11 @@
 import { User, Product, Category, CartData, Order, InventoryAlert, ForecastData, SystemSettings } from "../types";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = import.meta.env.VITE_API_BASE || (typeof window !== "undefined" && window.location.hostname === "localhost" && window.location.port === "5173" ? "http://localhost:5000/api" : "/api");
+
+function buildUrl(path: string): URL {
+  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:5000";
+  return new URL(`${API_BASE}${path.startsWith('/') ? path : '/' + path}`, origin);
+}
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem("store_ai_access_token");
@@ -72,7 +77,7 @@ export const api = {
     isFeatured?: boolean;
     isNew?: boolean;
   }): Promise<{ total: number; products: Product[] }> {
-    const url = new URL(`${API_BASE}/products`);
+    const url = buildUrl("/products");
     if (params) {
       if (params.category) url.searchParams.append("category", params.category);
       if (params.search) url.searchParams.append("search", params.search);
@@ -242,7 +247,7 @@ export const api = {
   },
 
   async getAllOrders(status?: string, search?: string): Promise<{ total: number; orders: Order[] }> {
-    const url = new URL(`${API_BASE}/orders`);
+    const url = buildUrl("/orders");
     if (status) url.searchParams.append("status", status);
     if (search) url.searchParams.append("search", search);
     const res = await fetch(url.toString(), {
@@ -409,7 +414,7 @@ export const api = {
 
   // Admin User Management & Settings
   async getAllUsers(role?: string, search?: string): Promise<{ total: number; users: User[] }> {
-    const url = new URL(`${API_BASE}/users`);
+    const url = buildUrl("/users");
     if (role) url.searchParams.append("role", role);
     if (search) url.searchParams.append("search", search);
     const res = await fetch(url.toString(), {
