@@ -52,20 +52,27 @@ if (process.env.NODE_ENV !== "production") {
 // Kiểm tra xem lỗi có phải do không kết nối được database PostgreSQL (để tự động fallback)
 export function isConnectionError(err: any): boolean {
   if (!err) return false;
+  if (err.code === "P2002") return false; // Lỗi trùng lặp email/key thuộc logic người dùng
+
+  const code = String(err.code || "");
   const msg = (err.message || String(err)).toLowerCase();
   return (
-    err.code === "P1001" ||
-    err.code === "P1002" ||
-    err.code === "P1003" ||
-    err.code === "P1008" ||
-    err.code === "P1017" ||
+    code.startsWith("P1") || // Toàn bộ lỗi P1000 (sai mật khẩu/user DB), P1001 (không kết nối), P1002 (timeout), P1003 (chưa có DB)...
+    code === "P2021" ||      // Bảng chưa được tạo trong PostgreSQL
+    code === "P2022" ||      // Cột chưa được tạo
+    msg.includes("authentication failed") ||
+    msg.includes("credentials") ||
+    msg.includes("password authentication failed") ||
     msg.includes("can't reach database") ||
     msg.includes("cant reach database") ||
     msg.includes("environment variable not found") ||
     msg.includes("econnrefused") ||
     msg.includes("enotfound") ||
     msg.includes("connection timed out") ||
-    msg.includes("connection closed")
+    msg.includes("connection closed") ||
+    msg.includes("does not exist") ||
+    msg.includes("access denied") ||
+    msg.includes("permission denied")
   );
 }
 
