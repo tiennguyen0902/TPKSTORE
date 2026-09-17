@@ -113,6 +113,24 @@ export const AdminSettings: React.FC = () => {
         sampleResponse: res.sampleResponse,
         availableModels: (res as any).availableModels
       });
+
+      // Tự động lưu cấu hình vào CSDL khi kiểm tra thành công để người dùng truy cập web có thể sử dụng được ngay lập tức!
+      if (res.valid) {
+        try {
+          const updatedSettings = {
+            ...settings,
+            aiProvider: providerToTest,
+            [providerToTest === "gemini" ? "geminiApiKey" : "openaiApiKey"]: key.trim(),
+            [providerToTest === "gemini" ? "geminiModel" : "openaiModel"]: res.model || model
+          };
+          await api.updateSettings(updatedSettings);
+          setSettings(updatedSettings);
+          setToastMsg(`✅ API Key đã được kiểm tra và TỰ ĐỘNG KÍCH HOẠT trên toàn hệ thống! Mọi khách hàng truy cập website đều có thể trò chuyện với AI ngay.`);
+          setTimeout(() => setToastMsg(""), 5000);
+        } catch (saveErr: any) {
+          console.warn("Auto-save settings failed:", saveErr);
+        }
+      }
     } catch (err: any) {
       setTestResult({
         valid: false,
@@ -525,6 +543,13 @@ export const AdminSettings: React.FC = () => {
                     <div className="p-2.5 rounded-xl bg-slate-900/70 border border-emerald-500/30 text-slate-200 font-sans text-[11px] italic">
                       <span className="font-semibold text-emerald-400 not-italic">Phản hồi thử nghiệm: </span>
                       "{testResult.sampleResponse}"
+                    </div>
+                  )}
+
+                  {testResult.valid && (
+                    <div className="flex items-center gap-2 text-[11px] text-emerald-300 font-medium bg-emerald-900/30 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>Đã tự động áp dụng cho Chatbot toàn web: Mọi khách hàng truy cập đều được AI phục vụ ngay!</span>
                     </div>
                   )}
 

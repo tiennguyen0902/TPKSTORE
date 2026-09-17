@@ -7,15 +7,42 @@ const router = Router();
 
 const AI_SERVICE_TIMEOUT_MS = 45000;
 
+// Circuit Breaker State để bảo vệ hệ thống và phản hồi khách hàng siêu tốc (<1s) khi Python Microservice offline
+let aiServiceBreaker = {
+  isOffline: false,
+  lastFailureTime: 0,
+  consecutiveFailures: 0
+};
+
+function isAiServiceAlive(): boolean {
+  if (!aiServiceBreaker.isOffline) return true;
+  // Sau 60 giây, cho phép thử lại 1 lần (Half-Open)
+  if (Date.now() - aiServiceBreaker.lastFailureTime > 60000) {
+    return true;
+  }
+  return false;
+}
+
 // Helper to call AI Service with Circuit Breaker Fallback
 async function callAiService(endpoint: string, payload: any, timeoutMs: number = AI_SERVICE_TIMEOUT_MS) {
+  if (!isAiServiceAlive()) {
+    return { success: false, error: "AI Microservice is marked offline (Circuit Breaker active)" };
+  }
+
   const settings = await db.systemSettings.findFirst();
   const baseUrl = process.env.AI_SERVICE_URL || settings?.aiServiceUrl || "http://ai_service:8000";
   const url = `${baseUrl}${endpoint}`;
   try {
     const response = await axios.post(url, payload, { timeout: timeoutMs });
+    aiServiceBreaker.isOffline = false;
+    aiServiceBreaker.consecutiveFailures = 0;
     return { success: true, data: response.data };
   } catch (err: any) {
+    aiServiceBreaker.consecutiveFailures++;
+    if (aiServiceBreaker.consecutiveFailures >= 2) {
+      aiServiceBreaker.isOffline = true;
+      aiServiceBreaker.lastFailureTime = Date.now();
+    }
     return { success: false, error: err.message };
   }
 }
@@ -359,7 +386,7 @@ async function directTestOpenAI(apiKey?: string, model?: string) {
 }
 
 // Direct Chat with Google Gemini when AI microservice is offline
-async function directGeminiChat(apiKey: string, model: string, userMessage: string, products: any[]) {
+async function directGeminiChat(apiKey: string, model: string, userMessage: string, products: any[], history: any[] = []) {
   const cleanModel = (model || "gemini-2.0-flash").replace("models/", "").trim();
   const candidateModels = [
     cleanModel,
@@ -372,12 +399,43 @@ async function directGeminiChat(apiKey: string, model: string, userMessage: stri
     ...ALL_GEMINI_MODELS
   ].filter((v, i, a) => v && a.indexOf(v) === i && !v.includes("gemini-1.5-pro"));
 
-  const productContext = (products || []).slice(0, 8).map(p => `- ${p.name}: ${Number(p.price).toLocaleString("vi-VN")} VND (Tồn kho: ${p.stock}) - ${p.description}`).join("\n");
-  const prompt = `Bạn là Trợ lý AI Bán hàng thông minh của SHOPBEE STORE AI. Hãy tư vấn thân thiện, nhiệt tình, chuyên nghiệp bằng tiếng Việt cho khách hàng dựa trên danh mục sản phẩm sau:
-${productContext}
+  // Lọc sản phẩm liên quan từ CSDL theo từ khóa của khách hàng
+  const userMsgLower = userMessage.toLowerCase();
+  const matchedProducts = (products || [])
+    .filter(p => {
+      const name = (p.name || "").toLowerCase();
+      const desc = (p.description || "").toLowerCase();
+      const words = userMsgLower.split(/\s+/).filter(w => w.length > 2);
+      return words.some(w => name.includes(w) || desc.includes(w));
+    })
+    .slice(0, 4);
 
-Khách hàng hỏi: "${userMessage}"
-Hãy trả lời súc tích, tự nhiên, gợi ý sản phẩm phù hợp nếu có và nhắc khách hàng về chính sách đổi trả miễn phí trong 7 ngày và giao hàng nhanh 2 giờ.`;
+  const displayProducts = matchedProducts.length > 0 ? matchedProducts : (products || []).slice(0, 4);
+  const productContext = displayProducts.map(p => `- ${p.name}: ${Number(p.price).toLocaleString("vi-VN")} VND (Tồn kho: ${p.stock}) - ${p.description}`).join("\n");
+
+  const systemInstruction = `Bạn là Trợ lý AI Bán hàng & Trí tuệ Đa năng của SHOPBEE (STORE AI) - Nền tảng thương mại điện tử công nghệ cao.
+Quy tắc phản hồi:
+1. Luôn lịch sự, thân thiện, súc tích, tự nhiên bằng tiếng Việt có định dạng Markdown đẹp mắt.
+2. Với câu hỏi về sản phẩm, giá bán, khuyến mãi, đổi trả: Hãy ưu tiên sử dụng danh mục sản phẩm sau của cửa hàng để tư vấn:
+${productContext}
+Nhắc khách hàng về chính sách: Đổi trả 7 ngày miễn phí, bảo hành 1 đổi 1 và giao hàng hỏa tốc trong 2 giờ.
+3. Với câu hỏi ngoài CSDL cửa hàng (kiến thức tổng quát, khoa học, kỹ thuật, so sánh công nghệ, đời sống, lập trình, toán học, tư vấn chuyên sâu...): Bạn hãy tận dụng toàn bộ tri thức thông minh sâu rộng của mình để giải đáp thật chi tiết, khách quan, hữu ích và truyền cảm hứng cho người dùng!`;
+
+  // Xây dựng payload contents bao gồm lịch sử hội thoại gần nhất (Multi-turn chat)
+  const contents: any[] = [];
+  if (Array.isArray(history) && history.length > 0) {
+    for (const h of history.slice(-4)) {
+      const role = h.role === "user" ? "user" : "model";
+      const text = (h.content || h.text || "").trim();
+      if (text) {
+        contents.push({ role, parts: [{ text }] });
+      }
+    }
+  }
+  contents.push({
+    role: "user",
+    parts: [{ text: `${systemInstruction}\n\nKhách hàng hỏi: "${userMessage}"` }]
+  });
 
   for (const m of candidateModels) {
     try {
@@ -385,23 +443,38 @@ Hãy trả lời súc tích, tự nhiên, gợi ý sản phẩm phù hợp nếu
       const resp = await axios.post(
         url,
         {
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.6, maxOutputTokens: 2048 }
+          contents,
+          generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+          ]
         },
-        { timeout: 20000 }
+        { timeout: 15000 }
       );
-      const text = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      if (text) return text;
+
+      const candidate = resp.data?.candidates?.[0];
+      const parts = candidate?.content?.parts;
+      const text = Array.isArray(parts) ? parts.map((p: any) => p.text || "").join("").trim() : "";
+      if (text) {
+        return {
+          reply: text,
+          suggestedProducts: matchedProducts.length > 0 ? matchedProducts.slice(0, 3) : (products || []).slice(0, 3),
+          model: m
+        };
+      }
     } catch (e: any) {
-      if (e.response?.status === 404) continue;
-      throw e;
+      // Bỏ qua lỗi của model này (404, 400, 429, timeout) để thử model khả dụng tiếp theo
+      continue;
     }
   }
   return null;
 }
 
 // Direct Chat with OpenAI when AI microservice is offline
-async function directOpenAIChat(apiKey: string, model: string, userMessage: string, products: any[]) {
+async function directOpenAIChat(apiKey: string, model: string, userMessage: string, products: any[], history: any[] = []) {
   const cleanModel = (model || "gpt-4o-mini").trim();
   const candidateModels = [
     cleanModel,
@@ -411,12 +484,36 @@ async function directOpenAIChat(apiKey: string, model: string, userMessage: stri
     ...ALL_OPENAI_MODELS
   ].filter((v, i, a) => v && a.indexOf(v) === i);
 
-  const productContext = (products || []).slice(0, 8).map(p => `- ${p.name}: ${Number(p.price).toLocaleString("vi-VN")} VND (Tồn kho: ${p.stock}) - ${p.description}`).join("\n");
-  const systemPrompt = `Bạn là Trợ lý AI Bán hàng thông minh của SHOPBEE STORE AI. Hãy tư vấn thân thiện, nhiệt tình, chuyên nghiệp bằng tiếng Việt cho khách hàng dựa trên danh mục sản phẩm sau:
-${productContext}
+  const userMsgLower = userMessage.toLowerCase();
+  const matchedProducts = (products || [])
+    .filter(p => {
+      const name = (p.name || "").toLowerCase();
+      const desc = (p.description || "").toLowerCase();
+      const words = userMsgLower.split(/\s+/).filter(w => w.length > 2);
+      return words.some(w => name.includes(w) || desc.includes(w));
+    })
+    .slice(0, 4);
 
-Khách hàng hỏi: "${userMessage}"
-Hãy trả lời súc tích, tự nhiên, gợi ý sản phẩm phù hợp nếu có và nhắc khách hàng về chính sách đổi trả miễn phí trong 7 ngày và giao hàng nhanh 2 giờ.`;
+  const displayProducts = matchedProducts.length > 0 ? matchedProducts : (products || []).slice(0, 4);
+  const productContext = displayProducts.map(p => `- ${p.name}: ${Number(p.price).toLocaleString("vi-VN")} VND (Tồn kho: ${p.stock}) - ${p.description}`).join("\n");
+
+  const systemPrompt = `Bạn là Trợ lý AI Bán hàng & Trí tuệ Đa năng của SHOPBEE (STORE AI) - Nền tảng thương mại điện tử công nghệ cao.
+Nhiệm vụ của bạn:
+1. Tư vấn thân thiện, nhiệt tình, chuyên nghiệp, tự nhiên bằng tiếng Việt có định dạng Markdown đẹp mắt.
+2. Với câu hỏi về sản phẩm, tư vấn mua sắm, giá cả, bảo hành: Hãy ưu tiên sử dụng danh mục sản phẩm sau:
+${productContext}
+Luôn nhắc khách hàng về chính sách: Đổi trả miễn phí 7 ngày, bảo hành 1 đổi 1 và giao hàng hỏa tốc trong 2 giờ.
+3. Với câu hỏi ngoài danh mục sản phẩm: Hãy tận dụng toàn bộ tri thức thông minh sâu rộng của mình để giải đáp chi tiết, hữu ích cho người dùng.`;
+
+  const messages: any[] = [{ role: "system", content: systemPrompt }];
+  if (Array.isArray(history) && history.length > 0) {
+    for (const h of history.slice(-4)) {
+      const role = h.role === "user" ? "user" : "assistant";
+      const content = (h.content || h.text || "").trim();
+      if (content) messages.push({ role, content });
+    }
+  }
+  messages.push({ role: "user", content: userMessage });
 
   for (const m of candidateModels) {
     try {
@@ -424,23 +521,25 @@ Hãy trả lời súc tích, tự nhiên, gợi ý sản phẩm phù hợp nếu
         "https://api.openai.com/v1/chat/completions",
         {
           model: m,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage }
-          ],
+          messages,
           temperature: 0.6,
           max_tokens: 2048
         },
         {
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          timeout: 20000
+          timeout: 15000
         }
       );
       const text = resp.data?.choices?.[0]?.message?.content?.trim();
-      if (text) return text;
+      if (text) {
+        return {
+          reply: text,
+          suggestedProducts: matchedProducts.length > 0 ? matchedProducts.slice(0, 3) : (products || []).slice(0, 3),
+          model: m
+        };
+      }
     } catch (e: any) {
-      if (e.response?.status === 404) continue;
-      throw e;
+      continue;
     }
   }
   return null;
@@ -455,19 +554,21 @@ router.post("/test-key", async (req: Request, res: Response) => {
   const openaiApiKey = req.body.openaiApiKey || req.body.apiKey || settings.openaiApiKey;
   const openaiModel = req.body.openaiModel || req.body.model || settings.openaiModel;
 
-  // 1. Thử gọi qua Python AI Microservice nếu đang chạy (timeout 2500ms để phản hồi nhanh tức thì)
-  const aiRes = await callAiService("/api/ai/test-key", {
-    provider,
-    geminiApiKey,
-    geminiModel,
-    openaiApiKey,
-    openaiModel,
-    apiKey: req.body.apiKey,
-    model: req.body.model
-  }, 2500);
+  // 1. Thử gọi qua Python AI Microservice nếu đang chạy (với Circuit Breaker)
+  if (isAiServiceAlive()) {
+    const aiRes = await callAiService("/api/ai/test-key", {
+      provider,
+      geminiApiKey,
+      geminiModel,
+      openaiApiKey,
+      openaiModel,
+      apiKey: req.body.apiKey,
+      model: req.body.model
+    }, 2000);
 
-  if (aiRes.success) {
-    return res.json(aiRes.data);
+    if (aiRes.success) {
+      return res.json(aiRes.data);
+    }
   }
 
   // 2. Dự phòng tự động (Serverless Fallback): Kiểm tra API Key trực tiếp qua REST API
@@ -526,57 +627,68 @@ router.post("/chat", async (req: Request, res: Response) => {
 
   const selectedProvider = provider || settings.aiProvider;
 
-  const aiRes = await callAiService("/api/ai/chat", {
-    message,
-    history: history || [],
-    products,
-    provider: selectedProvider,
-    geminiApiKey: settings.geminiApiKey,
-    geminiModel: settings.geminiModel,
-    openaiApiKey: settings.openaiApiKey,
-    openaiModel: settings.openaiModel
-  }, 6000);
+  // 1. Thử gọi qua Python AI Microservice nếu đang hoạt động (với Circuit Breaker)
+  if (isAiServiceAlive()) {
+    const aiRes = await callAiService("/api/ai/chat", {
+      message,
+      history: history || [],
+      products,
+      provider: selectedProvider,
+      geminiApiKey: settings.geminiApiKey,
+      geminiModel: settings.geminiModel,
+      openaiApiKey: settings.openaiApiKey,
+      openaiModel: settings.openaiModel
+    }, 2500);
 
-  if (aiRes.success) {
-    // Log interaction in DB
-    await db.aIInteraction.create({
-      data: {
-        sessionId: req.headers["x-session-id"] as string || "anonymous_session",
-        query: message,
-        response: aiRes.data.reply,
-        type: "CHAT",
+    if (aiRes.success && aiRes.data?.reply) {
+      try {
+        await db.aIInteraction.create({
+          data: {
+            sessionId: req.headers["x-session-id"] as string || "anonymous_session",
+            query: message,
+            response: aiRes.data.reply,
+            type: "CHAT",
+          }
+        });
+      } catch (logErr) {
+        // Logging error should never break user chat response
       }
-    });
-    return res.json(aiRes.data);
+      return res.json(aiRes.data);
+    }
   }
 
-  // Fallback response if AI microservice is offline
+  // 2. Dự phòng trực tiếp tức thì (Serverless Direct AI Fallback)
+  // Khách hàng và người dùng truy cập web đều được AI phản hồi ngay lập tức bằng API Key đã cấu hình!
   const activeGeminiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
   const activeOpenAiKey = settings.openaiApiKey || process.env.OPENAI_API_KEY;
 
   if (selectedProvider === "openai" && activeOpenAiKey) {
     try {
-      const directReply = await directOpenAIChat(
+      const result = await directOpenAIChat(
         activeOpenAiKey,
         settings.openaiModel || "gpt-4o-mini",
         message,
-        products
+        products,
+        history
       );
-      if (directReply) {
-        await db.aIInteraction.create({
-          data: {
-            sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
-            query: message,
-            response: directReply,
-            type: "CHAT",
-          }
-        });
+      if (result && result.reply) {
+        try {
+          await db.aIInteraction.create({
+            data: {
+              sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
+              query: message,
+              response: result.reply,
+              type: "CHAT",
+            }
+          });
+        } catch (e) {}
         return res.json({
-          reply: directReply,
-          suggestedProducts: products.slice(0, 3),
-          suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành", "Miễn phí vận chuyển"],
-          source: "Node.js Direct OpenAI Fallback",
-          model: settings.openaiModel || "gpt-4o-mini"
+          reply: result.reply,
+          suggestedProducts: result.suggestedProducts,
+          suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành 1 đổi 1", "Giao hàng hỏa tốc 2h"],
+          source: `OpenAI ChatGPT (${result.model})`,
+          provider: "openai",
+          model: result.model
         });
       }
     } catch (directErr: any) {
@@ -586,27 +698,31 @@ router.post("/chat", async (req: Request, res: Response) => {
 
   if ((selectedProvider === "gemini" || !selectedProvider) && activeGeminiKey) {
     try {
-      const directReply = await directGeminiChat(
+      const result = await directGeminiChat(
         activeGeminiKey,
         settings.geminiModel || "gemini-2.0-flash",
         message,
-        products
+        products,
+        history
       );
-      if (directReply) {
-        await db.aIInteraction.create({
-          data: {
-            sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
-            query: message,
-            response: directReply,
-            type: "CHAT",
-          }
-        });
+      if (result && result.reply) {
+        try {
+          await db.aIInteraction.create({
+            data: {
+              sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
+              query: message,
+              response: result.reply,
+              type: "CHAT",
+            }
+          });
+        } catch (e) {}
         return res.json({
-          reply: directReply,
-          suggestedProducts: products.slice(0, 3),
-          suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành", "Miễn phí vận chuyển"],
-          source: "Node.js Direct Gemini Fallback",
-          model: settings.geminiModel || "gemini-2.0-flash"
+          reply: result.reply,
+          suggestedProducts: result.suggestedProducts,
+          suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành 1 đổi 1", "Giao hàng hỏa tốc 2h"],
+          source: `Google Gemini (${result.model})`,
+          provider: "gemini",
+          model: result.model
         });
       }
     } catch (directErr: any) {
@@ -614,12 +730,25 @@ router.post("/chat", async (req: Request, res: Response) => {
     }
   }
 
+  // 3. Fallback cục bộ thông minh nếu chưa cấu hình API Key hoặc cả 2 nhà cung cấp đều bận
+  const normQuery = message.toLowerCase();
+  const matchedProd = (products || []).filter(p => {
+    const name = (p.name || "").toLowerCase();
+    return normQuery.split(/\s+/).some(w => w.length > 2 && name.includes(w));
+  }).slice(0, 3);
+
+  let fallbackReply = "Xin chào bạn! Tôi là Trợ lý AI Bán hàng của SHOPBEE. Hiện tại tôi có thể hỗ trợ bạn tìm kiếm sản phẩm theo ngân sách, gợi ý điện thoại, laptop nổi bật và giải đáp chính sách bảo hành 1 đổi 1, giao hàng nhanh 2h!";
+  if (matchedProd.length > 0) {
+    const names = matchedProd.map(p => `**${p.name}** (${Number(p.price).toLocaleString("vi-VN")} đ)`).join(", ");
+    fallbackReply = `Dạ SHOPBEE xin gợi ý các sản phẩm phù hợp nhất với tìm kiếm của bạn:\n${names}\n\nBạn có muốn biết thêm chi tiết về cấu hình hoặc ưu đãi giao hàng 2h không ạ?`;
+  }
+
   return res.json({
-    reply: "Xin chào bạn! Tôi là Trợ lý AI Bán hàng của SHOPBEE. Hiện tại hệ thống đang kết nối trực tiếp với danh mục sản phẩm của cửa hàng. Bạn có thể duyệt các sản phẩm nổi bật và nhận ưu đãi giao hàng hỏa tốc 2h!",
-    suggestedProducts: products.slice(0, 3),
-    suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành", "Miễn phí vận chuyển"],
-    source: "Backend Fallback Guardrail",
-    disclaimer: "⚠️ Phản hồi dự phòng do dịch vụ AI bận. Quý khách vui lòng thử lại sau giây lát."
+    reply: fallbackReply,
+    suggestedProducts: matchedProd.length > 0 ? matchedProd : products.slice(0, 3),
+    suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành 1 đổi 1", "Giao hàng hỏa tốc 2h"],
+    source: "SHOPBEE Smart RAG Engine",
+    disclaimer: activeGeminiKey || activeOpenAiKey ? undefined : "💡 Quản trị viên chưa thiết lập API Key hoặc đang kết nối lại."
   });
 });
 
