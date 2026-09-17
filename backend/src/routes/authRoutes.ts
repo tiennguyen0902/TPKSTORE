@@ -3,8 +3,6 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { db } from "../db";
 import { generateTokens, authenticateToken, AuthenticatedRequest } from "../middleware/auth";
-import { User } from "../mockData";
-import { v4 as uuidv4 } from "uuid";
 
 const router = Router();
 
@@ -21,28 +19,28 @@ router.post("/register", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Mật khẩu phải có độ dài từ 6 ký tự trở lên." });
     }
 
-    const existingUser = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const existingUser = await db.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } }
+    });
     if (existingUser) {
       return res.status(400).json({ error: "Email này đã được đăng ký trên hệ thống." });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const newUser: User = {
-      id: `usr_${uuidv4().substring(0, 8)}`,
-      email: email.toLowerCase(),
-      passwordHash,
-      fullName,
-      phone: phone || "",
-      address: address || "",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-      role: "CUSTOMER",
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    const newUser = await db.user.create({
+      data: {
+        email: email.toLowerCase(),
+        passwordHash,
+        fullName,
+        phone: phone || "",
+        address: address || "",
+        avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+        role: "CUSTOMER",
+        isActive: true,
+      }
+    });
 
-    db.users.push(newUser);
-    const tokens = generateTokens(newUser);
+    const tokens = await generateTokens(newUser);
 
     return res.status(201).json({
       message: "Đăng ký tài khoản thành công!",
@@ -71,7 +69,9 @@ router.post("/login", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Vui lòng nhập đầy đủ Email và Mật khẩu." });
     }
 
-    const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const user = await db.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } }
+    });
     if (!user) {
       return res.status(401).json({ error: "Tài khoản hoặc mật khẩu không chính xác." });
     }
@@ -85,7 +85,7 @@ router.post("/login", async (req: Request, res: Response) => {
       return res.status(401).json({ error: "Tài khoản hoặc mật khẩu không chính xác." });
     }
 
-    const tokens = generateTokens(user);
+    const tokens = await generateTokens(user);
 
     return res.json({
       message: "Đăng nhập thành công!",
@@ -106,38 +106,45 @@ router.post("/login", async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/refresh-token (Refresh Token Rotation)
-router.post("/refresh-token", (req: Request, res: Response) => {
-  const { refreshToken } = req.body;
-  if (!refreshToken) {
-    return res.status(400).json({ error: "Vui lòng cung cấp refreshToken." });
+router.post("/refresh-token", async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ error: "Vui lòng cung cấp refreshToken." });
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+    const storedToken = await db.refreshToken.findUnique({
+      where: { tokenHash }
+    });
+
+    if (!storedToken) {
+      return res.status(403).json({ error: "Refresh token không hợp lệ hoặc đã bị thu hồi." });
+    }
+
+    if (new Date(storedToken.expiresAt) < new Date()) {
+      await db.refreshToken.delete({ where: { id: storedToken.id } });
+      return res.status(403).json({ error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." });
+    }
+
+    const user = await db.user.findFirst({
+      where: { id: storedToken.userId, isActive: true }
+    });
+    if (!user) {
+      return res.status(403).json({ error: "Người dùng không tồn tại." });
+    }
+
+    // Token Rotation: Invalidate old token and issue new token pair
+    await db.refreshToken.delete({ where: { id: storedToken.id } });
+    const newTokens = await generateTokens(user);
+
+    return res.json({
+      message: "Xoay vòng token thành công!",
+      tokens: newTokens
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi hệ thống: " + err.message });
   }
-
-  const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-  const storedTokenIdx = db.refreshTokens.findIndex(t => t.tokenHash === tokenHash);
-
-  if (storedTokenIdx === -1) {
-    return res.status(403).json({ error: "Refresh token không hợp lệ hoặc đã bị thu hồi." });
-  }
-
-  const tokenRecord = db.refreshTokens[storedTokenIdx];
-  if (new Date(tokenRecord.expiresAt) < new Date()) {
-    db.refreshTokens.splice(storedTokenIdx, 1);
-    return res.status(403).json({ error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." });
-  }
-
-  const user = db.users.find(u => u.id === tokenRecord.userId && u.isActive);
-  if (!user) {
-    return res.status(403).json({ error: "Người dùng không tồn tại." });
-  }
-
-  // Token Rotation: Invalidate old token and issue new token pair
-  db.refreshTokens.splice(storedTokenIdx, 1);
-  const newTokens = generateTokens(user);
-
-  return res.json({
-    message: "Xoay vòng token thành công!",
-    tokens: newTokens
-  });
 });
 
 // GET /api/auth/me
@@ -158,28 +165,37 @@ router.get("/me", authenticateToken, (req: AuthenticatedRequest, res: Response) 
 });
 
 // PUT /api/auth/profile
-router.put("/profile", authenticateToken, (req: AuthenticatedRequest, res: Response) => {
-  const user = req.user!;
-  const { fullName, phone, address, avatar } = req.body;
+router.put("/profile", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { fullName, phone, address, avatar } = req.body;
 
-  if (fullName) user.fullName = fullName;
-  if (phone !== undefined) user.phone = phone;
-  if (address !== undefined) user.address = address;
-  if (avatar !== undefined) user.avatar = avatar;
-  user.updatedAt = new Date().toISOString();
+    const updateData: any = {};
+    if (fullName) updateData.fullName = fullName;
+    if (phone !== undefined) updateData.phone = phone;
+    if (address !== undefined) updateData.address = address;
+    if (avatar !== undefined) updateData.avatar = avatar;
 
-  return res.json({
-    message: "Cập nhật thông tin thành công!",
-    user: {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      role: user.role,
-      phone: user.phone,
-      address: user.address,
-      avatar: user.avatar
-    }
-  });
+    const updatedUser = await db.user.update({
+      where: { id: userId },
+      data: updateData
+    });
+
+    return res.json({
+      message: "Cập nhật thông tin thành công!",
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        fullName: updatedUser.fullName,
+        role: updatedUser.role,
+        phone: updatedUser.phone,
+        address: updatedUser.address,
+        avatar: updatedUser.avatar
+      }
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi cập nhật: " + err.message });
+  }
 });
 
 // PUT /api/auth/change-password
@@ -200,8 +216,11 @@ router.put("/change-password", authenticateToken, async (req: AuthenticatedReque
     return res.status(400).json({ error: "Mật khẩu hiện tại không chính xác." });
   }
 
-  user.passwordHash = await bcrypt.hash(newPassword, 10);
-  user.updatedAt = new Date().toISOString();
+  const newHash = await bcrypt.hash(newPassword, 10);
+  await db.user.update({
+    where: { id: user.id },
+    data: { passwordHash: newHash }
+  });
 
   return res.json({ message: "Đổi mật khẩu thành công!" });
 });

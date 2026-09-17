@@ -1,4 +1,4 @@
-// Prisma Schema for SHOPBEE / STORE AI (10 Relational Tables)
+// Prisma Schema for SHOPBEE / STORE AI (11 Relational Tables)
 
 datasource db {
   provider = "postgresql"
@@ -27,6 +27,7 @@ enum OrderStatus {
 enum PaymentMethod {
   COD
   VNPAY
+  MOMO
 }
 
 enum PaymentStatus {
@@ -156,6 +157,9 @@ model Order {
   phone           String
   customerName    String
   note            String?
+  momoTransId     String?
+  momoPayUrl      String?
+  momoOrderId     String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -212,4 +216,27 @@ model AIInteraction {
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("ai_interactions")
+}
+
+// 11. Bảng SystemSettings (Cấu hình hệ thống)
+model SystemSettings {
+  id                    String  @id @default("default")
+  storeName             String  @default("SHOPBEE")
+  hotline               String  @default("1900 6868")
+  supportEmail          String  @default("support@store-ai.example.com")
+  freeShippingThreshold Float   @default(500000)
+  aiProvider            String  @default("gemini")
+  geminiApiKey          String  @default("")
+  geminiModel           String  @default("gemini-3.5-flash")
+  openaiApiKey          String  @default("")
+  openaiModel           String  @default("gpt-5.4-mini")
+  aiServiceUrl          String  @default("http://ai_service:8000")
+  vnpayTmnCode          String  @default("SANDBOX_STORE_AI")
+  momoPartnerCode       String  @default("MOMO")
+  momoAccessKey         String  @default("F8BBA842ECF85")
+  momoSecretKey         String  @default("K951B6PE1waDMi640xX08PD3vg6EkVlz")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("system_settings")
 }

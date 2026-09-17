@@ -10,46 +10,57 @@ const router = Router();
 // ==========================================
 
 // POST /api/payment/create-vnpay-url
-router.post("/create-vnpay-url", authenticateToken, (req: AuthenticatedRequest, res: Response) => {
-  const { orderId, amount, bankCode } = req.body;
-  if (!orderId || !amount) {
-    return res.status(400).json({ error: "Thiếu thông tin đơn hàng hoặc số tiền." });
+router.post("/create-vnpay-url", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { orderId, amount, bankCode } = req.body;
+    if (!orderId || !amount) {
+      return res.status(400).json({ error: "Thiếu thông tin đơn hàng hoặc số tiền." });
+    }
+
+    const order = await db.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      return res.status(404).json({ error: "Không tìm thấy đơn hàng." });
+    }
+
+    // Create simulated VNPAY sandbox redirect URL
+    const paymentUrl = `/vnpay-sandbox-checkout?orderId=${encodeURIComponent(orderId)}&amount=${amount}&bankCode=${bankCode || "NCB"}`;
+
+    return res.json({
+      status: "success",
+      paymentUrl,
+      transactionNo: `VNPAY_${Date.now()}`
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi tạo thanh toán VNPAY: " + err.message });
   }
-
-  const order = db.orders.find(o => o.id === orderId);
-  if (!order) {
-    return res.status(404).json({ error: "Không tìm thấy đơn hàng." });
-  }
-
-  // Create simulated VNPAY sandbox redirect URL
-  const paymentUrl = `/vnpay-sandbox-checkout?orderId=${encodeURIComponent(orderId)}&amount=${amount}&bankCode=${bankCode || "NCB"}`;
-
-  return res.json({
-    status: "success",
-    paymentUrl,
-    transactionNo: `VNPAY_${Date.now()}`
-  });
 });
 
 // POST /api/payment/vnpay-ipn (Simulated Webhook)
-router.post("/vnpay-ipn", (req: Request, res: Response) => {
-  const { orderId, responseCode, transactionNo, bankCode } = req.body;
+router.post("/vnpay-ipn", async (req: Request, res: Response) => {
+  try {
+    const { orderId, responseCode } = req.body;
 
-  const order = db.orders.find(o => o.id === orderId);
-  if (!order) {
-    return res.status(404).json({ RspCode: "01", Message: "Order not found" });
-  }
+    const order = await db.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      return res.status(404).json({ RspCode: "01", Message: "Order not found" });
+    }
 
-  if (responseCode === "00") {
-    // Payment success
-    order.paymentStatus = "COMPLETED";
-    order.status = "CONFIRMED";
-    order.updatedAt = new Date().toISOString();
-    return res.json({ RspCode: "00", Message: "Confirm Success" });
-  } else {
-    order.paymentStatus = "FAILED";
-    order.updatedAt = new Date().toISOString();
-    return res.json({ RspCode: "02", Message: "Payment Failed" });
+    if (responseCode === "00") {
+      // Payment success
+      await db.order.update({
+        where: { id: orderId },
+        data: { paymentStatus: "COMPLETED", status: "CONFIRMED" }
+      });
+      return res.json({ RspCode: "00", Message: "Confirm Success" });
+    } else {
+      await db.order.update({
+        where: { id: orderId },
+        data: { paymentStatus: "FAILED" }
+      });
+      return res.json({ RspCode: "02", Message: "Payment Failed" });
+    }
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -65,7 +76,7 @@ router.post("/create-momo-url", authenticateToken, async (req: AuthenticatedRequ
       return res.status(400).json({ error: "Thiếu thông tin đơn hàng hoặc số tiền thanh toán." });
     }
 
-    const order = db.orders.find(o => o.id === orderId);
+    const order = await db.order.findUnique({ where: { id: orderId } });
     if (!order) {
       return res.status(404).json({ error: "Không tìm thấy đơn hàng." });
     }
@@ -78,9 +89,13 @@ router.post("/create-momo-url", authenticateToken, async (req: AuthenticatedRequ
     });
 
     if (momoResult.success && momoResult.data) {
-      order.momoPayUrl = momoResult.data.payUrl;
-      (order as any).momoOrderId = momoResult.data.orderId;
-      order.updatedAt = new Date().toISOString();
+      await db.order.update({
+        where: { id: orderId },
+        data: {
+          momoPayUrl: momoResult.data.payUrl,
+          momoOrderId: momoResult.data.orderId,
+        }
+      });
 
       return res.json({
         status: "success",
@@ -105,7 +120,7 @@ router.post("/create-momo-url", authenticateToken, async (req: AuthenticatedRequ
 });
 
 // POST /api/payment/momo-ipn (MoMo Instant Payment Notification Webhook)
-router.post("/momo-ipn", (req: Request, res: Response) => {
+router.post("/momo-ipn", async (req: Request, res: Response) => {
   try {
     const { orderId, resultCode, message, transId, amount, extraData } = req.body;
     console.log(`[MoMo IPN] Nhận callback đơn hàng ${orderId}, ResultCode: ${resultCode}, TransId: ${transId}`);
@@ -117,25 +132,35 @@ router.post("/momo-ipn", (req: Request, res: Response) => {
       } catch {}
     }
 
-    const order = db.orders.find(o => 
-      o.id === orderId || 
-      (o as any).momoOrderId === orderId ||
-      (origOrderId && o.id === origOrderId)
-    );
+    const order = await db.order.findFirst({
+      where: {
+        OR: [
+          { id: orderId },
+          { momoOrderId: orderId },
+          ...(origOrderId ? [{ id: origOrderId }] : [])
+        ]
+      }
+    });
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
     if (Number(resultCode) === 0) {
       // Giao dịch MoMo thành công
-      order.paymentStatus = "COMPLETED";
-      order.status = "CONFIRMED";
-      order.momoTransId = String(transId || `MOMO_${Date.now()}`);
-      order.updatedAt = new Date().toISOString();
+      await db.order.update({
+        where: { id: order.id },
+        data: {
+          paymentStatus: "COMPLETED",
+          status: "CONFIRMED",
+          momoTransId: String(transId || `MOMO_${Date.now()}`)
+        }
+      });
       return res.status(200).json({ message: "Thành công", orderId: order.id });
     } else {
-      order.paymentStatus = "FAILED";
-      order.updatedAt = new Date().toISOString();
+      await db.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: "FAILED" }
+      });
       return res.status(200).json({ message: `Giao dịch thất bại: ${message}`, orderId: order.id });
     }
   } catch (err: any) {
@@ -144,37 +169,53 @@ router.post("/momo-ipn", (req: Request, res: Response) => {
 });
 
 // POST /api/payment/momo-confirm (Xác nhận nhanh thanh toán MoMo trên client / simulator)
-router.post("/momo-confirm", authenticateToken, (req: AuthenticatedRequest, res: Response) => {
-  const { orderId, resultCode = 0, transId } = req.body;
+router.post("/momo-confirm", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { orderId, resultCode = 0, transId } = req.body;
 
-  const order = db.orders.find(o => 
-    o.id === orderId || 
-    (o as any).momoOrderId === orderId
-  );
-  if (!order) {
-    return res.status(404).json({ error: "Không tìm thấy đơn hàng." });
-  }
-
-  if (Number(resultCode) === 0) {
-    order.paymentStatus = "COMPLETED";
-    order.status = "CONFIRMED";
-    order.momoTransId = transId || `MOMO_${Date.now()}`;
-    order.updatedAt = new Date().toISOString();
-
-    return res.json({
-      status: "success",
-      message: "Thanh toán MoMo thành công!",
-      order
+    const order = await db.order.findFirst({
+      where: {
+        OR: [
+          { id: orderId },
+          { momoOrderId: orderId }
+        ]
+      }
     });
-  } else {
-    order.paymentStatus = "FAILED";
-    order.updatedAt = new Date().toISOString();
+    if (!order) {
+      return res.status(404).json({ error: "Không tìm thấy đơn hàng." });
+    }
 
-    return res.json({
-      status: "failed",
-      message: "Thanh toán MoMo không thành công.",
-      order
-    });
+    if (Number(resultCode) === 0) {
+      const updated = await db.order.update({
+        where: { id: order.id },
+        data: {
+          paymentStatus: "COMPLETED",
+          status: "CONFIRMED",
+          momoTransId: transId || `MOMO_${Date.now()}`
+        },
+        include: { items: { include: { product: true } } }
+      });
+
+      return res.json({
+        status: "success",
+        message: "Thanh toán MoMo thành công!",
+        order: updated
+      });
+    } else {
+      const updated = await db.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: "FAILED" },
+        include: { items: { include: { product: true } } }
+      });
+
+      return res.json({
+        status: "failed",
+        message: "Thanh toán MoMo không thành công.",
+        order: updated
+      });
+    }
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 });
 

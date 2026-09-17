@@ -1,14 +1,24 @@
 {
   "name": "store-ai-backend",
-  "version": "1.0.0",
-  "description": "Core Backend for SHOPBEE / STORE AI E-Commerce Platform",
+  "version": "2.0.0",
+  "description": "Core Backend for SHOPBEE / STORE AI E-Commerce Platform (PostgreSQL + Prisma)",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "build": "prisma generate && tsc",
+    "postinstall": "prisma generate",
+    "start": "node dist/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "prisma db seed",
+    "prisma:studio": "prisma studio",
+    "db:reset": "prisma migrate reset --force"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "axios": "^1.6.8",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -25,7 +35,13 @@
     "@types/node": "^20.12.7",
     "@types/uuid": "^9.0.8",
     "nodemon": "^3.1.0",
+    "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
+  },
+  "allowScripts": {
+    "@prisma/client@5.22.0": true,
+    "prisma@5.22.0": true,
+    "@prisma/engines@5.22.0": true
   }
 }

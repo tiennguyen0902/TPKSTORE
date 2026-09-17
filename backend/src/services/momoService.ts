@@ -26,11 +26,12 @@ export interface MomoCreatePaymentResponse {
 }
 
 export class MomoPaymentService {
-  private static getDefaultConfig() {
+  private static async getDefaultConfig() {
+    const settings = await db.systemSettings.findFirst();
     return {
-      partnerCode: process.env.MOMO_PARTNER_CODE || db.settings.momoPartnerCode || "MOMO",
-      accessKey: process.env.MOMO_ACCESS_KEY || db.settings.momoAccessKey || "F8BBA842ECF85",
-      secretKey: process.env.MOMO_SECRET_KEY || db.settings.momoSecretKey || "K951B6PE1waDMi640xX08PD3vg6EkVlz",
+      partnerCode: process.env.MOMO_PARTNER_CODE || settings?.momoPartnerCode || "MOMO",
+      accessKey: process.env.MOMO_ACCESS_KEY || settings?.momoAccessKey || "F8BBA842ECF85",
+      secretKey: process.env.MOMO_SECRET_KEY || settings?.momoSecretKey || "K951B6PE1waDMi640xX08PD3vg6EkVlz",
       hostname: "test-payment.momo.vn",
       createPath: "/v2/gateway/api/create",
       defaultRedirectUrl: "http://localhost:3000/payment-result",
@@ -46,7 +47,7 @@ export class MomoPaymentService {
     data?: MomoCreatePaymentResponse;
     error?: string;
   }> {
-    const config = this.getDefaultConfig();
+    const config = await this.getDefaultConfig();
     const partnerCode = config.partnerCode;
     const accessKey = config.accessKey;
     const secretKey = config.secretKey;
@@ -155,9 +156,9 @@ export class MomoPaymentService {
   /**
    * Xác thực chữ ký IPN (Webhook) từ MoMo
    */
-  public static verifyIpnSignature(body: any): boolean {
+  public static async verifyIpnSignature(body: any): Promise<boolean> {
     try {
-      const config = this.getDefaultConfig();
+      const config = await this.getDefaultConfig();
       const secretKey = config.secretKey;
       const {
         accessKey,

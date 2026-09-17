@@ -2,18 +2,21 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { db } from "../db";
-import { User } from "../mockData";
+import { User } from "@prisma/client";
 
 // WARNING: Fallback secrets dưới đây CHỈ dùng cho môi trường dev.
 // Trong production, bắt buộc set JWT_ACCESS_SECRET và JWT_REFRESH_SECRET qua biến môi trường.
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "store_ai_access_secret_key_2026";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "store_ai_refresh_secret_key_2026";
 
+// In-memory blacklist for invalidated access tokens (only needs to survive within session)
+const blacklistedTokens = new Set<string>();
+
 export interface AuthenticatedRequest extends Request {
   user?: User;
 }
 
-export function generateTokens(user: User) {
+export async function generateTokens(user: User) {
   const payload = {
     id: user.id,
     email: user.email,
@@ -29,12 +32,12 @@ export function generateTokens(user: User) {
   expiresAt.setDate(expiresAt.getDate() + 7);
 
   // Store hashed refresh token in database
-  db.refreshTokens.push({
-    id: crypto.randomUUID(),
-    tokenHash,
-    userId: user.id,
-    expiresAt: expiresAt.toISOString(),
-    createdAt: new Date().toISOString()
+  await db.refreshToken.create({
+    data: {
+      tokenHash,
+      userId: user.id,
+      expiresAt,
+    }
   });
 
   return {
@@ -42,6 +45,14 @@ export function generateTokens(user: User) {
     refreshToken: rawRefreshToken,
     expiresIn: 900 // 15 minutes
   };
+}
+
+export function addToBlacklist(token: string) {
+  blacklistedTokens.add(token);
+}
+
+export function isBlacklisted(token: string): boolean {
+  return blacklistedTokens.has(token);
 }
 
 export function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -52,20 +63,26 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
     return res.status(401).json({ error: "Yêu cầu đăng nhập để truy cập tài nguyên này." });
   }
 
-  if (db.blacklistedTokens.has(token)) {
+  if (isBlacklisted(token)) {
     return res.status(401).json({ error: "Token đã bị vô hiệu hóa (Blacklisted)." });
   }
 
-  jwt.verify(token, JWT_ACCESS_SECRET, (err, decoded: any) => {
+  jwt.verify(token, JWT_ACCESS_SECRET, async (err, decoded: any) => {
     if (err) {
       return res.status(403).json({ error: "Phiên đăng nhập đã hết hạn hoặc không hợp lệ." });
     }
-    const user = db.users.find(u => u.id === decoded.id && u.isActive);
-    if (!user) {
-      return res.status(403).json({ error: "Tài khoản không tồn tại hoặc đã bị khóa." });
+    try {
+      const user = await db.user.findFirst({
+        where: { id: decoded.id, isActive: true }
+      });
+      if (!user) {
+        return res.status(403).json({ error: "Tài khoản không tồn tại hoặc đã bị khóa." });
+      }
+      req.user = user;
+      next();
+    } catch (dbErr) {
+      return res.status(500).json({ error: "Lỗi truy vấn cơ sở dữ liệu." });
     }
-    req.user = user;
-    next();
   });
 }
 

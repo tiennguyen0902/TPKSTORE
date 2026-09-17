@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
+import { prisma } from "./db";
 import authRoutes from "./routes/authRoutes";
 import productRoutes from "./routes/productRoutes";
 import categoryRoutes from "./routes/categoryRoutes";
@@ -38,6 +39,7 @@ app.get("/health", (req: Request, res: Response) => {
     status: "healthy",
     service: "SHOPBEE / STORE AI Core Backend",
     version: "2.1.0",
+    database: "PostgreSQL + Prisma ORM",
     timestamp: new Date().toISOString()
   });
 });
@@ -62,10 +64,36 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`🚀 SHOPBEE Core Backend Server running on port ${PORT}`);
-  console.log(`📡 API Endpoints available at http://localhost:${PORT}/api`);
+// Start Server with Prisma Connection
+async function main() {
+  try {
+    await prisma.$connect();
+    console.log("✅ Kết nối PostgreSQL thành công qua Prisma ORM!");
+
+    app.listen(PORT, () => {
+      console.log(`🚀 SHOPBEE Core Backend Server running on port ${PORT}`);
+      console.log(`📡 API Endpoints available at http://localhost:${PORT}/api`);
+      console.log(`🗄️  Database: PostgreSQL (Prisma ORM)`);
+    });
+  } catch (err) {
+    console.error("❌ Không thể kết nối database:", err);
+    process.exit(1);
+  }
+}
+
+// Graceful Shutdown
+process.on("SIGINT", async () => {
+  console.log("\n🔄 Đang đóng kết nối database...");
+  await prisma.$disconnect();
+  console.log("✅ Đã ngắt kết nối database.");
+  process.exit(0);
 });
+
+process.on("SIGTERM", async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+main();
 
 export default app;

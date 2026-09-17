@@ -9,7 +9,8 @@ const AI_SERVICE_TIMEOUT_MS = 45000;
 
 // Helper to call AI Service with Circuit Breaker Fallback
 async function callAiService(endpoint: string, payload: any) {
-  const baseUrl = process.env.AI_SERVICE_URL || db.settings.aiServiceUrl || "http://ai_service:8000";
+  const settings = await db.systemSettings.findFirst();
+  const baseUrl = process.env.AI_SERVICE_URL || settings?.aiServiceUrl || "http://ai_service:8000";
   const url = `${baseUrl}${endpoint}`;
   try {
     const response = await axios.post(url, payload, { timeout: AI_SERVICE_TIMEOUT_MS });
@@ -19,13 +20,28 @@ async function callAiService(endpoint: string, payload: any) {
   }
 }
 
+// Helper to get settings
+async function getSettings() {
+  const settings = await db.systemSettings.findFirst();
+  return {
+    aiProvider: settings?.aiProvider || "gemini",
+    geminiApiKey: settings?.geminiApiKey || process.env.GEMINI_API_KEY || "",
+    geminiModel: settings?.geminiModel || "gemini-3.5-flash",
+    openaiApiKey: settings?.openaiApiKey || "",
+    openaiModel: settings?.openaiModel || "gpt-5.4-mini",
+    aiServiceUrl: settings?.aiServiceUrl || process.env.AI_SERVICE_URL || "http://ai_service:8000",
+    freeShippingThreshold: settings?.freeShippingThreshold || 500000,
+  };
+}
+
 // POST /api/ai/test-key (Verify Google Gemini or OpenAI API Key connection & status - Cấp quyền cho mọi người dùng)
 router.post("/test-key", async (req: Request, res: Response) => {
-  const provider = req.body.provider || db.settings.aiProvider || "gemini";
-  const geminiApiKey = req.body.geminiApiKey || db.settings.geminiApiKey;
-  const geminiModel = req.body.geminiModel || db.settings.geminiModel;
-  const openaiApiKey = req.body.openaiApiKey || db.settings.openaiApiKey;
-  const openaiModel = req.body.openaiModel || db.settings.openaiModel;
+  const settings = await getSettings();
+  const provider = req.body.provider || settings.aiProvider;
+  const geminiApiKey = req.body.geminiApiKey || settings.geminiApiKey;
+  const geminiModel = req.body.geminiModel || settings.geminiModel;
+  const openaiApiKey = req.body.openaiApiKey || settings.openaiApiKey;
+  const openaiModel = req.body.openaiModel || settings.openaiModel;
   const apiKey = req.body.apiKey;
   const model = req.body.model;
 
@@ -53,7 +69,7 @@ router.post("/test-key", async (req: Request, res: Response) => {
 // POST /api/ai/recommend (AI Recommendation Engine)
 router.post("/recommend", async (req: Request, res: Response) => {
   const { targetProductId, userPurchasedIds, categoryId, limit } = req.body;
-  const products = db.getAllProducts();
+  const products = await db.product.findMany({ include: { category: true } });
 
   const aiRes = await callAiService("/api/ai/recommend", {
     products,
@@ -86,34 +102,35 @@ router.post("/recommend", async (req: Request, res: Response) => {
 // POST /api/ai/chat (RAG Chatbot with Gemini / OpenAI / Local RAG)
 router.post("/chat", async (req: Request, res: Response) => {
   const { message, history, provider } = req.body;
-  const products = db.getAllProducts();
+  const products = await db.product.findMany({ include: { category: true } });
+  const settings = await getSettings();
 
   if (!message || !message.trim()) {
     return res.status(400).json({ error: "Nội dung tin nhắn không được để trống." });
   }
 
-  const selectedProvider = provider || db.settings.aiProvider || "gemini";
+  const selectedProvider = provider || settings.aiProvider;
 
   const aiRes = await callAiService("/api/ai/chat", {
     message,
     history: history || [],
     products,
     provider: selectedProvider,
-    geminiApiKey: db.settings.geminiApiKey,
-    geminiModel: db.settings.geminiModel,
-    openaiApiKey: db.settings.openaiApiKey,
-    openaiModel: db.settings.openaiModel
+    geminiApiKey: settings.geminiApiKey,
+    geminiModel: settings.geminiModel,
+    openaiApiKey: settings.openaiApiKey,
+    openaiModel: settings.openaiModel
   });
 
   if (aiRes.success) {
     // Log interaction in DB
-    db.aiInteractions.push({
-      id: `ai_${Date.now()}`,
-      sessionId: req.headers["x-session-id"] as string || "anonymous_session",
-      query: message,
-      response: aiRes.data.reply,
-      type: "CHAT",
-      createdAt: new Date().toISOString()
+    await db.aIInteraction.create({
+      data: {
+        sessionId: req.headers["x-session-id"] as string || "anonymous_session",
+        query: message,
+        response: aiRes.data.reply,
+        type: "CHAT",
+      }
     });
     return res.json(aiRes.data);
   }
@@ -201,7 +218,7 @@ router.post("/forecast", async (req: Request, res: Response) => {
 
 // POST /api/ai/inventory-alerts (AI Smart Safety Stock Analyzer)
 router.post("/inventory-alerts", async (req: Request, res: Response) => {
-  const products = db.getAllProducts();
+  const products = await db.product.findMany({ include: { category: true } });
   const aiRes = await callAiService("/api/ai/inventory-alerts", { products });
 
   if (aiRes.success) {
@@ -273,24 +290,38 @@ router.post("/inventory-alerts", async (req: Request, res: Response) => {
 });
 
 // POST /api/ai/reorder-approve (Approve Restock from AI Recommendation)
-router.post("/reorder-approve", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: AuthenticatedRequest, res: Response) => {
-  const { productId, reorderQty } = req.body;
-  if (!productId || !reorderQty) {
-    return res.status(400).json({ error: "Vui lòng cung cấp productId và reorderQty." });
+router.post("/reorder-approve", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { productId, reorderQty } = req.body;
+    if (!productId || !reorderQty) {
+      return res.status(400).json({ error: "Vui lòng cung cấp productId và reorderQty." });
+    }
+
+    const product = await db.product.findFirst({
+      where: {
+        OR: [
+          { id: productId },
+          { name: { contains: productId } }
+        ]
+      }
+    });
+    if (!product) {
+      return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
+    }
+
+    const updated = await db.product.update({
+      where: { id: product.id },
+      data: { stock: { increment: parseInt(reorderQty) } },
+      include: { category: true }
+    });
+
+    return res.json({
+      message: `Đã duyệt nhập thành công +${reorderQty} sản phẩm "${updated.name}". Tồn kho mới: ${updated.stock}`,
+      product: updated
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi duyệt nhập hàng: " + err.message });
   }
-
-  const product = db.products.find(p => p.id === productId || p.name.includes(productId));
-  if (!product) {
-    return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
-  }
-
-  product.stock += parseInt(reorderQty);
-  product.updatedAt = new Date().toISOString();
-
-  return res.json({
-    message: `Đã duyệt nhập thành công +${reorderQty} sản phẩm "${product.name}". Tồn kho mới: ${product.stock}`,
-    product: db.getProductWithCategory(product)
-  });
 });
 
 // POST /api/ai/analyze-architecture

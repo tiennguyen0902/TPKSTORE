@@ -5,48 +5,70 @@ import { authenticateToken, authorize, AuthenticatedRequest } from "../middlewar
 const router = Router();
 
 // GET /api/settings
-router.get("/", (req: Request, res: Response) => {
-  return res.json(db.settings);
+router.get("/", async (req: Request, res: Response) => {
+  try {
+    let settings = await db.systemSettings.findFirst();
+    if (!settings) {
+      // Create default settings if not exists
+      settings = await db.systemSettings.create({
+        data: { id: "default" }
+      });
+    }
+    return res.json(settings);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi truy vấn cài đặt: " + err.message });
+  }
 });
 
 // PUT /api/settings (Admin)
-router.put("/", authenticateToken, authorize(["ADMIN"]), (req: AuthenticatedRequest, res: Response) => {
-  const { 
-    storeName, 
-    hotline, 
-    supportEmail, 
-    freeShippingThreshold, 
-    aiProvider,
-    geminiApiKey, 
-    geminiModel, 
-    openaiApiKey,
-    openaiModel,
-    aiServiceUrl, 
-    vnpayTmnCode,
-    momoPartnerCode,
-    momoAccessKey,
-    momoSecretKey
-  } = req.body;
+router.put("/", authenticateToken, authorize(["ADMIN"]), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { 
+      storeName, 
+      hotline, 
+      supportEmail, 
+      freeShippingThreshold, 
+      aiProvider,
+      geminiApiKey, 
+      geminiModel, 
+      openaiApiKey,
+      openaiModel,
+      aiServiceUrl, 
+      vnpayTmnCode,
+      momoPartnerCode,
+      momoAccessKey,
+      momoSecretKey
+    } = req.body;
 
-  if (storeName) db.settings.storeName = storeName;
-  if (hotline) db.settings.hotline = hotline;
-  if (supportEmail) db.settings.supportEmail = supportEmail;
-  if (freeShippingThreshold !== undefined) db.settings.freeShippingThreshold = parseFloat(freeShippingThreshold);
-  if (aiProvider) db.settings.aiProvider = aiProvider;
-  if (geminiApiKey !== undefined) db.settings.geminiApiKey = geminiApiKey;
-  if (geminiModel) db.settings.geminiModel = geminiModel;
-  if (openaiApiKey !== undefined) db.settings.openaiApiKey = openaiApiKey;
-  if (openaiModel) db.settings.openaiModel = openaiModel;
-  if (aiServiceUrl) db.settings.aiServiceUrl = aiServiceUrl;
-  if (vnpayTmnCode) db.settings.vnpayTmnCode = vnpayTmnCode;
-  if (momoPartnerCode !== undefined) db.settings.momoPartnerCode = momoPartnerCode;
-  if (momoAccessKey !== undefined) db.settings.momoAccessKey = momoAccessKey;
-  if (momoSecretKey !== undefined) db.settings.momoSecretKey = momoSecretKey;
+    const updateData: any = {};
+    if (storeName) updateData.storeName = storeName;
+    if (hotline) updateData.hotline = hotline;
+    if (supportEmail) updateData.supportEmail = supportEmail;
+    if (freeShippingThreshold !== undefined) updateData.freeShippingThreshold = parseFloat(freeShippingThreshold);
+    if (aiProvider) updateData.aiProvider = aiProvider;
+    if (geminiApiKey !== undefined) updateData.geminiApiKey = geminiApiKey;
+    if (geminiModel) updateData.geminiModel = geminiModel;
+    if (openaiApiKey !== undefined) updateData.openaiApiKey = openaiApiKey;
+    if (openaiModel) updateData.openaiModel = openaiModel;
+    if (aiServiceUrl) updateData.aiServiceUrl = aiServiceUrl;
+    if (vnpayTmnCode) updateData.vnpayTmnCode = vnpayTmnCode;
+    if (momoPartnerCode !== undefined) updateData.momoPartnerCode = momoPartnerCode;
+    if (momoAccessKey !== undefined) updateData.momoAccessKey = momoAccessKey;
+    if (momoSecretKey !== undefined) updateData.momoSecretKey = momoSecretKey;
 
-  return res.json({
-    message: "Lưu cấu hình hệ thống thành công!",
-    settings: db.settings
-  });
+    const settings = await db.systemSettings.upsert({
+      where: { id: "default" },
+      update: updateData,
+      create: { id: "default", ...updateData }
+    });
+
+    return res.json({
+      message: "Lưu cấu hình hệ thống thành công!",
+      settings
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi lưu cài đặt: " + err.message });
+  }
 });
 
 export default router;

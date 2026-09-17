@@ -1,49 +1,108 @@
 import { Router, Request, Response } from "express";
 import { db } from "../db";
 import { authenticateToken, authorize } from "../middleware/auth";
-import { Product } from "../mockData";
-import { v4 as uuidv4 } from "uuid";
+import { Prisma } from "@prisma/client";
 
 const router = Router();
 
 // GET /api/products (Public with filters)
-router.get("/", (req: Request, res: Response) => {
-  const { category, search, minPrice, maxPrice, isFeatured, isNew, sortBy, limit, page } = req.query;
+router.get("/", async (req: Request, res: Response) => {
+  try {
+    const { category, search, minPrice, maxPrice, isFeatured, isNew, sortBy, limit, page } = req.query;
 
-  const products = db.getAllProducts({
-    categoryId: category as string,
-    search: search as string,
-    minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
-    maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
-    isFeatured: isFeatured !== undefined ? isFeatured === "true" : undefined,
-    isNew: isNew !== undefined ? isNew === "true" : undefined,
-    sortBy: sortBy as string
-  });
+    const where: Prisma.ProductWhereInput = {};
 
-  const pageNum = parseInt(page as string) || 1;
-  const limitNum = parseInt(limit as string) || 50;
-  const startIndex = (pageNum - 1) * limitNum;
-  const paginatedProducts = products.slice(startIndex, startIndex + limitNum);
+    if (category && category !== "all") {
+      // Support both id and slug
+      where.OR = [
+        { categoryId: category as string },
+        { category: { slug: category as string } }
+      ];
+    }
+    if (search) {
+      const q = (search as string).toLowerCase();
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { description: { contains: q, mode: "insensitive" } }
+          ]
+        }
+      ];
+    }
+    if (minPrice !== undefined) {
+      where.price = { ...((where.price as any) || {}), gte: parseFloat(minPrice as string) };
+    }
+    if (maxPrice !== undefined) {
+      where.price = { ...((where.price as any) || {}), lte: parseFloat(maxPrice as string) };
+    }
+    if (isFeatured !== undefined) {
+      where.isFeatured = isFeatured === "true";
+    }
+    if (isNew !== undefined) {
+      where.isNew = isNew === "true";
+    }
 
-  return res.json({
-    total: products.length,
-    page: pageNum,
-    limit: limitNum,
-    products: paginatedProducts
-  });
+    let orderBy: Prisma.ProductOrderByWithRelationInput = {};
+    if (sortBy === "price_asc") {
+      orderBy = { price: "asc" };
+    } else if (sortBy === "price_desc") {
+      orderBy = { price: "desc" };
+    } else if (sortBy === "rating_desc") {
+      orderBy = { rating: "desc" };
+    } else if (sortBy === "newest") {
+      orderBy = { createdAt: "desc" };
+    }
+
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 50;
+    const skip = (pageNum - 1) * limitNum;
+
+    const [products, total] = await Promise.all([
+      db.product.findMany({
+        where,
+        include: { category: true },
+        orderBy: Object.keys(orderBy).length > 0 ? orderBy : undefined,
+        skip,
+        take: limitNum,
+      }),
+      db.product.count({ where })
+    ]);
+
+    return res.json({
+      total,
+      page: pageNum,
+      limit: limitNum,
+      products
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi truy vấn sản phẩm: " + err.message });
+  }
 });
 
 // GET /api/products/:idOrSlug
-router.get("/:idOrSlug", (req: Request, res: Response) => {
-  const product = db.getProductByIdOrSlug(req.params.idOrSlug);
-  if (!product) {
-    return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
+router.get("/:idOrSlug", async (req: Request, res: Response) => {
+  try {
+    const product = await db.product.findFirst({
+      where: {
+        OR: [
+          { id: req.params.idOrSlug },
+          { slug: req.params.idOrSlug }
+        ]
+      },
+      include: { category: true }
+    });
+    if (!product) {
+      return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
+    }
+    return res.json(product);
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi truy vấn: " + err.message });
   }
-  return res.json(product);
 });
 
 // POST /api/products (Admin & Staff)
-router.post("/", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Request, res: Response) => {
+router.post("/", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: Request, res: Response) => {
   try {
     const { name, description, price, originalPrice, stock, categoryId, thumbnail, images, isFeatured, isNew } = req.body;
 
@@ -66,34 +125,33 @@ router.post("/", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Request
     
     let slug = baseSlug;
     let count = 1;
-    while (db.products.some(p => p.slug === slug)) {
+    while (await db.product.findUnique({ where: { slug } })) {
       slug = `${baseSlug}-${count++}`;
     }
 
-    const newProduct: Product = {
-      id: `prd_${uuidv4().substring(0, 8)}`,
-      name,
-      slug,
-      description: description || "",
-      price: parseFloat(price),
-      originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
-      stock: parseInt(stock),
-      thumbnail: thumbnail || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80",
-      images: Array.isArray(images) && images.length > 0 ? images : [thumbnail || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"],
-      rating: 5.0,
-      reviewCount: 0,
-      isFeatured: isFeatured === true || isFeatured === "true",
-      isNew: isNew === true || isNew === "true",
-      categoryId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    db.products.unshift(newProduct);
+    const defaultThumb = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+    const newProduct = await db.product.create({
+      data: {
+        name,
+        slug,
+        description: description || "",
+        price: parseFloat(price),
+        originalPrice: originalPrice ? parseFloat(originalPrice) : null,
+        stock: parseInt(stock),
+        thumbnail: thumbnail || defaultThumb,
+        images: Array.isArray(images) && images.length > 0 ? images : [thumbnail || defaultThumb],
+        rating: 5.0,
+        reviewCount: 0,
+        isFeatured: isFeatured === true || isFeatured === "true",
+        isNew: isNew === true || isNew === "true",
+        categoryId,
+      },
+      include: { category: true }
+    });
 
     return res.status(201).json({
       message: "Thêm mới sản phẩm thành công!",
-      product: db.getProductWithCategory(newProduct)
+      product: newProduct
     });
   } catch (err: any) {
     return res.status(500).json({ error: "Lỗi thêm sản phẩm: " + err.message });
@@ -101,48 +159,62 @@ router.post("/", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Request
 });
 
 // PUT /api/products/:id (Admin & Staff)
-router.put("/:id", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Request, res: Response) => {
-  const prod = db.products.find(p => p.id === req.params.id);
-  if (!prod) {
-    return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
+router.put("/:id", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: Request, res: Response) => {
+  try {
+    const existing = await db.product.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
+    }
+
+    const { name, description, price, originalPrice, stock, categoryId, thumbnail, images, isFeatured, isNew } = req.body;
+
+    if (price !== undefined && price < 0) {
+      return res.status(400).json({ error: "Giá bán không được âm." });
+    }
+    if (stock !== undefined && stock < 0) {
+      return res.status(400).json({ error: "Số lượng tồn kho không được âm." });
+    }
+
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (price !== undefined) updateData.price = parseFloat(price);
+    if (originalPrice !== undefined) updateData.originalPrice = originalPrice ? parseFloat(originalPrice) : null;
+    if (stock !== undefined) updateData.stock = parseInt(stock);
+    if (categoryId) updateData.categoryId = categoryId;
+    if (thumbnail) updateData.thumbnail = thumbnail;
+    if (images) updateData.images = images;
+    if (isFeatured !== undefined) updateData.isFeatured = Boolean(isFeatured);
+    if (isNew !== undefined) updateData.isNew = Boolean(isNew);
+
+    const updatedProduct = await db.product.update({
+      where: { id: req.params.id },
+      data: updateData,
+      include: { category: true }
+    });
+
+    return res.json({
+      message: "Cập nhật sản phẩm thành công!",
+      product: updatedProduct
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi cập nhật sản phẩm: " + err.message });
   }
-
-  const { name, description, price, originalPrice, stock, categoryId, thumbnail, images, isFeatured, isNew } = req.body;
-
-  if (price !== undefined && price < 0) {
-    return res.status(400).json({ error: "Giá bán không được âm." });
-  }
-  if (stock !== undefined && stock < 0) {
-    return res.status(400).json({ error: "Số lượng tồn kho không được âm." });
-  }
-
-  if (name) prod.name = name;
-  if (description !== undefined) prod.description = description;
-  if (price !== undefined) prod.price = parseFloat(price);
-  if (originalPrice !== undefined) prod.originalPrice = originalPrice ? parseFloat(originalPrice) : undefined;
-  if (stock !== undefined) prod.stock = parseInt(stock);
-  if (categoryId) prod.categoryId = categoryId;
-  if (thumbnail) prod.thumbnail = thumbnail;
-  if (images) prod.images = images;
-  if (isFeatured !== undefined) prod.isFeatured = Boolean(isFeatured);
-  if (isNew !== undefined) prod.isNew = Boolean(isNew);
-  prod.updatedAt = new Date().toISOString();
-
-  return res.json({
-    message: "Cập nhật sản phẩm thành công!",
-    product: db.getProductWithCategory(prod)
-  });
 });
 
 // DELETE /api/products/:id (Admin & Staff)
-router.delete("/:id", authenticateToken, authorize(["ADMIN", "STAFF"]), (req: Request, res: Response) => {
-  const idx = db.products.findIndex(p => p.id === req.params.id);
-  if (idx === -1) {
-    return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
-  }
+router.delete("/:id", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: Request, res: Response) => {
+  try {
+    const existing = await db.product.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
+    }
 
-  db.products.splice(idx, 1);
-  return res.json({ message: "Xóa sản phẩm thành công!" });
+    await db.product.delete({ where: { id: req.params.id } });
+    return res.json({ message: "Xóa sản phẩm thành công!" });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi xóa sản phẩm: " + err.message });
+  }
 });
 
 export default router;
