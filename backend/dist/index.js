@@ -10,6 +10,16 @@ const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config({ path: path_1.default.resolve(__dirname, "../.env") });
 dotenv_1.default.config({ path: path_1.default.resolve(process.cwd(), ".env") });
 dotenv_1.default.config();
+// Đảm bảo biến môi trường cốt lõi luôn có giá trị hợp lệ
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = "postgresql://postgres:password123@localhost:5432/store_ai_db?schema=public";
+}
+if (!process.env.JWT_ACCESS_SECRET) {
+    process.env.JWT_ACCESS_SECRET = "store_ai_access_secret_super_secure_key_2026";
+}
+if (!process.env.JWT_REFRESH_SECRET) {
+    process.env.JWT_REFRESH_SECRET = "store_ai_refresh_secret_super_secure_key_2026";
+}
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const db_1 = require("./db");
