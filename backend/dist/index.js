@@ -3,11 +3,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
-const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
+const dotenv_1 = __importDefault(require("dotenv"));
+// Nạp biến môi trường ngay đầu tiên
+dotenv_1.default.config({ path: path_1.default.resolve(__dirname, "../.env") });
+dotenv_1.default.config({ path: path_1.default.resolve(process.cwd(), ".env") });
+dotenv_1.default.config();
+const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
 const db_1 = require("./db");
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const productRoutes_1 = __importDefault(require("./routes/productRoutes"));
@@ -18,7 +22,6 @@ const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 const aiRoutes_1 = __importDefault(require("./routes/aiRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const settingsRoutes_1 = __importDefault(require("./routes/settingsRoutes"));
-dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
 // Middlewares
