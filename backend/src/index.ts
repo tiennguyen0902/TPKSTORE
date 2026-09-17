@@ -1,8 +1,14 @@
-import express, { Request, Response, NextFunction } from "express";
-import cors from "cors";
-import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
+import dotenv from "dotenv";
+
+// Nạp biến môi trường ngay đầu tiên
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config();
+
+import express, { Request, Response, NextFunction } from "express";
+import cors from "cors";
 
 import { prisma } from "./db";
 import authRoutes from "./routes/authRoutes";
@@ -14,8 +20,6 @@ import paymentRoutes from "./routes/paymentRoutes";
 import aiRoutes from "./routes/aiRoutes";
 import userRoutes from "./routes/userRoutes";
 import settingsRoutes from "./routes/settingsRoutes";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

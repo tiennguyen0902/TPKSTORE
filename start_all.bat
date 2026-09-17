@@ -15,8 +15,8 @@ echo.
 :: 1. Khoi dong PostgreSQL Database
 start "PostgreSQL Server (Port 5432)" /D "%ROOT%backend" cmd /k node start_postgres.js
 
-:: Cho 2 giay de PostgreSQL khoi dong xong
-ping 127.0.0.1 -n 3 >nul
+:: Cho 4 giay de PostgreSQL khoi dong va san sang tiep nhan ket noi
+ping 127.0.0.1 -n 5 >nul
 
 :: 2. Khoi dong AI Microservice
 start "AI Service (Port 8000)" /D "%ROOT%ai_service" cmd /k python app.py
