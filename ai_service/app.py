@@ -40,26 +40,44 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 GEMINI_CANDIDATE_MODELS = [
-    "gemini-3.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-flash-8b-latest",
+    "gemini-1.5-pro-latest",
     "gemini-2.5-flash",
-    "gemini-3.6-flash",
-    "gemini-3.7-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash-thinking-exp-01-21",
+    "gemini-2.0-pro-exp-02-05",
     "gemini-flash-latest",
     "gemini-pro-latest",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
+    "gemini-exp-1206",
+    "learnlm-1.5-pro-experimental",
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
 ]
 
 OPENAI_CANDIDATE_MODELS = [
     DEFAULT_OPENAI_MODEL,
     "gpt-4o",
-    "gpt-3.5-turbo",
     "o3-mini",
+    "o1",
+    "o1-mini",
+    "o1-preview",
+    "chatgpt-4o-latest",
+    "gpt-4-turbo",
+    "gpt-4",
+    "gpt-3.5-turbo",
+    "gpt-5.4-mini",
 ]
 
 # ---------------------------------------------------------------------------
@@ -265,7 +283,8 @@ def test_ai_api_key(req: TestKeyRequest):
 
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-        # Step A: Validate key via /v1/models
+        # Step A: Validate key via /v1/models & get available models
+        available_openai_models: List[str] = []
         try:
             r_models = requests.get("https://api.openai.com/v1/models", headers=headers, timeout=8)
             if r_models.status_code in (401, 403):
@@ -275,24 +294,19 @@ def test_ai_api_key(req: TestKeyRequest):
                     "provider": "openai",
                     "message": "OpenAI từ chối (401/403): API Key không chính xác hoặc đã bị vô hiệu hóa trên OpenAI Platform.",
                 }
-            elif r_models.status_code != 200:
-                return {
-                    "status": "error",
-                    "valid": False,
-                    "provider": "openai",
-                    "message": f"OpenAI trả về mã lỗi HTTP {r_models.status_code}: {r_models.text[:140]}",
-                }
+            elif r_models.status_code == 200:
+                raw_data = r_models.json().get("data", [])
+                available_openai_models = [
+                    m.get("id", "")
+                    for m in raw_data
+                    if m.get("id", "").startswith(("gpt", "o1", "o3", "chatgpt"))
+                ]
         except Exception as exc:
-            return {
-                "status": "error",
-                "valid": False,
-                "provider": "openai",
-                "message": f"Lỗi kết nối tới máy chủ OpenAI: {str(exc)}",
-            }
+            logger.warning(f"Error querying OpenAI models: {exc}")
 
         # Step B: Test chat completion
         target_model = req.model or req.openaiModel or DEFAULT_OPENAI_MODEL
-        unique_models = _dedupe_models(target_model, OPENAI_CANDIDATE_MODELS)
+        unique_models = _dedupe_models(target_model, available_openai_models + OPENAI_CANDIDATE_MODELS)
 
         test_msg = [{"role": "user", "content": "Xin chào! Hãy phản hồi đúng 1 câu ngắn gọn bằng tiếng Việt xác nhận kết nối OpenAI hoạt động tốt."}]
         for model in unique_models:
@@ -313,6 +327,7 @@ def test_ai_api_key(req: TestKeyRequest):
                         "model": model,
                         "message": f"OpenAI API Key hoạt động hoàn hảo! Đã kết nối thành công ({model}).",
                         "sampleResponse": sample_reply,
+                        "availableModels": (available_openai_models or OPENAI_CANDIDATE_MODELS)[:15],
                     }
                 elif resp.status_code == 429:
                     return {
@@ -325,24 +340,29 @@ def test_ai_api_key(req: TestKeyRequest):
                             "Tuy nhiên tài khoản đã hết số dư tín dụng ($0 balance / Quota exceeded). "
                             "Vui lòng nạp thêm credit trên https://platform.openai.com/settings/billing."
                         ),
+                        "availableModels": (available_openai_models or OPENAI_CANDIDATE_MODELS)[:15],
                     }
                 elif resp.status_code == 404:
-                    if model == target_model and len(unique_models) > 1:
-                        continue  # Try next candidate
-                    return {
-                        "status": "error",
-                        "valid": True,
-                        "provider": "openai",
-                        "message": f"Mô hình '{target_model}' chưa được hỗ trợ hoặc tài khoản chưa có quyền truy cập (404). Khuyên dùng: 'gpt-4o-mini'.",
-                    }
+                    continue
             except Exception as exc:
                 logger.warning(f"Error checking OpenAI model {model}: {exc}")
+
+        if available_openai_models:
+            return {
+                "status": "success",
+                "valid": True,
+                "provider": "openai",
+                "model": available_openai_models[0],
+                "message": f"OpenAI API Key hợp lệ! Đã xác thực thành công danh mục mô hình OpenAI ({available_openai_models[0]}).",
+                "availableModels": available_openai_models[:15],
+            }
 
         return {
             "status": "warning",
             "valid": True,
             "provider": "openai",
             "message": "OpenAI API Key hợp lệ! (Lưu ý: Tài khoản cần nạp credits để sử dụng chat hoàn chỉnh).",
+            "availableModels": OPENAI_CANDIDATE_MODELS[:15],
         }
 
     # ── 2. TEST GOOGLE GEMINI ─────────────────────────────────────────────── #
@@ -355,8 +375,42 @@ def test_ai_api_key(req: TestKeyRequest):
             "message": "Chưa có Google Gemini API Key. Vui lòng nhập mã API Key để kiểm tra.",
         }
 
+    # Step A: Validate key via ListModels
+    available_gemini_models: List[str] = []
+    try:
+        r_list = requests.get(
+            f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}",
+            timeout=8,
+        )
+        if r_list.status_code in (400, 401, 403):
+            err_data = {}
+            try:
+                err_data = r_list.json().get("error", {})
+            except Exception:
+                pass
+            msg = err_data.get("message", "API Key không chính xác hoặc bị từ chối truy cập.")
+            return {
+                "status": "error",
+                "valid": False,
+                "provider": "gemini",
+                "message": f"Google từ chối ({r_list.status_code}): {msg}",
+            }
+        elif r_list.status_code == 200:
+            raw_models = r_list.json().get("models", [])
+            available_gemini_models = [
+                m.get("name", "").replace("models/", "").strip()
+                for m in raw_models
+                if "generateContent" in m.get("supportedGenerationMethods", [])
+                and "gemini-1.5-pro" not in m.get("name", "")
+            ]
+    except Exception as exc:
+        logger.warning(f"Error querying Gemini models: {exc}")
+
     target_model = req.model or req.geminiModel or DEFAULT_GEMINI_MODEL
-    unique_models = _dedupe_models(target_model, GEMINI_CANDIDATE_MODELS, strip_prefix="models/")
+    raw_candidates = [target_model] + available_gemini_models + GEMINI_CANDIDATE_MODELS
+    unique_models = _dedupe_models(target_model, raw_candidates, strip_prefix="models/")
+    unique_models = [m for m in unique_models if "gemini-1.5-pro" not in m]
+
     test_prompt = "Xin chào! Hãy phản hồi ngắn gọn đúng 1 câu bằng tiếng Việt xác nhận kết nối Google Gemini hoạt động tốt."
 
     last_error = ""
@@ -367,7 +421,7 @@ def test_ai_api_key(req: TestKeyRequest):
             "generationConfig": {"temperature": 0.2, "maxOutputTokens": 100},
         }
         try:
-            resp = requests.post(url, json=payload, timeout=5)
+            resp = requests.post(url, json=payload, timeout=8)
             if resp.status_code == 200:
                 sample_reply = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                 logger.info(f"Gemini Test Success — model: {model} (requested: {target_model})")
@@ -375,9 +429,10 @@ def test_ai_api_key(req: TestKeyRequest):
                     "status": "success",
                     "valid": True,
                     "provider": "gemini",
-                    "model": target_model,
-                    "message": f"Google Gemini API Key hoạt động chính xác! Kết nối thành công ({target_model}).",
+                    "model": model,
+                    "message": f"Google Gemini API Key hoạt động chính xác! Kết nối thành công ({model}).",
                     "sampleResponse": sample_reply,
+                    "availableModels": (available_gemini_models or GEMINI_CANDIDATE_MODELS)[:15],
                 }
             elif resp.status_code in (400, 401, 403):
                 err_data = {}
@@ -397,18 +452,32 @@ def test_ai_api_key(req: TestKeyRequest):
                     "status": "warning",
                     "valid": True,
                     "provider": "gemini",
+                    "model": model,
                     "message": "Google Gemini Quota (429): Đã vượt quá hạn mức sử dụng (Rate limit / Quota exceeded). Vui lòng thử lại sau.",
+                    "availableModels": (available_gemini_models or GEMINI_CANDIDATE_MODELS)[:15],
                 }
+            elif resp.status_code == 404:
+                continue
             else:
                 last_error = f"Mã lỗi HTTP {resp.status_code}: {resp.text[:120]}"
         except Exception as exc:
             last_error = f"Lỗi kết nối Google: {str(exc)}"
 
+    if available_gemini_models:
+        return {
+            "status": "success",
+            "valid": True,
+            "provider": "gemini",
+            "model": available_gemini_models[0],
+            "message": f"Google Gemini API Key hoàn toàn chính xác! Đã xác thực thành công danh mục mô hình Google AI Studio (Model khả dụng: {available_gemini_models[0]}).",
+            "availableModels": available_gemini_models[:15],
+        }
+
     return {
         "status": "error",
         "valid": False,
         "provider": "gemini",
-        "message": f"Kiểm tra Google Gemini thất bại: {last_error}",
+        "message": f"Kiểm tra Google Gemini thất bại: {last_error or 'Không thể kết nối đến máy chủ Google AI Studio.'}",
     }
 
 

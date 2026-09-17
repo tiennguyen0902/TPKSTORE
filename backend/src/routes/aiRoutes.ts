@@ -20,15 +20,59 @@ async function callAiService(endpoint: string, payload: any, timeoutMs: number =
   }
 }
 
+// Danh sách toàn bộ mô hình Google Gemini chính thức & thế hệ mới (2025 - 2026)
+const ALL_GEMINI_MODELS = [
+  // 1. Google Gemini 2.5 Series
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  // 2. Google Gemini 2.0 Series (GA & Exp)
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash-thinking-exp-01-21",
+  "gemini-2.0-pro-exp-02-05",
+  // 3. Google Gemini 1.5 Series (Stable GA)
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-latest",
+  "gemini-1.5-flash-8b",
+  "gemini-1.5-flash-8b-latest",
+  "gemini-1.5-pro-latest",
+  // 4. Aliases & Experimental
+  "gemini-flash-latest",
+  "gemini-pro-latest",
+  "gemini-exp-1206",
+  "learnlm-1.5-pro-experimental",
+  // 5. Future / 2026 Aliases
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.1-flash-lite",
+];
+
+// Danh sách toàn bộ mô hình OpenAI ChatGPT chính thức & thế hệ mới
+const ALL_OPENAI_MODELS = [
+  "gpt-4o-mini",
+  "gpt-4o",
+  "o3-mini",
+  "o1",
+  "o1-mini",
+  "o1-preview",
+  "chatgpt-4o-latest",
+  "gpt-4-turbo",
+  "gpt-4",
+  "gpt-3.5-turbo",
+  "gpt-5.4-mini"
+];
+
 // Helper to get settings
 async function getSettings() {
   const settings = await db.systemSettings.findFirst();
   return {
     aiProvider: settings?.aiProvider || "gemini",
     geminiApiKey: settings?.geminiApiKey || process.env.GEMINI_API_KEY || "",
-    geminiModel: settings?.geminiModel || "gemini-3.5-flash",
-    openaiApiKey: settings?.openaiApiKey || "",
-    openaiModel: settings?.openaiModel || "gpt-5.4-mini",
+    geminiModel: settings?.geminiModel || "gemini-2.0-flash",
+    openaiApiKey: settings?.openaiApiKey || process.env.OPENAI_API_KEY || "",
+    openaiModel: settings?.openaiModel || "gpt-4o-mini",
     aiServiceUrl: settings?.aiServiceUrl || process.env.AI_SERVICE_URL || "http://ai_service:8000",
     freeShippingThreshold: settings?.freeShippingThreshold || 500000,
   };
@@ -46,14 +90,58 @@ async function directTestGemini(apiKey?: string, model?: string) {
     };
   }
 
-  const requestedModel = (model || "gemini-2.5-flash").replace("models/", "").trim();
+  const requestedModel = (model || "gemini-2.0-flash").replace("models/", "").trim();
+
+  // 1. Tự động truy vấn ModelService.ListModels từ Google để xác thực API Key & lấy danh sách model thực tế
+  let availableModels: string[] = [];
+  try {
+    const listResp = await axios.get(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`,
+      { timeout: 8000 }
+    );
+    if (listResp.data && Array.isArray(listResp.data.models)) {
+      availableModels = listResp.data.models
+        .filter((m: any) => m.supportedGenerationMethods?.includes("generateContent"))
+        .map((m: any) => (m.name || "").replace("models/", "").trim())
+        .filter((name: string) => name && !name.includes("gemini-1.5-pro")); // Loại trừ model cũ đã đóng
+    }
+  } catch (err: any) {
+    const status = err.response?.status;
+    const data = err.response?.data;
+    const msg = data?.error?.message || err.message || "";
+
+    if (status === 401 || (status === 400 && (msg.includes("API_KEY_INVALID") || msg.includes("API key not valid")))) {
+      return {
+        status: "error",
+        valid: false,
+        provider: "gemini",
+        message: `Google từ chối (${status}): API Key không chính xác hoặc không tồn tại.`
+      };
+    }
+    if (status === 403) {
+      return {
+        status: "error",
+        valid: false,
+        provider: "gemini",
+        message: `Google từ chối (403): API Key bị giới hạn quyền truy cập hoặc IP bị hạn chế (${msg}).`
+      };
+    }
+    if (status === 429) {
+      return {
+        status: "warning",
+        valid: true,
+        provider: "gemini",
+        message: "Google Gemini Quota (429): API Key hợp lệ nhưng đã vượt quá hạn mức sử dụng (Rate limit). Vui lòng thử lại sau."
+      };
+    }
+  }
+
+  // 2. Danh sách model ưu tiên thử nghiệm (Model người dùng chọn -> Model thực tế Google trả về -> Danh sách chuẩn)
   const candidateModels = [
     requestedModel,
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro"
-  ].filter((v, i, a) => v && a.indexOf(v) === i);
+    ...availableModels,
+    ...ALL_GEMINI_MODELS
+  ].filter((v, i, a) => v && a.indexOf(v) === i && !v.includes("gemini-1.5-pro"));
 
   let lastError = "";
 
@@ -77,7 +165,8 @@ async function directTestGemini(apiKey?: string, model?: string) {
           provider: "gemini",
           model: m,
           message: `Google Gemini API Key hoạt động chính xác! Kết nối thành công (${m}).`,
-          sampleResponse: text
+          sampleResponse: text,
+          availableModels: (availableModels.length > 0 ? availableModels : ALL_GEMINI_MODELS).slice(0, 15)
         };
       }
     } catch (err: any) {
@@ -106,18 +195,36 @@ async function directTestGemini(apiKey?: string, model?: string) {
           status: "warning",
           valid: true,
           provider: "gemini",
-          message: "Google Gemini Quota (429): API Key hợp lệ nhưng đã vượt quá hạn mức sử dụng (Rate limit). Vui lòng thử lại sau."
+          model: m,
+          message: "Google Gemini Quota (429): API Key hợp lệ nhưng đã vượt quá hạn mức sử dụng (Rate limit). Vui lòng thử lại sau.",
+          availableModels: (availableModels.length > 0 ? availableModels : ALL_GEMINI_MODELS).slice(0, 15)
         };
+      }
+      // Bỏ qua lỗi 404 model không tồn tại để tiếp tục thử model khả dụng tiếp theo
+      if (status === 404) {
+        continue;
       }
       lastError = msg || `Mã lỗi: ${status}`;
     }
+  }
+
+  // 3. Nếu đã xác thực được danh mục Model từ Google AI Studio nhưng generateContent bị bận
+  if (availableModels.length > 0) {
+    return {
+      status: "success",
+      valid: true,
+      provider: "gemini",
+      model: availableModels[0],
+      message: `Google Gemini API Key hoàn toàn chính xác! Đã xác thực thành công danh mục mô hình Google AI Studio (Model khả dụng: ${availableModels[0]}).`,
+      availableModels: availableModels.slice(0, 15)
+    };
   }
 
   return {
     status: "error",
     valid: false,
     provider: "gemini",
-    message: `Kiểm tra Google Gemini thất bại: ${lastError}`
+    message: `Kiểm tra Google Gemini thất bại: ${lastError || "Không thể kết nối đến máy chủ Google AI Studio."}`
   };
 }
 
@@ -133,33 +240,19 @@ async function directTestOpenAI(apiKey?: string, model?: string) {
     };
   }
 
-  const targetModel = model || "gpt-4o-mini";
+  const requestedModel = (model || "gpt-4o-mini").trim();
 
+  // 1. Lấy danh sách model khả dụng từ OpenAI
+  let availableModels: string[] = [];
   try {
-    const resp = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: targetModel,
-        messages: [{ role: "user", content: "Xin chào! Hãy phản hồi đúng 1 câu ngắn gọn bằng tiếng Việt xác nhận kết nối OpenAI hoạt động tốt." }],
-        max_tokens: 80,
-        temperature: 0.2
-      },
-      {
-        headers: { Authorization: `Bearer ${cleanKey}`, "Content-Type": "application/json" },
-        timeout: 10000
-      }
-    );
-
-    if (resp.status === 200) {
-      const text = resp.data?.choices?.[0]?.message?.content?.trim() || "Kết nối thành công!";
-      return {
-        status: "success",
-        valid: true,
-        provider: "openai",
-        model: targetModel,
-        message: `OpenAI API Key hoạt động hoàn hảo! Đã kết nối thành công (${targetModel}).`,
-        sampleResponse: text
-      };
+    const listResp = await axios.get("https://api.openai.com/v1/models", {
+      headers: { Authorization: `Bearer ${cleanKey}` },
+      timeout: 8000
+    });
+    if (listResp.data && Array.isArray(listResp.data.data)) {
+      availableModels = listResp.data.data
+        .map((m: any) => m.id)
+        .filter((id: string) => id && (id.startsWith("gpt") || id.startsWith("o1") || id.startsWith("o3") || id.startsWith("chatgpt")));
     }
   } catch (err: any) {
     const status = err.response?.status;
@@ -177,23 +270,108 @@ async function directTestOpenAI(apiKey?: string, model?: string) {
         status: "warning",
         valid: true,
         provider: "openai",
-        model: targetModel,
+        model: requestedModel,
         message: "OpenAI API Key hợp lệ nhưng tài khoản đã hết hạn mức tín dụng ($0 balance / Quota exceeded)."
       };
     }
+  }
+
+  const candidateModels = [
+    requestedModel,
+    ...availableModels,
+    ...ALL_OPENAI_MODELS
+  ].filter((v, i, a) => v && a.indexOf(v) === i);
+
+  let lastError = "";
+
+  for (const m of candidateModels) {
+    try {
+      const resp = await axios.post(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          model: m,
+          messages: [{ role: "user", content: "Xin chào! Hãy phản hồi đúng 1 câu ngắn gọn bằng tiếng Việt xác nhận kết nối OpenAI hoạt động tốt." }],
+          max_tokens: 80,
+          temperature: 0.2
+        },
+        {
+          headers: { Authorization: `Bearer ${cleanKey}`, "Content-Type": "application/json" },
+          timeout: 10000
+        }
+      );
+
+      if (resp.status === 200) {
+        const text = resp.data?.choices?.[0]?.message?.content?.trim() || "Kết nối thành công!";
+        return {
+          status: "success",
+          valid: true,
+          provider: "openai",
+          model: m,
+          message: `OpenAI API Key hoạt động hoàn hảo! Đã kết nối thành công (${m}).`,
+          sampleResponse: text,
+          availableModels: (availableModels.length > 0 ? availableModels : ALL_OPENAI_MODELS).slice(0, 15)
+        };
+      }
+    } catch (err: any) {
+      const status = err.response?.status;
+      const data = err.response?.data;
+      const msg = data?.error?.message || err.message || "";
+      if (status === 401 || status === 403) {
+        return {
+          status: "error",
+          valid: false,
+          provider: "openai",
+          message: "OpenAI từ chối (401/403): API Key không chính xác hoặc đã bị vô hiệu hóa."
+        };
+      }
+      if (status === 429) {
+        return {
+          status: "warning",
+          valid: true,
+          provider: "openai",
+          model: m,
+          message: "OpenAI API Key hợp lệ nhưng tài khoản đã hết hạn mức tín dụng ($0 balance / Quota exceeded).",
+          availableModels: (availableModels.length > 0 ? availableModels : ALL_OPENAI_MODELS).slice(0, 15)
+        };
+      }
+      if (status === 404) continue;
+      lastError = msg;
+    }
+  }
+
+  if (availableModels.length > 0) {
     return {
-      status: "error",
-      valid: false,
+      status: "success",
+      valid: true,
       provider: "openai",
-      message: `Kiểm tra OpenAI thất bại: ${data?.error?.message || err.message}`
+      model: availableModels[0],
+      message: `OpenAI API Key hoạt động chính xác! Đã xác thực thành công danh mục mô hình OpenAI (${availableModels[0]}).`,
+      availableModels: availableModels.slice(0, 15)
     };
   }
+
+  return {
+    status: "error",
+    valid: false,
+    provider: "openai",
+    message: `Kiểm tra OpenAI thất bại: ${lastError || "Không thể kết nối đến máy chủ OpenAI."}`
+  };
 }
 
 // Direct Chat with Google Gemini when AI microservice is offline
 async function directGeminiChat(apiKey: string, model: string, userMessage: string, products: any[]) {
-  const cleanModel = (model || "gemini-2.5-flash").replace("models/", "").trim();
-  const candidateModels = [cleanModel, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"].filter((v, i, a) => v && a.indexOf(v) === i);
+  const cleanModel = (model || "gemini-2.0-flash").replace("models/", "").trim();
+  const candidateModels = [
+    cleanModel,
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro-latest",
+    ...ALL_GEMINI_MODELS
+  ].filter((v, i, a) => v && a.indexOf(v) === i && !v.includes("gemini-1.5-pro"));
+
   const productContext = (products || []).slice(0, 8).map(p => `- ${p.name}: ${Number(p.price).toLocaleString("vi-VN")} VND (Tồn kho: ${p.stock}) - ${p.description}`).join("\n");
   const prompt = `Bạn là Trợ lý AI Bán hàng thông minh của SHOPBEE STORE AI. Hãy tư vấn thân thiện, nhiệt tình, chuyên nghiệp bằng tiếng Việt cho khách hàng dựa trên danh mục sản phẩm sau:
 ${productContext}
@@ -213,6 +391,52 @@ Hãy trả lời súc tích, tự nhiên, gợi ý sản phẩm phù hợp nếu
         { timeout: 20000 }
       );
       const text = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      if (text) return text;
+    } catch (e: any) {
+      if (e.response?.status === 404) continue;
+      throw e;
+    }
+  }
+  return null;
+}
+
+// Direct Chat with OpenAI when AI microservice is offline
+async function directOpenAIChat(apiKey: string, model: string, userMessage: string, products: any[]) {
+  const cleanModel = (model || "gpt-4o-mini").trim();
+  const candidateModels = [
+    cleanModel,
+    "gpt-4o-mini",
+    "gpt-4o",
+    "gpt-3.5-turbo",
+    ...ALL_OPENAI_MODELS
+  ].filter((v, i, a) => v && a.indexOf(v) === i);
+
+  const productContext = (products || []).slice(0, 8).map(p => `- ${p.name}: ${Number(p.price).toLocaleString("vi-VN")} VND (Tồn kho: ${p.stock}) - ${p.description}`).join("\n");
+  const systemPrompt = `Bạn là Trợ lý AI Bán hàng thông minh của SHOPBEE STORE AI. Hãy tư vấn thân thiện, nhiệt tình, chuyên nghiệp bằng tiếng Việt cho khách hàng dựa trên danh mục sản phẩm sau:
+${productContext}
+
+Khách hàng hỏi: "${userMessage}"
+Hãy trả lời súc tích, tự nhiên, gợi ý sản phẩm phù hợp nếu có và nhắc khách hàng về chính sách đổi trả miễn phí trong 7 ngày và giao hàng nhanh 2 giờ.`;
+
+  for (const m of candidateModels) {
+    try {
+      const resp = await axios.post(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          model: m,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage }
+          ],
+          temperature: 0.6,
+          max_tokens: 2048
+        },
+        {
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          timeout: 20000
+        }
+      );
+      const text = resp.data?.choices?.[0]?.message?.content?.trim();
       if (text) return text;
     } catch (e: any) {
       if (e.response?.status === 404) continue;
@@ -328,11 +552,43 @@ router.post("/chat", async (req: Request, res: Response) => {
 
   // Fallback response if AI microservice is offline
   const activeGeminiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
+  const activeOpenAiKey = settings.openaiApiKey || process.env.OPENAI_API_KEY;
+
+  if (selectedProvider === "openai" && activeOpenAiKey) {
+    try {
+      const directReply = await directOpenAIChat(
+        activeOpenAiKey,
+        settings.openaiModel || "gpt-4o-mini",
+        message,
+        products
+      );
+      if (directReply) {
+        await db.aIInteraction.create({
+          data: {
+            sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
+            query: message,
+            response: directReply,
+            type: "CHAT",
+          }
+        });
+        return res.json({
+          reply: directReply,
+          suggestedProducts: products.slice(0, 3),
+          suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành", "Miễn phí vận chuyển"],
+          source: "Node.js Direct OpenAI Fallback",
+          model: settings.openaiModel || "gpt-4o-mini"
+        });
+      }
+    } catch (directErr: any) {
+      console.warn("Direct OpenAI chat fallback error:", directErr?.message || directErr);
+    }
+  }
+
   if ((selectedProvider === "gemini" || !selectedProvider) && activeGeminiKey) {
     try {
       const directReply = await directGeminiChat(
         activeGeminiKey,
-        settings.geminiModel || "gemini-2.5-flash",
+        settings.geminiModel || "gemini-2.0-flash",
         message,
         products
       );
@@ -350,7 +606,7 @@ router.post("/chat", async (req: Request, res: Response) => {
           suggestedProducts: products.slice(0, 3),
           suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành", "Miễn phí vận chuyển"],
           source: "Node.js Direct Gemini Fallback",
-          model: settings.geminiModel || "gemini-2.5-flash"
+          model: settings.geminiModel || "gemini-2.0-flash"
         });
       }
     } catch (directErr: any) {

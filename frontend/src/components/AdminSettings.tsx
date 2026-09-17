@@ -51,6 +51,7 @@ export const AdminSettings: React.FC = () => {
     model?: string;
     message: string;
     sampleResponse?: string;
+    availableModels?: string[];
   } | null>(null);
 
   useEffect(() => {
@@ -109,7 +110,8 @@ export const AdminSettings: React.FC = () => {
         provider: res.provider || providerToTest,
         model: res.model,
         message: res.message,
-        sampleResponse: res.sampleResponse
+        sampleResponse: res.sampleResponse,
+        availableModels: (res as any).availableModels
       });
     } catch (err: any) {
       setTestResult({
@@ -316,26 +318,59 @@ export const AdminSettings: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-300 mb-1">Mô hình AI Gemini Mới Nhất</label>
+              <div className="space-y-2">
+                <label className="block font-semibold text-slate-300 text-xs">Mô hình AI Gemini Mới Nhất (Tự động cập nhật 2025 - 2026)</label>
                 <select
-                  value={settings.geminiModel || "gemini-3.5-flash"}
+                  value={settings.geminiModel || "gemini-2.0-flash"}
                   onChange={(e) => {
                     setSettings({ ...settings, geminiModel: e.target.value });
                     if (testResult) setTestResult(null);
                   }}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500 text-xs"
+                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500 text-xs font-medium"
                 >
-                  <option value="gemini-3.5-flash">gemini-3.5-flash ⭐ (Khuyên dùng - Nhanh, Thông minh, Trả lời đầy đủ 100%)</option>
-                  <option value="gemini-3.6-flash">gemini-3.6-flash 🚀 (Bản Flash 3.6)</option>
-                  <option value="gemini-3.7-flash">gemini-3.7-flash ⚡ (Bản Flash 3.7 Siêu tốc)</option>
-                  <option value="gemini-flash-latest">gemini-flash-latest 🔄 (Tự động cập nhật Flash)</option>
-                  <option value="gemini-pro-latest">gemini-pro-latest 🧠 (Tự động cập nhật Pro)</option>
-                  <option value="gemini-2.5-flash">gemini-2.5-flash (Bản Flash 2.5 Thế hệ mới 2026)</option>
-                  <option value="gemini-2.0-flash">gemini-2.0-flash (Bản Flash 2.0 Ổn định)</option>
-                  <option value="gemini-1.5-flash">gemini-1.5-flash (Bản Flash 1.5 Tiết kiệm)</option>
-                  <option value="gemini-1.5-pro">gemini-1.5-pro (Bản Pro 1.5 Chuyên sâu)</option>
+                  <optgroup label="🌟 Thế Hệ Mới Nhất 2025 - 2026 (Khuyên dùng)">
+                    <option value="gemini-2.0-flash">gemini-2.0-flash ⚡ (Khuyên dùng - Flash 2.0 GA Siêu nhanh & Đa phương thức)</option>
+                    <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite 🍃 (Flash 2.0 Lite - Siêu nhẹ, độ trễ thấp & tiết kiệm)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash 💡 (Bản Flash 2.5 Thế hệ mới)</option>
+                    <option value="gemini-2.5-pro">gemini-2.5-pro 🧠 (Bản Pro 2.5 Suy luận chuyên sâu)</option>
+                  </optgroup>
+                  <optgroup label="💭 Suy Luận Chuyên Sâu & Lập Trình (Reasoning & Code)">
+                    <option value="gemini-2.0-flash-thinking-exp-01-21">gemini-2.0-flash-thinking-exp 💭 (Tư duy suy luận Thinking)</option>
+                    <option value="gemini-2.0-pro-exp-02-05">gemini-2.0-pro-exp 🔬 (Pro 2.0 Experimental - Trí tuệ toán & code)</option>
+                    <option value="gemini-exp-1206">gemini-exp-1206 🧪 (Bản thử nghiệm chất lượng cao)</option>
+                    <option value="learnlm-1.5-pro-experimental">learnlm-1.5-pro-experimental 📚 (Chuyên sâu sư phạm & kiến thức)</option>
+                  </optgroup>
+                  <optgroup label="⚡ Dòng Gemini 1.5 Ổn Định (Long Context 1M - 2M)">
+                    <option value="gemini-1.5-flash">gemini-1.5-flash ⭐ (Flash 1.5 Ổn định - Context 1 Triệu Token)</option>
+                    <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest 🔄 (Tự động cập nhật Flash 1.5)</option>
+                    <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b 🚀 (Bản 8B Siêu tốc độ cao)</option>
+                    <option value="gemini-1.5-flash-8b-latest">gemini-1.5-flash-8b-latest ⚡ (Bản 8B mới nhất)</option>
+                    <option value="gemini-1.5-pro-latest">gemini-1.5-pro-latest 🎯 (Pro 1.5 mới nhất - Context 2 Triệu Token)</option>
+                    <option value="gemini-flash-latest">gemini-flash-latest 🔄 (Alias tự động cập nhật Flash)</option>
+                    <option value="gemini-pro-latest">gemini-pro-latest 🧠 (Alias tự động cập nhật Pro)</option>
+                  </optgroup>
+                  <optgroup label="🚀 Thế Hệ Tương Lai 2026 (Future Roadmap)">
+                    <option value="gemini-3.8-flash">gemini-3.8-flash 🌟 (Tương lai 2026 - Flash 3.8 Flagship)</option>
+                    <option value="gemini-3.7-flash">gemini-3.7-flash ⚡ (Tương lai 2026 - Flash 3.7 Siêu tốc)</option>
+                    <option value="gemini-3.6-flash">gemini-3.6-flash 🚀 (Tương lai 2026 - Flash 3.6 Ổn định)</option>
+                    <option value="gemini-3.5-flash">gemini-3.5-flash ⭐ (Tương lai 2026 - Flash 3.5)</option>
+                    <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite 🍃 (Tương lai 2026 - Flash 3.1 Lite)</option>
+                  </optgroup>
                 </select>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-[11px] text-slate-400 shrink-0">Hoặc tùy chỉnh Model ID:</span>
+                  <input
+                    type="text"
+                    placeholder="VD: gemini-2.0-flash, gemini-2.5-flash..."
+                    value={settings.geminiModel || ""}
+                    onChange={(e) => {
+                      setSettings({ ...settings, geminiModel: e.target.value.trim() });
+                      if (testResult) setTestResult(null);
+                    }}
+                    className="flex-1 bg-[#18233a] border border-slate-700/80 rounded-lg px-2.5 py-1 text-white font-mono text-[11px] focus:outline-none focus:border-violet-500"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -346,7 +381,7 @@ export const AdminSettings: React.FC = () => {
               <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-teal-900/30 to-slate-900/40 border border-emerald-700/30 text-slate-300 leading-relaxed text-[11px] space-y-1">
                 <p className="font-semibold text-emerald-300 flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  Mô hình OpenAI ChatGPT (GPT-4o-mini, GPT-4o, o3-mini, o1):
+                  Mô hình OpenAI ChatGPT (GPT-4o, GPT-4o-mini, o3-mini, o1):
                 </p>
                 <p>
                   Mô hình mạnh mẽ hàng đầu thế giới từ OpenAI, tư vấn tự nhiên, giàu cảm xúc và giải đáp tri thức toàn diện.
@@ -413,24 +448,48 @@ export const AdminSettings: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-300 mb-1">Mô hình OpenAI ChatGPT Mới Nhất</label>
+              <div className="space-y-2">
+                <label className="block font-semibold text-slate-300 text-xs">Mô hình OpenAI ChatGPT Mới Nhất</label>
                 <select
                   value={settings.openaiModel || "gpt-4o-mini"}
                   onChange={(e) => {
                     setSettings({ ...settings, openaiModel: e.target.value });
                     if (testResult) setTestResult(null);
                   }}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-xs font-medium"
                 >
-                  <option value="gpt-4o-mini">gpt-4o-mini ⭐ (Khuyên dùng - Nhanh, Thông minh, Tối ưu chi phí)</option>
-                  <option value="gpt-4o">gpt-4o 👑 (Flagship Đa phương thức cao cấp nhất)</option>
-                  <option value="o3-mini">o3-mini 🔬 (Mô hình Suy luận & STEM thế hệ mới nhất)</option>
-                  <option value="o1">o1 🧩 (Mô hình Suy luận chuyên sâu hàng đầu)</option>
-                  <option value="o1-mini">o1-mini ⚙️ (Suy luận nhanh cho logic & code)</option>
-                  <option value="gpt-3.5-turbo">gpt-3.5-turbo (Mô hình ChatGPT tiêu chuẩn)</option>
-                  <option value="gpt-5.4-mini">gpt-5.4-mini 🚀 (Chờ OpenAI phát hành chính thức)</option>
+                  <optgroup label="⭐ Mô hình Phổ biến & Tối ưu nhất (Khuyên dùng)">
+                    <option value="gpt-4o-mini">gpt-4o-mini ⭐ (Khuyên dùng - Cực nhanh, thông minh, tối ưu chi phí 100%)</option>
+                    <option value="gpt-4o">gpt-4o 👑 (Flagship Omni Đa phương thức cao cấp nhất)</option>
+                    <option value="chatgpt-4o-latest">chatgpt-4o-latest 🔄 (Bản GPT-4o cập nhật liên tục)</option>
+                  </optgroup>
+                  <optgroup label="🔬 Dòng Suy luận Chuyên sâu (Reasoning & STEM)">
+                    <option value="o3-mini">o3-mini 🔬 (Mô hình Suy luận STEM & Coding mới nhất)</option>
+                    <option value="o1">o1 🧩 (Mô hình Suy luận chuyên sâu hàng đầu thế giới)</option>
+                    <option value="o1-mini">o1-mini ⚙️ (Suy luận nhanh cho logic & giải thuật)</option>
+                    <option value="o1-preview">o1-preview 🔍 (Bản xem trước suy luận chuyên sâu)</option>
+                  </optgroup>
+                  <optgroup label="⚡ Dòng GPT-4 & GPT-3.5 Tiêu chuẩn">
+                    <option value="gpt-4-turbo">gpt-4-turbo 🚀 (Bản Turbo 128k context mạnh mẽ)</option>
+                    <option value="gpt-4">gpt-4 🧠 (Bản GPT-4 tiêu chuẩn)</option>
+                    <option value="gpt-3.5-turbo">gpt-3.5-turbo 💬 (Bản ChatGPT-3.5 tiết kiệm truyền thống)</option>
+                    <option value="gpt-5.4-mini">gpt-5.4-mini 🌟 (Tương lai - GPT-5 Next Gen)</option>
+                  </optgroup>
                 </select>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-[11px] text-slate-400 shrink-0">Hoặc tùy chỉnh Model ID:</span>
+                  <input
+                    type="text"
+                    placeholder="VD: gpt-4o-mini, o3-mini..."
+                    value={settings.openaiModel || ""}
+                    onChange={(e) => {
+                      setSettings({ ...settings, openaiModel: e.target.value.trim() });
+                      if (testResult) setTestResult(null);
+                    }}
+                    className="flex-1 bg-[#18233a] border border-slate-700/80 rounded-lg px-2.5 py-1 text-white font-mono text-[11px] focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -466,6 +525,40 @@ export const AdminSettings: React.FC = () => {
                     <div className="p-2.5 rounded-xl bg-slate-900/70 border border-emerald-500/30 text-slate-200 font-sans text-[11px] italic">
                       <span className="font-semibold text-emerald-400 not-italic">Phản hồi thử nghiệm: </span>
                       "{testResult.sampleResponse}"
+                    </div>
+                  )}
+
+                  {testResult.availableModels && testResult.availableModels.length > 0 && (
+                    <div className="mt-2.5 pt-2.5 border-t border-emerald-500/20">
+                      <p className="text-[11px] font-semibold text-emerald-300 mb-1.5 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>Mô hình {testResult.provider === "openai" ? "OpenAI" : "Google"} khả dụng với API Key này (bấm để chọn ngay):</span>
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {testResult.availableModels.map((m) => {
+                          const isSelected = testResult.provider === "openai" ? settings.openaiModel === m : settings.geminiModel === m;
+                          return (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => {
+                                if (testResult.provider === "openai") {
+                                  setSettings({ ...settings, openaiModel: m });
+                                } else {
+                                  setSettings({ ...settings, geminiModel: m });
+                                }
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all border ${
+                                isSelected
+                                  ? "bg-violet-600 text-white border-violet-400 font-bold shadow-md shadow-violet-600/30 ring-1 ring-white/20"
+                                  : "bg-slate-900/80 text-slate-300 border-slate-700 hover:border-violet-500 hover:text-white"
+                              }`}
+                            >
+                              {m} {isSelected && "✓"}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
