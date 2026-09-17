@@ -60,5 +60,10 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Database storage
+pg_data/
+*/pg_data/
+backend/data/
 .DS_Store
 Thumbs.db
