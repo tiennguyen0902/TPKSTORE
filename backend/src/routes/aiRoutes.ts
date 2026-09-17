@@ -8,12 +8,12 @@ const router = Router();
 const AI_SERVICE_TIMEOUT_MS = 45000;
 
 // Helper to call AI Service with Circuit Breaker Fallback
-async function callAiService(endpoint: string, payload: any) {
+async function callAiService(endpoint: string, payload: any, timeoutMs: number = AI_SERVICE_TIMEOUT_MS) {
   const settings = await db.systemSettings.findFirst();
   const baseUrl = process.env.AI_SERVICE_URL || settings?.aiServiceUrl || "http://ai_service:8000";
   const url = `${baseUrl}${endpoint}`;
   try {
-    const response = await axios.post(url, payload, { timeout: AI_SERVICE_TIMEOUT_MS });
+    const response = await axios.post(url, payload, { timeout: timeoutMs });
     return { success: true, data: response.data };
   } catch (err: any) {
     return { success: false, error: err.message };
@@ -231,7 +231,7 @@ router.post("/test-key", async (req: Request, res: Response) => {
   const openaiApiKey = req.body.openaiApiKey || req.body.apiKey || settings.openaiApiKey;
   const openaiModel = req.body.openaiModel || req.body.model || settings.openaiModel;
 
-  // 1. Thử gọi qua Python AI Microservice nếu đang chạy (Container / Local)
+  // 1. Thử gọi qua Python AI Microservice nếu đang chạy (timeout 2500ms để phản hồi nhanh tức thì)
   const aiRes = await callAiService("/api/ai/test-key", {
     provider,
     geminiApiKey,
@@ -240,7 +240,7 @@ router.post("/test-key", async (req: Request, res: Response) => {
     openaiModel,
     apiKey: req.body.apiKey,
     model: req.body.model
-  });
+  }, 2500);
 
   if (aiRes.success) {
     return res.json(aiRes.data);
@@ -311,7 +311,7 @@ router.post("/chat", async (req: Request, res: Response) => {
     geminiModel: settings.geminiModel,
     openaiApiKey: settings.openaiApiKey,
     openaiModel: settings.openaiModel
-  });
+  }, 6000);
 
   if (aiRes.success) {
     // Log interaction in DB
