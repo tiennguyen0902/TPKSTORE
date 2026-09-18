@@ -93,11 +93,18 @@ class FallbackStore {
             createdAt: new Date(c.createdAt),
             updatedAt: new Date(c.updatedAt)
         }));
-        this.products = mockData_1.INITIAL_PRODUCTS.map(p => ({
-            ...p,
-            createdAt: new Date(p.createdAt),
-            updatedAt: new Date(p.updatedAt)
-        }));
+        this.products = mockData_1.INITIAL_PRODUCTS.map(p => {
+            let stockVal = p.stock;
+            if (typeof stockVal === "object" && stockVal !== null) {
+                stockVal = typeof stockVal.decrement === "number" ? Math.max(0, 25 - stockVal.decrement) : 15;
+            }
+            return {
+                ...p,
+                stock: typeof stockVal === "number" && !isNaN(stockVal) ? stockVal : (parseInt(stockVal) || 20),
+                createdAt: new Date(p.createdAt),
+                updatedAt: new Date(p.updatedAt)
+            };
+        });
         this.orders = mockData_1.INITIAL_ORDERS.map(o => ({
             ...o,
             createdAt: new Date(o.createdAt),
@@ -154,8 +161,20 @@ class FallbackStore {
                     this.users = data.users.map((u) => ({ ...u, createdAt: new Date(u.createdAt), updatedAt: new Date(u.updatedAt) }));
                 if (Array.isArray(data.categories))
                     this.categories = data.categories.map((c) => ({ ...c, createdAt: new Date(c.createdAt), updatedAt: new Date(c.updatedAt) }));
-                if (Array.isArray(data.products))
-                    this.products = data.products.map((p) => ({ ...p, createdAt: new Date(p.createdAt), updatedAt: new Date(p.updatedAt) }));
+                if (Array.isArray(data.products)) {
+                    this.products = data.products.map((p) => {
+                        let stockVal = p.stock;
+                        if (typeof stockVal === "object" && stockVal !== null) {
+                            stockVal = typeof stockVal.decrement === "number" ? Math.max(0, 25 - stockVal.decrement) : 15;
+                        }
+                        return {
+                            ...p,
+                            stock: typeof stockVal === "number" && !isNaN(stockVal) ? stockVal : (parseInt(stockVal) || 20),
+                            createdAt: new Date(p.createdAt),
+                            updatedAt: new Date(p.updatedAt)
+                        };
+                    });
+                }
                 if (Array.isArray(data.orders))
                     this.orders = data.orders.map((o) => ({ ...o, createdAt: new Date(o.createdAt), updatedAt: new Date(o.updatedAt) }));
                 if (data.settings)
@@ -264,7 +283,10 @@ function createModelProxy(modelName) {
                     if (method === "findMany") {
                         let list = fallback.products.map(p => {
                             const cat = fallback.categories.find(c => c.id === p.categoryId);
-                            return { ...p, category: cat || null };
+                            let stock = typeof p.stock === "number" && !isNaN(p.stock)
+                                ? p.stock
+                                : (typeof p.stock === "object" && p.stock && typeof p.stock.decrement === "number" ? Math.max(0, 25 - p.stock.decrement) : 20);
+                            return { ...p, stock, category: cat || null };
                         });
                         const where = options.where || {};
                         if (where.categoryId && where.categoryId !== "all") {
@@ -283,11 +305,28 @@ function createModelProxy(modelName) {
                     }
                     if (method === "findFirst" || method === "findUnique") {
                         const where = options.where || {};
-                        const p = fallback.products.find(item => item.id === where.id || item.slug === where.slug || item.id === where.idOrSlug);
+                        let p = null;
+                        if (Array.isArray(where.OR)) {
+                            p = fallback.products.find(item => {
+                                return where.OR.some((cond) => {
+                                    if (cond.id && item.id === cond.id)
+                                        return true;
+                                    if (cond.slug && item.slug === cond.slug)
+                                        return true;
+                                    return false;
+                                });
+                            });
+                        }
+                        else {
+                            p = fallback.products.find(item => item.id === where.id || item.slug === where.slug || item.id === where.idOrSlug);
+                        }
                         if (!p)
                             return null;
                         const cat = fallback.categories.find(c => c.id === p.categoryId);
-                        return { ...p, category: cat || null };
+                        let stock = typeof p.stock === "number" && !isNaN(p.stock)
+                            ? p.stock
+                            : (typeof p.stock === "object" && p.stock && typeof p.stock.decrement === "number" ? Math.max(0, 25 - p.stock.decrement) : 20);
+                        return { ...p, stock, category: cat || null };
                     }
                     if (method === "create") {
                         const p = { id: options.data.id || `prd_${(0, uuid_1.v4)().substring(0, 8)}`, ...options.data, createdAt: new Date(), updatedAt: new Date() };
@@ -298,9 +337,36 @@ function createModelProxy(modelName) {
                     if (method === "update") {
                         const idx = fallback.products.findIndex(p => p.id === options.where.id);
                         if (idx !== -1) {
-                            fallback.products[idx] = { ...fallback.products[idx], ...options.data, updatedAt: new Date() };
+                            const currentProd = fallback.products[idx];
+                            let updatedStock = currentProd.stock;
+                            if (options.data.stock !== undefined) {
+                                const currentNum = typeof currentProd.stock === "number" && !isNaN(currentProd.stock)
+                                    ? currentProd.stock
+                                    : 25;
+                                if (typeof options.data.stock === "object" && options.data.stock !== null) {
+                                    if (typeof options.data.stock.decrement === "number") {
+                                        updatedStock = Math.max(0, currentNum - options.data.stock.decrement);
+                                    }
+                                    else if (typeof options.data.stock.increment === "number") {
+                                        updatedStock = currentNum + options.data.stock.increment;
+                                    }
+                                    else {
+                                        updatedStock = currentNum;
+                                    }
+                                }
+                                else {
+                                    const parsed = parseInt(options.data.stock, 10);
+                                    updatedStock = isNaN(parsed) ? currentNum : Math.max(0, parsed);
+                                }
+                            }
+                            fallback.products[idx] = {
+                                ...currentProd,
+                                ...options.data,
+                                stock: updatedStock,
+                                updatedAt: new Date()
+                            };
                             fallback.saveToFile();
-                            return fallback.products[idx];
+                            return { ...fallback.products[idx] };
                         }
                         return null;
                     }

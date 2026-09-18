@@ -25,6 +25,7 @@ import { AdminSettings } from "./components/AdminSettings";
 import { StaffDashboard } from "./components/StaffDashboard";
 import { Product } from "./types";
 import { ShieldAlert } from "lucide-react";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const MainApp: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -254,15 +255,21 @@ const MainApp: React.FC = () => {
 
       {/* Global Product Details Modal */}
       {activeProduct && (
-        <ProductModal
-          product={activeProduct}
-          onClose={() => setActiveProduct(null)}
-          onSelectProduct={(p) => setActiveProduct(p)}
-          onGoToCheckout={() => {
-            setActiveProduct(null);
-            setCurrentView("checkout");
-          }}
-        />
+        <ErrorBoundary
+          fallbackTitle="Không thể hiển thị thông tin sản phẩm"
+          fallbackMessage="Đã xảy ra sự cố khi tải chi tiết sản phẩm này. Bạn có thể đóng cửa sổ và thử lại."
+          onReset={() => setActiveProduct(null)}
+        >
+          <ProductModal
+            product={activeProduct}
+            onClose={() => setActiveProduct(null)}
+            onSelectProduct={(p) => setActiveProduct(p)}
+            onGoToCheckout={() => {
+              setActiveProduct(null);
+              setCurrentView("checkout");
+            }}
+          />
+        </ErrorBoundary>
       )}
     </div>
   );
@@ -270,10 +277,12 @@ const MainApp: React.FC = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <MainApp />
-      </CartProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <CartProvider>
+          <MainApp />
+        </CartProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

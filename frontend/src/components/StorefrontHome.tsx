@@ -163,7 +163,7 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
                     HOT -25%
                   </span>
                   <span className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-amber-400 text-[11px] font-bold border border-white/10 flex items-center gap-1">
-                    ★ {spotlightProduct.rating.toFixed(1)}
+                    ★ {(Number(spotlightProduct.rating) || 5.0).toFixed(1)}
                   </span>
                   <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-lg bg-violet-600/90 text-white text-[10px] font-bold flex items-center gap-1 shadow-md">
                     <Sparkles className="w-3 h-3" /> AI Gợi ý #1
@@ -181,11 +181,11 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
                 <div className="mt-3 flex items-center justify-between">
                   <div>
                     <p className="text-base font-extrabold text-white">
-                      {spotlightProduct.price.toLocaleString("vi-VN")} đ
+                      {(Number(spotlightProduct.price) || 0).toLocaleString("vi-VN")} đ
                     </p>
                     {spotlightProduct.originalPrice && (
                       <p className="text-[11px] text-slate-400 line-through">
-                        {spotlightProduct.originalPrice.toLocaleString("vi-VN")} đ
+                        {(Number(spotlightProduct.originalPrice) || 0).toLocaleString("vi-VN")} đ
                       </p>
                     )}
                   </div>

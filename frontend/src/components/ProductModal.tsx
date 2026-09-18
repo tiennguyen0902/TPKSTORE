@@ -8,8 +8,7 @@ import {
   RotateCcw, 
   Sparkles, 
   Plus, 
-  Minus, 
-  Check 
+  Minus 
 } from "lucide-react";
 import { Product } from "../types";
 import { useCart } from "../context/CartContext";
@@ -20,6 +19,71 @@ interface ProductModalProps {
   onClose: () => void;
   onSelectProduct: (p: Product) => void;
   onGoToCheckout?: () => void;
+}
+
+// Helpers an toàn tuyệt đối chống crash React
+export function getSafeStock(stockVal: any): number {
+  if (typeof stockVal === "number" && !isNaN(stockVal)) {
+    return Math.max(0, Math.floor(stockVal));
+  }
+  if (typeof stockVal === "object" && stockVal !== null) {
+    if (typeof stockVal.decrement === "number") {
+      return Math.max(0, 25 - stockVal.decrement);
+    }
+    if (typeof stockVal.increment === "number") {
+      return 25 + stockVal.increment;
+    }
+    return 10;
+  }
+  const parsed = parseInt(String(stockVal), 10);
+  return isNaN(parsed) ? 0 : Math.max(0, parsed);
+}
+
+export function getSafeRating(ratingVal: any): number {
+  const num = Number(ratingVal);
+  if (isNaN(num) || num <= 0) return 5.0;
+  return Math.min(5, Math.max(1, num));
+}
+
+export function getSafePrice(priceVal: any): number {
+  const num = Number(priceVal);
+  return isNaN(num) ? 0 : Math.max(0, num);
+}
+
+export function getSafeImages(imagesVal: any, thumbnailVal?: string): string[] {
+  const list: string[] = [];
+  if (thumbnailVal && typeof thumbnailVal === "string" && thumbnailVal.trim()) {
+    list.push(thumbnailVal.trim());
+  }
+
+  if (Array.isArray(imagesVal)) {
+    for (const item of imagesVal) {
+      if (typeof item === "string" && item.trim() && !list.includes(item.trim())) {
+        list.push(item.trim());
+      }
+    }
+  } else if (typeof imagesVal === "string" && imagesVal.trim()) {
+    try {
+      const parsed = JSON.parse(imagesVal);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (typeof item === "string" && item.trim() && !list.includes(item.trim())) {
+            list.push(item.trim());
+          }
+        }
+      } else if (!list.includes(imagesVal.trim())) {
+        list.push(imagesVal.trim());
+      }
+    } catch {
+      if (!list.includes(imagesVal.trim())) {
+        list.push(imagesVal.trim());
+      }
+    }
+  }
+
+  return list.length > 0
+    ? list
+    : ["https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"];
 }
 
 export const ProductModal: React.FC<ProductModalProps> = ({
@@ -37,7 +101,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   useEffect(() => {
     if (product) {
       setQuantity(1);
-      setSelectedImage(product.thumbnail || (product.images && product.images[0]) || "");
+      const images = getSafeImages(product.images, product.thumbnail);
+      setSelectedImage(images[0] || product.thumbnail || "");
 
       // Fetch AI Similar Products
       const fetchSimilar = async () => {
@@ -54,6 +119,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   if (!product) return null;
 
+  const safeStock = getSafeStock(product.stock);
+  const safePrice = getSafePrice(product.price);
+  const safeOriginalPrice = product.originalPrice ? getSafePrice(product.originalPrice) : null;
+  const safeRating = getSafeRating(product.rating);
+  const safeImages = getSafeImages(product.images, product.thumbnail);
+
   const handleAddToCart = async () => {
     await addToCart(product, quantity);
     setAddedToast(true);
@@ -66,8 +137,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     onGoToCheckout?.();
   };
 
-  const discountPercent = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  const discountPercent = safeOriginalPrice && safeOriginalPrice > safePrice
+    ? Math.round(((safeOriginalPrice - safePrice) / safeOriginalPrice) * 100)
     : 0;
 
   return (
@@ -87,7 +158,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           <div className="flex flex-col gap-3">
             <div className="relative w-full pt-[85%] rounded-2xl bg-slate-900 overflow-hidden border border-slate-800">
               <img
-                src={selectedImage || product.thumbnail}
+                src={selectedImage || product.thumbnail || safeImages[0]}
                 alt={product.name}
                 className="absolute inset-0 w-full h-full object-cover"
               />
@@ -99,9 +170,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             </div>
 
             {/* Gallery thumbnails */}
-            {product.images && product.images.length > 1 && (
+            {safeImages.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {product.images.map((img, idx) => (
+                {safeImages.map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setSelectedImage(img)}
@@ -148,11 +219,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               <div className="flex items-center gap-4 text-xs mb-4">
                 <div className="flex items-center gap-1 text-amber-400">
                   <Star className="w-4 h-4 fill-amber-400" />
-                  <span className="font-bold text-white">{product.rating.toFixed(1)}</span>
-                  <span className="text-slate-400">({product.reviewCount} đánh giá)</span>
+                  <span className="font-bold text-white">{safeRating.toFixed(1)}</span>
+                  <span className="text-slate-400">({product.reviewCount || 0} đánh giá)</span>
                 </div>
                 <div className="text-slate-400">
-                  Tồn kho: <span className={`font-semibold ${product.stock > 5 ? "text-emerald-400" : "text-amber-400"}`}>{product.stock} sản phẩm</span>
+                  Tồn kho: <span className={`font-semibold ${safeStock > 5 ? "text-emerald-400" : "text-amber-400"}`}>{safeStock} sản phẩm</span>
                 </div>
               </div>
 
@@ -160,11 +231,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               <div className="p-4 rounded-2xl bg-gradient-to-r from-[#172138] to-[#1a1c3b] border border-slate-700/80 mb-4">
                 <div className="flex items-baseline gap-3">
                   <span className="text-2xl font-black text-white">
-                    {product.price.toLocaleString("vi-VN")} <span className="text-sm font-bold text-violet-400">VNĐ</span>
+                    {safePrice.toLocaleString("vi-VN")} <span className="text-sm font-bold text-violet-400">VNĐ</span>
                   </span>
-                  {product.originalPrice && product.originalPrice > product.price && (
+                  {safeOriginalPrice && safeOriginalPrice > safePrice && (
                     <span className="text-xs text-slate-400 line-through">
-                      {product.originalPrice.toLocaleString("vi-VN")} VNĐ
+                      {safeOriginalPrice.toLocaleString("vi-VN")} VNĐ
                     </span>
                   )}
                 </div>
@@ -177,7 +248,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               <div className="mb-6">
                 <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2">Đặc điểm nổi bật & Thông số:</h4>
                 <p className="text-xs text-slate-300 leading-relaxed bg-[#131c2e] p-3 rounded-xl border border-slate-800 whitespace-pre-line">
-                  {product.description}
+                  {product.description || "Không có mô tả chi tiết."}
                 </p>
               </div>
 
@@ -187,14 +258,16 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <div className="flex items-center border border-slate-700 rounded-xl bg-[#131c2e] overflow-hidden">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="p-2 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                    disabled={quantity <= 1}
+                    className="p-2 text-slate-300 hover:bg-slate-700 hover:text-white disabled:opacity-40 transition-colors"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
                   <span className="w-12 text-center text-xs font-bold text-white">{quantity}</span>
                   <button
-                    onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                    className="p-2 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                    onClick={() => setQuantity(Math.min(safeStock, quantity + 1))}
+                    disabled={quantity >= safeStock}
+                    className="p-2 text-slate-300 hover:bg-slate-700 hover:text-white disabled:opacity-40 transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
@@ -207,7 +280,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={handleAddToCart}
-                  disabled={product.stock <= 0}
+                  disabled={safeStock <= 0}
                   className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 text-xs font-bold border border-slate-700 transition-all active:scale-98 shadow-md"
                 >
                   <ShoppingBag className="w-4 h-4 text-violet-400" />
@@ -216,10 +289,10 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
                 <button
                   onClick={handleBuyNow}
-                  disabled={product.stock <= 0}
+                  disabled={safeStock <= 0}
                   className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 text-white text-xs font-bold shadow-lg shadow-violet-600/30 transition-all active:scale-98"
                 >
-                  <span>Mua ngay</span>
+                  <span>{safeStock <= 0 ? "Hết hàng" : "Mua ngay"}</span>
                 </button>
               </div>
 
@@ -242,19 +315,22 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {similarProducts.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => onSelectProduct(p)}
-                  className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#141c2e] border border-slate-800 hover:border-violet-500/50 cursor-pointer transition-all hover:-translate-y-1"
-                >
-                  <img src={p.thumbnail} alt={p.name} className="w-12 h-12 rounded-xl object-cover shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-white truncate">{p.name}</p>
-                    <p className="text-xs font-bold text-violet-400 mt-0.5">{p.price.toLocaleString("vi-VN")} đ</p>
+              {similarProducts.map((p) => {
+                const pPrice = getSafePrice(p.price);
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => onSelectProduct(p)}
+                    className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#141c2e] border border-slate-800 hover:border-violet-500/50 cursor-pointer transition-all hover:-translate-y-1"
+                  >
+                    <img src={p.thumbnail} alt={p.name} className="w-12 h-12 rounded-xl object-cover shrink-0 bg-slate-900" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-white truncate">{p.name}</p>
+                      <p className="text-xs font-bold text-violet-400 mt-0.5">{pPrice.toLocaleString("vi-VN")} đ</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

@@ -82,7 +82,8 @@ export const AdminProducts: React.FC = () => {
     setCategoryId(p.categoryId);
     setPrice(p.price.toString());
     setOriginalPrice(p.originalPrice ? p.originalPrice.toString() : "");
-    setStock(p.stock.toString());
+    const numStock = typeof p.stock === "number" ? p.stock : (typeof p.stock === "object" && p.stock && "decrement" in (p.stock as any) ? Math.max(0, 25 - (p.stock as any).decrement) : (parseInt(String(p.stock)) || 0));
+    setStock(numStock.toString());
     setThumbnail(p.thumbnail);
     setDescription(p.description);
     setIsFeatured(p.isFeatured);
@@ -228,9 +229,14 @@ export const AdminProducts: React.FC = () => {
                       {prod.price.toLocaleString("vi-VN")} đ
                     </td>
                     <td className="p-4 whitespace-nowrap">
-                      <span className={`font-bold ${prod.stock <= 5 ? "text-red-400" : "text-emerald-400"}`}>
-                        {prod.stock} SP
-                      </span>
+                      {(() => {
+                        const stockNum = typeof prod.stock === "number" ? prod.stock : (typeof prod.stock === "object" && prod.stock && "decrement" in (prod.stock as any) ? Math.max(0, 25 - (prod.stock as any).decrement) : (parseInt(String(prod.stock)) || 0));
+                        return (
+                          <span className={`font-bold ${stockNum <= 5 ? "text-red-400" : "text-emerald-400"}`}>
+                            {stockNum} SP
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-1.5 flex-wrap">
