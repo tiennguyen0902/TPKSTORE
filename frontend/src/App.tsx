@@ -212,6 +212,7 @@ const MainApp: React.FC = () => {
             {currentView === "catalog" && (
               <CatalogView
                 initialCategory={selectedCategory}
+                onCategoryChange={(cat) => setSelectedCategory(cat)}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 onSelectProduct={(p) => setActiveProduct(p)}

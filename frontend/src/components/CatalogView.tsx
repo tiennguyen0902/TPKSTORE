@@ -6,6 +6,7 @@ import { api } from "../services/api";
 
 interface CatalogViewProps {
   initialCategory?: string;
+  onCategoryChange?: (categorySlug: string) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   onSelectProduct: (p: Product) => void;
@@ -13,6 +14,7 @@ interface CatalogViewProps {
 
 export const CatalogView: React.FC<CatalogViewProps> = ({
   initialCategory,
+  onCategoryChange,
   searchQuery,
   setSearchQuery,
   onSelectProduct
@@ -24,10 +26,14 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   const [sortBy, setSortBy] = useState<string>("newest");
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Đồng bộ category khi props từ Navbar / Footer thay đổi
   useEffect(() => {
-    if (initialCategory) setSelectedCategory(initialCategory);
+    if (initialCategory) {
+      setSelectedCategory(initialCategory);
+    }
   }, [initialCategory]);
 
+  // Tải danh sách danh mục
   useEffect(() => {
     const fetchCats = async () => {
       try {
@@ -40,6 +46,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     fetchCats();
   }, []);
 
+  // Tải danh sách sản phẩm theo bộ lọc từ API
   useEffect(() => {
     const fetchFilteredProducts = async () => {
       setIsLoading(true);
@@ -79,21 +86,50 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     fetchFilteredProducts();
   }, [selectedCategory, selectedPriceRange, sortBy, searchQuery]);
 
+  const handleSelectCategory = (catSlug: string) => {
+    setSelectedCategory(catSlug);
+    onCategoryChange?.(catSlug);
+  };
+
   const handleResetFilters = () => {
     setSelectedCategory("all");
+    onCategoryChange?.("all");
     setSelectedPriceRange("all");
     setSortBy("newest");
     setSearchQuery("");
   };
+
+  const currentCategory = categories.find(
+    (c) => c.slug === selectedCategory || c.id === selectedCategory
+  );
+
+  const pageTitle = selectedCategory === "all" ? "Tất Cả Sản Phẩm" : (currentCategory?.name || "Danh Mục Sản Phẩm");
+
+  // Lọc phòng thủ 2 lớp (Client-side defensive filter)
+  const displayedProducts = products.filter((p) => {
+    if (selectedCategory && selectedCategory !== "all") {
+      const targetSlug = currentCategory?.slug || selectedCategory;
+      const targetId = currentCategory?.id || selectedCategory;
+      const isMatch =
+        p.categoryId === targetId ||
+        p.categoryId === targetSlug ||
+        p.category?.slug === targetSlug ||
+        p.category?.id === targetId;
+
+      if (!isMatch) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-6 pb-16">
       {/* Header Banner */}
       <div className="p-6 rounded-3xl bg-[#12192e] border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white">Tất Cả Sản Phẩm</h1>
+          <h1 className="text-2xl font-black text-white">{pageTitle}</h1>
           <p className="text-xs text-slate-400 mt-1">
-            Hiển thị {products.length} sản phẩm công nghệ chính hãng chất lượng cao
+            Hiển thị {displayedProducts.length} sản phẩm{" "}
+            {currentCategory ? `thuộc danh mục "${currentCategory.name}"` : "công nghệ chính hãng chất lượng cao"}
           </p>
         </div>
 
@@ -136,7 +172,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
 
             <div className="space-y-1">
               <button
-                onClick={() => setSelectedCategory("all")}
+                onClick={() => handleSelectCategory("all")}
                 className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all ${
                   selectedCategory === "all"
                     ? "bg-violet-600 text-white font-semibold shadow-md shadow-violet-600/30"
@@ -146,22 +182,29 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                 Tất cả danh mục ({categories.length})
               </button>
 
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.slug)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition-all ${
-                    selectedCategory === cat.slug || selectedCategory === cat.id
-                      ? "bg-violet-600 text-white font-semibold shadow-md shadow-violet-600/30"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                  }`}
-                >
-                  <span className="truncate">{cat.name}</span>
-                  {cat.productCount !== undefined && (
-                    <span className="text-[10px] opacity-70">({cat.productCount})</span>
-                  )}
-                </button>
-              ))}
+              {categories.map((cat) => {
+                const isActive =
+                  selectedCategory === cat.slug ||
+                  selectedCategory === cat.id ||
+                  (currentCategory && currentCategory.id === cat.id);
+
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleSelectCategory(cat.slug)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition-all ${
+                      isActive
+                        ? "bg-violet-600 text-white font-semibold shadow-md shadow-violet-600/30"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <span className="truncate">{cat.name}</span>
+                    {cat.productCount !== undefined && (
+                      <span className="text-[10px] opacity-70">({cat.productCount})</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -205,9 +248,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
             <div className="p-16 text-center text-slate-400 text-xs">
               Đang tải danh sách sản phẩm...
             </div>
-          ) : products.length > 0 ? (
+          ) : displayedProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {products.map((prod) => (
+              {displayedProducts.map((prod) => (
                 <ProductCard
                   key={prod.id}
                   product={prod}
@@ -220,13 +263,13 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
               <Search className="w-10 h-10 text-slate-500 mx-auto" />
               <h3 className="font-bold text-white text-base">Không tìm thấy sản phẩm nào</h3>
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Không có sản phẩm nào khớp với bộ lọc hoặc từ khóa tìm kiếm. Vui lòng thử lại với tiêu chí khác.
+                Không có sản phẩm nào khớp với danh mục "{pageTitle}" hoặc bộ lọc hiện tại. Vui lòng thử lại với tiêu chí khác.
               </p>
               <button
                 onClick={handleResetFilters}
-                className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold"
+                className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-lg shadow-violet-600/30"
               >
-                Xóa tất cả bộ lọc
+                Xem tất cả sản phẩm
               </button>
             </div>
           )}

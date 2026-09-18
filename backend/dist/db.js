@@ -191,6 +191,77 @@ class FallbackStore {
     }
 }
 const fallback = new FallbackStore();
+function filterFallbackProducts(products, where, categories) {
+    if (!where || Object.keys(where).length === 0)
+        return products;
+    return products.filter(p => {
+        const cat = p.category || categories.find(c => c.id === p.categoryId);
+        const catSlug = cat?.slug || "";
+        const catId = p.categoryId || cat?.id || "";
+        // 1. Direct categoryId check
+        if (where.categoryId && where.categoryId !== "all") {
+            if (catId !== where.categoryId && catSlug !== where.categoryId)
+                return false;
+        }
+        // 2. OR conditions (e.g. categoryId or category.slug)
+        if (Array.isArray(where.OR) && where.OR.length > 0) {
+            const orMatches = where.OR.some((cond) => {
+                if (cond.categoryId && (cond.categoryId === catId || cond.categoryId === catSlug))
+                    return true;
+                if (cond.category?.slug && cond.category.slug === catSlug)
+                    return true;
+                if (cond.category?.id && cond.category.id === catId)
+                    return true;
+                if (cond.id && cond.id === p.id)
+                    return true;
+                if (cond.slug && cond.slug === p.slug)
+                    return true;
+                if (cond.name?.contains && p.name?.toLowerCase().includes(cond.name.contains.toLowerCase()))
+                    return true;
+                if (cond.description?.contains && p.description?.toLowerCase().includes(cond.description.contains.toLowerCase()))
+                    return true;
+                return false;
+            });
+            if (!orMatches)
+                return false;
+        }
+        // 3. AND conditions (e.g. search)
+        if (Array.isArray(where.AND) && where.AND.length > 0) {
+            for (const andCond of where.AND) {
+                if (Array.isArray(andCond.OR)) {
+                    const matchOr = andCond.OR.some((sub) => {
+                        if (sub.name?.contains && p.name?.toLowerCase().includes(sub.name.contains.toLowerCase()))
+                            return true;
+                        if (sub.description?.contains && p.description?.toLowerCase().includes(sub.description.contains.toLowerCase()))
+                            return true;
+                        return false;
+                    });
+                    if (!matchOr)
+                        return false;
+                }
+            }
+        }
+        // 4. Price filter
+        if (where.price) {
+            const price = typeof p.price === "number" ? p.price : (Number(p.price) || 0);
+            if (where.price.gte !== undefined && price < where.price.gte)
+                return false;
+            if (where.price.lte !== undefined && price > where.price.lte)
+                return false;
+        }
+        // 5. isFeatured
+        if (where.isFeatured !== undefined) {
+            if (p.isFeatured !== where.isFeatured)
+                return false;
+        }
+        // 6. isNew
+        if (where.isNew !== undefined) {
+            if (p.isNew !== where.isNew)
+                return false;
+        }
+        return true;
+    });
+}
 /**
  * Resilient Database Proxy:
  * Chuyển tiếp toàn bộ truy vấn tới Prisma Client (PostgreSQL).
@@ -288,20 +359,33 @@ function createModelProxy(modelName) {
                                 : (typeof p.stock === "object" && p.stock && typeof p.stock.decrement === "number" ? Math.max(0, 25 - p.stock.decrement) : 20);
                             return { ...p, stock, category: cat || null };
                         });
-                        const where = options.where || {};
-                        if (where.categoryId && where.categoryId !== "all") {
-                            list = list.filter(p => p.categoryId === where.categoryId || p.category?.slug === where.categoryId);
+                        // Lọc theo điều kiện where (bao gồm danh mục OR, từ khóa AND, giá cả, v.v.)
+                        list = filterFallbackProducts(list, options.where, fallback.categories);
+                        // Sắp xếp
+                        const orderBy = options.orderBy || {};
+                        if (orderBy.price === "asc") {
+                            list.sort((a, b) => a.price - b.price);
                         }
-                        if (where.isFeatured !== undefined) {
-                            list = list.filter(p => p.isFeatured === where.isFeatured);
+                        else if (orderBy.price === "desc") {
+                            list.sort((a, b) => b.price - a.price);
                         }
-                        if (where.isNew !== undefined) {
-                            list = list.filter(p => p.isNew === where.isNew);
+                        else if (orderBy.rating === "desc") {
+                            list.sort((a, b) => b.rating - a.rating);
+                        }
+                        else if (orderBy.createdAt === "desc") {
+                            list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                        }
+                        // Phân trang skip/take
+                        if (options.skip !== undefined || options.take !== undefined) {
+                            const skip = options.skip || 0;
+                            const take = options.take || list.length;
+                            list = list.slice(skip, skip + take);
                         }
                         return list;
                     }
                     if (method === "count") {
-                        return fallback.products.length;
+                        const filtered = filterFallbackProducts(fallback.products, options.where, fallback.categories);
+                        return filtered.length;
                     }
                     if (method === "findFirst" || method === "findUnique") {
                         const where = options.where || {};
