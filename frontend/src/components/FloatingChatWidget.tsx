@@ -13,6 +13,7 @@ import {
 import { api } from "../services/api";
 import { Product } from "../types";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 
 interface ChatMessage {
   id: string;
@@ -26,7 +27,11 @@ interface ChatMessage {
   timestamp: string;
 }
 
-export const FloatingChatWidget: React.FC<{ onSelectProduct?: (product: Product) => void }> = ({ onSelectProduct }) => {
+export const FloatingChatWidget: React.FC<{ 
+  onSelectProduct?: (product: Product) => void;
+  onRequireAuth?: () => void;
+}> = ({ onSelectProduct, onRequireAuth }) => {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -119,7 +124,13 @@ export const FloatingChatWidget: React.FC<{ onSelectProduct?: (product: Product)
         <button
           id="floating-chat-button"
           title="Chat"
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            if (!user) {
+              onRequireAuth?.();
+              return;
+            }
+            setIsOpen(true);
+          }}
           className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-violet-600 via-purple-600 to-indigo-600 text-white shadow-2xl shadow-violet-500/50 hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-violet-400/40"
         >
           <Bot className="w-7 h-7 animate-pulse-slow" />

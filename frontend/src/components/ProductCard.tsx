@@ -2,6 +2,7 @@ import React from "react";
 import { Star, ShoppingBag, Eye } from "lucide-react";
 import { Product } from "../types";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 
 interface ProductCardProps {
   product: Product;
@@ -9,6 +10,7 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) => {
+  const { user } = useAuth();
   const { addToCart } = useCart();
 
   const safePrice = typeof product.price === "number" ? product.price : (Number(product.price) || 0);
@@ -111,6 +113,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
           <button
             onClick={(e) => {
               e.stopPropagation();
+              if (!user) {
+                onSelect(product);
+                return;
+              }
               addToCart(product, 1);
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-md shadow-violet-600/20 active:scale-95 transition-all"

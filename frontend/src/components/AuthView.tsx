@@ -7,19 +7,23 @@ import {
   Eye, 
   EyeOff, 
   ArrowRight, 
+  ArrowLeft,
   AlertCircle, 
   User, 
   Phone, 
   Mail, 
-  Lock 
+  Lock,
+  Sparkles
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 interface AuthViewProps {
   onSuccess: (role?: string) => void;
+  onBackToStore?: () => void;
+  messageBanner?: string;
 }
 
-export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
+export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, messageBanner }) => {
   const { login, register } = useAuth();
   const [isLoginTab, setIsLoginTab] = useState(true);
 
@@ -128,6 +132,26 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
 
         {/* Right Form Column */}
         <div className="lg:col-span-6 p-8 md:p-12 flex flex-col justify-center space-y-6">
+          {onBackToStore && (
+            <div>
+              <button
+                type="button"
+                onClick={onBackToStore}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700/80 transition-all hover:scale-105 group"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-violet-400" />
+                <span>Quay lại xem sản phẩm</span>
+              </button>
+            </div>
+          )}
+
+          {messageBanner && (
+            <div className="p-3 rounded-2xl bg-violet-600/15 border border-violet-500/30 text-violet-300 text-xs flex items-center gap-2.5 shadow-md">
+              <Sparkles className="w-4 h-4 text-violet-400 shrink-0" />
+              <span>{messageBanner}</span>
+            </div>
+          )}
+
           <div>
             <h3 className="text-2xl font-black text-white">
               {isLoginTab ? "Đăng nhập" : "Đăng ký tài khoản"}
