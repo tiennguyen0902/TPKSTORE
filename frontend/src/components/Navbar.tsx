@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   ShoppingBag, 
   Search, 
@@ -30,7 +31,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { user, logout } = useAuth();
   const { itemCount } = useCart();
+  const navigate = useNavigate();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+
+  const handleCategoryClick = (catSlug: string) => {
+    setSelectedCategory(catSlug);
+    navigate(`/products?category=${catSlug}`);
+  };
+
+  const handleSearchSubmit = () => {
+    const q = searchQuery.trim();
+    if (q) {
+      navigate(`/products?search=${encodeURIComponent(q)}`);
+    } else {
+      navigate("/products");
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full bg-[#0b0f19]/90 backdrop-blur-md border-b border-slate-800/80">
@@ -39,7 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-16 gap-4">
           {/* Logo */}
           <div 
-            onClick={() => setCurrentView("storefront")}
+            onClick={() => navigate("/")}
             className="flex items-center gap-3 cursor-pointer select-none group"
           >
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-violet-600 flex items-center justify-center shadow-md shadow-violet-500/20 group-hover:scale-105 transition-transform">
@@ -57,25 +73,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Category Quick Links (Storefront) */}
           <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-300">
             <button 
-              onClick={() => { setSelectedCategory("dien-thoai-tablet"); setCurrentView("catalog"); }}
+              onClick={() => handleCategoryClick("dien-thoai-tablet")}
               className={`hover:text-white transition-colors ${selectedCategory === "dien-thoai-tablet" && currentView === "catalog" ? "text-violet-400 font-semibold" : ""}`}
             >
               Điện thoại & Tablet
             </button>
             <button 
-              onClick={() => { setSelectedCategory("laptop-macbook"); setCurrentView("catalog"); }}
+              onClick={() => handleCategoryClick("laptop-macbook")}
               className={`hover:text-white transition-colors ${selectedCategory === "laptop-macbook" && currentView === "catalog" ? "text-violet-400 font-semibold" : ""}`}
             >
               Laptop & PC
             </button>
             <button 
-              onClick={() => { setSelectedCategory("tai-nghe-am-thanh"); setCurrentView("catalog"); }}
+              onClick={() => handleCategoryClick("tai-nghe-am-thanh")}
               className={`hover:text-white transition-colors ${selectedCategory === "tai-nghe-am-thanh" && currentView === "catalog" ? "text-violet-400 font-semibold" : ""}`}
             >
               Tai nghe & Âm thanh
             </button>
             <button 
-              onClick={() => { setSelectedCategory("dong-ho-thong-minh"); setCurrentView("catalog"); }}
+              onClick={() => handleCategoryClick("dong-ho-thong-minh")}
               className={`hover:text-white transition-colors ${selectedCategory === "dong-ho-thong-minh" && currentView === "catalog" ? "text-violet-400 font-semibold" : ""}`}
             >
               Đồng hồ thông minh
@@ -91,7 +107,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") setCurrentView("catalog");
+                  if (e.key === "Enter") handleSearchSubmit();
                 }}
                 className="w-full h-11 bg-[#131c2e] border-2 border-slate-700/80 rounded-full pl-12 pr-5 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-500/20 hover:border-slate-600 transition-all shadow-inner"
               />
@@ -103,8 +119,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-3">
             {/* Cart Button with Count Badge */}
             <button 
-              onClick={() => setCurrentView("cart")}
-              className="relative p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-all hover:scale-105"
+              onClick={() => navigate("/cart")}
+              className={`relative p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-all hover:scale-105 ${
+                currentView === "cart" ? "ring-2 ring-violet-500 text-white bg-slate-700" : ""
+              }`}
             >
               <ShoppingBag className="w-5 h-5 text-slate-200" />
               {itemCount > 0 && (
@@ -137,7 +155,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               ) : (
                 <button 
-                  onClick={() => setCurrentView("auth")}
+                  onClick={() => navigate("/login")}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-md shadow-violet-600/30 transition-all"
                 >
                   <UserIcon className="w-3.5 h-3.5" />
@@ -155,19 +173,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                   <div className="py-1">
                     <button 
-                      onClick={() => { setCurrentView("storefront"); setShowUserDropdown(false); }}
+                      onClick={() => { navigate("/"); setShowUserDropdown(false); }}
                       className="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800/80 hover:text-white flex items-center gap-2"
                     >
                       <ShoppingBag className="w-3.5 h-3.5 text-violet-400" /> Cửa hàng Storefront
                     </button>
                     <button 
-                      onClick={() => { setCurrentView("my_orders"); setShowUserDropdown(false); }}
+                      onClick={() => { navigate("/my-orders"); setShowUserDropdown(false); }}
                       className="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800/80 hover:text-white flex items-center gap-2"
                     >
                       <Package className="w-3.5 h-3.5 text-blue-400" /> Đơn hàng của tôi
                     </button>
                     <button 
-                      onClick={() => { setCurrentView("profile"); setShowUserDropdown(false); }}
+                      onClick={() => { navigate("/profile"); setShowUserDropdown(false); }}
                       className="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800/80 hover:text-white flex items-center gap-2"
                     >
                       <UserIcon className="w-3.5 h-3.5 text-emerald-400" /> Quản lý thông tin cá nhân
@@ -176,7 +194,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {/* Vẫn giữ quyền vào bảng điều khiển Admin cho tài khoản ADMIN */}
                     {user.role === "ADMIN" && (
                       <button 
-                        onClick={() => { setCurrentView("admin_dashboard"); setShowUserDropdown(false); }}
+                        onClick={() => { navigate("/admin/dashboard"); setShowUserDropdown(false); }}
                         className="w-full text-left px-4 py-2 text-xs text-violet-300 hover:bg-violet-900/30 flex items-center gap-2 font-medium"
                       >
                         <Shield className="w-3.5 h-3.5" /> Bảng điều khiển Admin
@@ -186,7 +204,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {/* Vẫn giữ quyền vào bảng điều khiển Staff cho tài khoản STAFF */}
                     {user.role === "STAFF" && (
                       <button 
-                        onClick={() => { setCurrentView("staff_dashboard"); setShowUserDropdown(false); }}
+                        onClick={() => { navigate("/staff"); setShowUserDropdown(false); }}
                         className="w-full text-left px-4 py-2 text-xs text-blue-300 hover:bg-blue-900/30 flex items-center gap-2 font-medium"
                       >
                         <Package className="w-3.5 h-3.5" /> Bảng điều khiển Staff
@@ -196,7 +214,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                   <div className="border-t border-slate-800 pt-1">
                     <button 
-                      onClick={() => { logout(); setShowUserDropdown(false); setCurrentView("auth"); }}
+                      onClick={() => { logout(); setShowUserDropdown(false); navigate("/login"); }}
                       className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2"
                     >
                       <LogOut className="w-3.5 h-3.5" /> Đăng xuất

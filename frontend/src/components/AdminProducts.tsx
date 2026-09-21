@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Product, Category } from "../types";
 import { api } from "../services/api";
+import { Pagination } from "./Pagination";
 
 export const AdminProducts: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -19,6 +20,10 @@ export const AdminProducts: React.FC = () => {
   const [search, setSearch] = useState("");
   const [selectedCat, setSelectedCat] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
+
+  // Phân trang tự động
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -61,6 +66,7 @@ export const AdminProducts: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    setCurrentPage(1);
   }, [search, selectedCat]);
 
   const handleOpenAdd = () => {
@@ -135,13 +141,29 @@ export const AdminProducts: React.FC = () => {
     }
   };
 
+  // Tính toán phân trang tự động
+  const totalItems = products.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = currentPage > totalPages ? 1 : currentPage;
+  const paginatedProducts = products.slice(
+    (safeCurrentPage - 1) * pageSize,
+    safeCurrentPage * pageSize
+  );
+
   return (
     <div className="space-y-6 pb-16">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-2xl font-black text-white">Quản Lý Sản Phẩm</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Danh sách toàn bộ sản phẩm công nghệ đang kinh doanh</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Danh sách toàn bộ sản phẩm ({totalItems} SP)
+            {totalPages > 1 && (
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-semibold text-[10px]">
+                Trang {safeCurrentPage}/{totalPages}
+              </span>
+            )}
+          </p>
         </div>
 
         <button
@@ -204,12 +226,12 @@ export const AdminProducts: React.FC = () => {
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-slate-400">Đang tải sản phẩm...</td>
                 </tr>
-              ) : products.length === 0 ? (
+              ) : paginatedProducts.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-slate-400">Không tìm thấy sản phẩm nào</td>
                 </tr>
               ) : (
-                products.map((prod) => (
+                paginatedProducts.map((prod) => (
                   <tr key={prod.id} className="hover:bg-[#18233a] transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
@@ -275,6 +297,23 @@ export const AdminProducts: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Component Phân Trang Tự Động */}
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={safeCurrentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+          pageSizeOptions={[5, 8, 12, 20, 50]}
+          itemLabel="sản phẩm"
+        />
+      )}
 
       {/* Add / Edit Modal */}
       {showModal && (

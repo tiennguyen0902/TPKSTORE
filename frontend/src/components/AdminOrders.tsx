@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Order } from "../types";
 import { api } from "../services/api";
+import { Pagination } from "./Pagination";
 
 export const AdminOrders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -21,6 +22,10 @@ export const AdminOrders: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState("");
+
+  // Phân trang tự động
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -36,6 +41,7 @@ export const AdminOrders: React.FC = () => {
 
   useEffect(() => {
     fetchOrders();
+    setCurrentPage(1);
   }, [search, statusFilter]);
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
@@ -68,19 +74,51 @@ export const AdminOrders: React.FC = () => {
     }
   };
 
+  const returnsCount = orders.filter(
+    (o) => (o.status as string) === "RETURN_REQUESTED" || (o.status as string) === "RETURNED" || o.status === "CANCELLED"
+  ).length;
+
+  const filteredOrders = orders.filter((o) => {
+    if (activeTab === "returns") {
+      return (o.status as string) === "RETURN_REQUESTED" || (o.status as string) === "RETURNED" || o.status === "CANCELLED";
+    }
+    return true;
+  });
+
+  // Tính toán phân trang tự động
+  const totalItems = filteredOrders.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = currentPage > totalPages ? 1 : currentPage;
+  const paginatedOrders = filteredOrders.slice(
+    (safeCurrentPage - 1) * pageSize,
+    safeCurrentPage * pageSize
+  );
+
+  const handleTabChange = (tab: "all" | "returns") => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+  };
+
   return (
     <div className="space-y-6 pb-16">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-2xl font-black text-white">Quản Lý Đơn Hàng</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Xử lý quy trình giao hàng, đổi trả và trạng thái thanh toán</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Xử lý quy trình giao hàng, đổi trả và trạng thái thanh toán ({totalItems} đơn)
+            {totalPages > 1 && (
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-semibold text-[10px]">
+                Trang {safeCurrentPage}/{totalPages}
+              </span>
+            )}
+          </p>
         </div>
 
         {/* Tabs (Matching Screenshot) */}
         <div className="flex items-center gap-1.5 p-1 bg-[#131c2e] border border-slate-700/80 rounded-2xl text-xs">
           <button
-            onClick={() => setActiveTab("all")}
+            onClick={() => handleTabChange("all")}
             className={`px-3 py-1.5 rounded-xl font-semibold transition-all ${
               activeTab === "all" ? "bg-violet-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
             }`}
@@ -88,12 +126,12 @@ export const AdminOrders: React.FC = () => {
             Tất cả đơn hàng ({orders.length})
           </button>
           <button
-            onClick={() => setActiveTab("returns")}
+            onClick={() => handleTabChange("returns")}
             className={`px-3 py-1.5 rounded-xl font-semibold transition-all ${
               activeTab === "returns" ? "bg-violet-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
             }`}
           >
-            Yêu cầu đổi trả (0)
+            Yêu cầu đổi trả ({returnsCount})
           </button>
         </div>
       </div>
@@ -153,12 +191,12 @@ export const AdminOrders: React.FC = () => {
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-400">Đang tải đơn hàng...</td>
                 </tr>
-              ) : orders.length === 0 ? (
+              ) : paginatedOrders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-400">Không có đơn hàng nào</td>
                 </tr>
               ) : (
-                orders.map((o) => (
+                paginatedOrders.map((o) => (
                   <React.Fragment key={o.id}>
                     <tr className="hover:bg-[#18233a] transition-colors">
                       <td className="p-4 font-mono font-bold text-white whitespace-nowrap">
@@ -237,6 +275,23 @@ export const AdminOrders: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Component Phân Trang Tự Động */}
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={safeCurrentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+          pageSizeOptions={[5, 8, 12, 20]}
+          itemLabel="đơn hàng"
+        />
+      )}
     </div>
   );
 };

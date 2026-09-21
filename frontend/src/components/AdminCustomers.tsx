@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Users, Search, ShieldCheck, Lock, Unlock, CheckCircle2 } from "lucide-react";
 import { User } from "../types";
 import { api } from "../services/api";
+import { Pagination } from "./Pagination";
 
 export const AdminCustomers: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -9,6 +10,10 @@ export const AdminCustomers: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [toastMsg, setToastMsg] = useState("");
+
+  // Phân trang tự động
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -24,6 +29,7 @@ export const AdminCustomers: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
+    setCurrentPage(1);
   }, [search, roleFilter]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
@@ -48,13 +54,29 @@ export const AdminCustomers: React.FC = () => {
     }
   };
 
+  // Tính toán phân trang tự động
+  const totalItems = users.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = currentPage > totalPages ? 1 : currentPage;
+  const paginatedUsers = users.slice(
+    (safeCurrentPage - 1) * pageSize,
+    safeCurrentPage * pageSize
+  );
+
   return (
     <div className="space-y-6 pb-16">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-2xl font-black text-white">Quản Lý Khách Hàng & Người Dùng</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Phân quyền RBAC, kiểm soát truy cập và quản trị tài khoản hệ thống</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Phân quyền RBAC, kiểm soát truy cập và quản trị tài khoản ({totalItems} người dùng)
+            {totalPages > 1 && (
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-semibold text-[10px]">
+                Trang {safeCurrentPage}/{totalPages}
+              </span>
+            )}
+          </p>
         </div>
       </div>
 
@@ -110,8 +132,12 @@ export const AdminCustomers: React.FC = () => {
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-400">Đang tải danh sách người dùng...</td>
                 </tr>
+              ) : paginatedUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-slate-400">Không tìm thấy người dùng nào</td>
+                </tr>
               ) : (
-                users.map((u) => (
+                paginatedUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-[#18233a] transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
@@ -172,6 +198,23 @@ export const AdminCustomers: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Component Phân Trang Tự Động */}
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={safeCurrentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+          pageSizeOptions={[5, 8, 12, 20]}
+          itemLabel="người dùng"
+        />
+      )}
     </div>
   );
 };

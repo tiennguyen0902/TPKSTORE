@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Filter, SlidersHorizontal, ArrowUpDown, Tag, Search, RotateCcw } from "lucide-react";
 import { Product, Category } from "../types";
 import { ProductCard } from "./ProductCard";
+import { Pagination } from "./Pagination";
 import { api } from "../services/api";
 
 interface CatalogViewProps {
@@ -25,6 +26,11 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Phân trang tự động
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(9);
+  const productsTopRef = useRef<HTMLDivElement>(null);
 
   // Đồng bộ category khi props từ Navbar / Footer thay đổi
   useEffect(() => {
@@ -86,9 +92,15 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     fetchFilteredProducts();
   }, [selectedCategory, selectedPriceRange, sortBy, searchQuery]);
 
+  // Tự động phân trang về Trang 1 khi bấm BẤT KỲ chức năng nào (danh mục, khoảng giá, sắp xếp, tìm kiếm)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedPriceRange, sortBy, searchQuery]);
+
   const handleSelectCategory = (catSlug: string) => {
     setSelectedCategory(catSlug);
     onCategoryChange?.(catSlug);
+    setCurrentPage(1);
   };
 
   const handleResetFilters = () => {
@@ -97,6 +109,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     setSelectedPriceRange("all");
     setSortBy("newest");
     setSearchQuery("");
+    setCurrentPage(1);
   };
 
   const currentCategory = categories.find(
@@ -121,6 +134,29 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
     return true;
   });
 
+  // Tính toán phân trang tự động
+  const totalItems = displayedProducts.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = currentPage > totalPages ? 1 : currentPage;
+  const paginatedProducts = displayedProducts.slice(
+    (safeCurrentPage - 1) * pageSize,
+    safeCurrentPage * pageSize
+  );
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    if (productsTopRef.current) {
+      productsTopRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
+
   return (
     <div className="space-y-6 pb-16">
       {/* Header Banner */}
@@ -128,8 +164,13 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
         <div>
           <h1 className="text-2xl font-black text-white">{pageTitle}</h1>
           <p className="text-xs text-slate-400 mt-1">
-            Hiển thị {displayedProducts.length} sản phẩm{" "}
+            Hiển thị {totalItems} sản phẩm{" "}
             {currentCategory ? `thuộc danh mục "${currentCategory.name}"` : "công nghệ chính hãng chất lượng cao"}
+            {totalPages > 1 && (
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-semibold text-[11px]">
+                Trang {safeCurrentPage}/{totalPages}
+              </span>
+            )}
           </p>
         </div>
 
@@ -243,21 +284,35 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
         </div>
 
         {/* Right Products Grid */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 space-y-6" ref={productsTopRef}>
           {isLoading ? (
             <div className="p-16 text-center text-slate-400 text-xs">
               Đang tải danh sách sản phẩm...
             </div>
-          ) : displayedProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {displayedProducts.map((prod) => (
-                <ProductCard
-                  key={prod.id}
-                  product={prod}
-                  onSelect={onSelectProduct}
-                />
-              ))}
-            </div>
+          ) : paginatedProducts.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {paginatedProducts.map((prod) => (
+                  <ProductCard
+                    key={prod.id}
+                    product={prod}
+                    onSelect={onSelectProduct}
+                  />
+                ))}
+              </div>
+
+              {/* Component Phân Trang Tự Động */}
+              <Pagination
+                currentPage={safeCurrentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={[6, 9, 12, 18, 24]}
+                itemLabel="sản phẩm"
+              />
+            </>
           ) : (
             <div className="p-16 rounded-3xl bg-[#12192e] border border-slate-800 text-center space-y-3">
               <Search className="w-10 h-10 text-slate-500 mx-auto" />

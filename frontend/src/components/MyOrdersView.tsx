@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Order } from "../types";
 import { api } from "../services/api";
+import { Pagination } from "./Pagination";
 
 interface MyOrdersViewProps {
   onNavigateCatalog: () => void;
@@ -23,6 +24,10 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
   const [isLoading, setIsLoading] = useState(true);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string>("");
+
+  // Phân trang tự động
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -38,7 +43,17 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
 
   useEffect(() => {
     fetchOrders();
+    setCurrentPage(1);
   }, []);
+
+  // Tính toán phân trang tự động
+  const totalItems = orders.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = currentPage > totalPages ? 1 : currentPage;
+  const paginatedOrders = orders.slice(
+    (safeCurrentPage - 1) * pageSize,
+    safeCurrentPage * pageSize
+  );
 
   const handleCancelOrder = async (orderId: string) => {
     if (!window.confirm(`Bạn có chắc chắn muốn hủy đơn hàng ${orderId}? Tồn kho sẽ được tự động hoàn lại.`)) {
@@ -81,7 +96,14 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
       <div className="flex items-center justify-between border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-2xl font-black text-white">Đơn Hàng Của Tôi</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Theo dõi hành trình đơn hàng và quản lý các giao dịch mua sắm</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Theo dõi hành trình đơn hàng và quản lý các giao dịch ({totalItems} đơn hàng)
+            {totalPages > 1 && (
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-semibold text-[10px]">
+                Trang {safeCurrentPage}/{totalPages}
+              </span>
+            )}
+          </p>
         </div>
         <button
           onClick={onNavigateCatalog}
@@ -118,7 +140,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map((order) => {
+          {paginatedOrders.map((order) => {
             const isExpanded = expandedOrderId === order.id;
 
             return (
@@ -173,7 +195,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
                       Thanh toán:{" "}
                       <strong className="text-white">{order.paymentMethod}</strong> (
                       <span className={order.paymentStatus === "COMPLETED" ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
-                        {order.paymentStatus === "COMPLETED" ? "Đã thanh toán" : "Chưa thanh toán"}
+                        {order.paymentStatus === "COMPLETED" ? "Đã thanh toán" : "Chờ thanh toán"}
                       </span>
                       )
                     </div>
@@ -246,6 +268,23 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
               </div>
             );
           })}
+
+          {/* Component Phân Trang Tự Động */}
+          {totalItems > 0 && (
+            <Pagination
+              currentPage={safeCurrentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1);
+              }}
+              pageSizeOptions={[3, 5, 10, 20]}
+              itemLabel="đơn hàng"
+            />
+          )}
         </div>
       )}
     </div>

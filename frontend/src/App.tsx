@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import { Navbar } from "./components/Navbar";
@@ -26,45 +27,208 @@ import { StaffDashboard } from "./components/StaffDashboard";
 import { Product } from "./types";
 import { ShieldAlert } from "lucide-react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { api } from "./services/api";
+
+const VIEW_TO_PATH: Record<string, string> = {
+  storefront: "/",
+  catalog: "/products",
+  cart: "/cart",
+  checkout: "/checkout",
+  my_orders: "/my-orders",
+  profile: "/profile",
+  auth: "/login",
+  staff_dashboard: "/staff",
+  admin_dashboard: "/admin/dashboard",
+  admin_products: "/admin/products",
+  admin_categories: "/admin/categories",
+  admin_orders: "/admin/orders",
+  admin_customers: "/admin/customers",
+  admin_inventory: "/admin/inventory",
+  admin_studio: "/admin/studio",
+  admin_forecast: "/admin/forecast",
+  admin_inventory_alerts: "/admin/inventory-alerts",
+  admin_settings: "/admin/settings"
+};
+
+interface ParsedRoute {
+  view: string;
+  category?: string;
+  search?: string;
+  productIdOrSlug?: string;
+}
+
+function parseUrl(pathname: string, search: string): ParsedRoute {
+  const params = new URLSearchParams(search);
+  const categoryParam = params.get("category") || undefined;
+  const searchParam = params.get("search") || undefined;
+
+  const path = pathname.replace(/\/+$/, "") || "/";
+
+  if (path === "/" || path === "") {
+    return { view: "storefront", category: categoryParam, search: searchParam };
+  }
+
+  if (path.startsWith("/products/")) {
+    const idOrSlug = decodeURIComponent(path.slice("/products/".length));
+    return {
+      view: "catalog",
+      productIdOrSlug: idOrSlug,
+      category: categoryParam,
+      search: searchParam
+    };
+  }
+
+  if (path === "/products" || path === "/catalog") {
+    return { view: "catalog", category: categoryParam, search: searchParam };
+  }
+
+  if (path === "/cart") return { view: "cart" };
+  if (path === "/checkout") return { view: "checkout" };
+  if (path === "/my-orders" || path === "/orders") return { view: "my_orders" };
+  if (path === "/profile") return { view: "profile" };
+  if (path === "/login" || path === "/auth") return { view: "auth" };
+  if (path === "/staff") return { view: "staff_dashboard" };
+
+  // Admin routes
+  if (path === "/admin" || path === "/admin/dashboard") return { view: "admin_dashboard" };
+  if (path === "/admin/products") return { view: "admin_products" };
+  if (path === "/admin/categories") return { view: "admin_categories" };
+  if (path === "/admin/orders") return { view: "admin_orders" };
+  if (path === "/admin/customers") return { view: "admin_customers" };
+  if (path === "/admin/inventory") return { view: "admin_inventory" };
+  if (path === "/admin/studio") return { view: "admin_studio" };
+  if (path === "/admin/forecast") return { view: "admin_forecast" };
+  if (path === "/admin/inventory-alerts" || path === "/admin/alerts") return { view: "admin_inventory_alerts" };
+  if (path === "/admin/settings") return { view: "admin_settings" };
+
+  return { view: "storefront", category: categoryParam, search: searchParam };
+}
 
 const MainApp: React.FC = () => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // Khởi tạo view mặc định: luôn hiển thị tab cửa hàng sản phẩm "storefront"
-  const [currentView, setCurrentView] = useState<string>("storefront");
-
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  // Khởi tạo state từ URL hiện tại để khi refresh/F5 hoặc gõ URL trực tiếp sẽ hiển thị đúng view
+  const parsedInitial = parseUrl(location.pathname, location.search);
+  const [currentView, setCurrentView] = useState<string>(parsedInitial.view);
+  const [searchQuery, setSearchQuery] = useState<string>(parsedInitial.search || "");
+  const [selectedCategory, setSelectedCategory] = useState<string>(parsedInitial.category || "all");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [postAuthTarget, setPostAuthTarget] = useState<string | null>(null);
   const [authBanner, setAuthBanner] = useState<string>("");
 
-  // Tự động chuyển hướng & Bảo vệ các view yêu cầu tài khoản:
-  // - Nếu đã đăng nhập thành công và đang ở "auth" -> chuyển vào postAuthTarget (nếu có) hoặc "storefront"
-  // - Khách vãng lai xem được thoải mái: storefront, catalog, cart, chi tiết sản phẩm, chat AI
-  // - CHỈ bắt đăng nhập khi đến bước mua hàng ("checkout") hoặc quản lý đơn hàng/hồ sơ
-  React.useEffect(() => {
+  // Helper chuyển trang tương ứng với URL
+  const handleNavigateView = (view: string) => {
+    if (view === "catalog") {
+      if (selectedCategory && selectedCategory !== "all") {
+        navigate(`/products?category=${selectedCategory}`);
+      } else {
+        navigate("/products");
+      }
+      return;
+    }
+    const targetPath = VIEW_TO_PATH[view] || "/";
+    navigate(targetPath);
+  };
+
+  // Helper chọn danh mục & chuyển trang catalog kèm query param URL
+  const handleSelectCategory = (catSlug?: string) => {
+    const slug = catSlug && catSlug !== "all" ? catSlug : "all";
+    setSelectedCategory(slug);
+    if (slug !== "all") {
+      navigate(`/products?category=${slug}`);
+    } else {
+      navigate("/products");
+    }
+  };
+
+  // Bấm vào sản phẩm: mở modal xem chi tiết và cập nhật URL /products/:idOrSlug
+  const handleSelectProduct = (product: Product) => {
+    setActiveProduct(product);
+    const identifier = product.slug || product.id;
+    navigate(`/products/${identifier}`);
+  };
+
+  // Đóng modal sản phẩm: trả URL về /products (hoặc giữ danh mục đã lọc)
+  const handleCloseProductModal = () => {
+    setActiveProduct(null);
+    if (selectedCategory && selectedCategory !== "all") {
+      navigate(`/products?category=${selectedCategory}`);
+    } else {
+      navigate("/products");
+    }
+  };
+
+  // Lắng nghe thay đổi URL (từ back/forward, direct link, F5 refresh, hoặc navigate)
+  useEffect(() => {
+    const parsed = parseUrl(location.pathname, location.search);
+
+    // Đồng bộ view
+    if (parsed.view !== currentView) {
+      setCurrentView(parsed.view);
+    }
+
+    // Đồng bộ danh mục từ URL params (?category=...)
+    if (parsed.category) {
+      if (parsed.category !== selectedCategory) {
+        setSelectedCategory(parsed.category);
+      }
+    } else if (location.pathname === "/" || location.pathname === "/products") {
+      if (selectedCategory !== "all" && !location.search.includes("category=")) {
+        setSelectedCategory("all");
+      }
+    }
+
+    // Đồng bộ từ khóa tìm kiếm (?search=...)
+    if (parsed.search !== undefined) {
+      if (parsed.search !== searchQuery) {
+        setSearchQuery(parsed.search);
+      }
+    }
+
+    // Đồng bộ modal sản phẩm theo URL /products/:idOrSlug
+    if (parsed.productIdOrSlug) {
+      const targetIdOrSlug = parsed.productIdOrSlug;
+      if (!activeProduct || (activeProduct.id !== targetIdOrSlug && activeProduct.slug !== targetIdOrSlug)) {
+        api.getProduct(targetIdOrSlug)
+          .then((product) => {
+            if (product) {
+              setActiveProduct(product);
+              if (product.category?.slug) {
+                setSelectedCategory(product.category.slug);
+              }
+            }
+          })
+          .catch((err) => {
+            console.warn("Không tìm thấy sản phẩm từ URL:", err);
+          });
+      }
+    } else {
+      if (activeProduct) {
+        setActiveProduct(null);
+      }
+    }
+  }, [location.pathname, location.search]);
+
+  // Tự động chuyển hướng & Bảo vệ các view yêu cầu tài khoản
+  useEffect(() => {
     if (!isLoading) {
       if (user && currentView === "auth") {
         const target = postAuthTarget || "storefront";
         setPostAuthTarget(null);
         setAuthBanner("");
-        setCurrentView(target);
+        handleNavigateView(target);
       } else if (!user) {
         const protectedViews = ["checkout", "my_orders", "profile"];
         if (protectedViews.includes(currentView)) {
           setPostAuthTarget(currentView);
           setAuthBanner("Vui lòng đăng nhập tài khoản để tiến hành mua hàng và thanh toán!");
-          setCurrentView("auth");
+          navigate("/login");
         }
       }
     }
   }, [user, isLoading, currentView, postAuthTarget]);
-
-  // Bấm vào sản phẩm: mở modal xem chi tiết bình thường
-  const handleSelectProduct = (product: Product) => {
-    setActiveProduct(product);
-  };
 
   // Bấm vào Chatbot AI: mở trợ lý AI tư vấn bình thường
   const handleOpenChat = () => {
@@ -77,10 +241,10 @@ const MainApp: React.FC = () => {
     if (!user) {
       setPostAuthTarget("checkout");
       setAuthBanner("Vui lòng đăng nhập tài khoản để tiến hành mua hàng và thanh toán đơn hàng!");
-      setCurrentView("auth");
+      navigate("/login");
       return;
     }
-    setCurrentView("checkout");
+    navigate("/checkout");
   };
 
   const isAdminRoute = currentView.startsWith("admin_");
@@ -91,11 +255,11 @@ const MainApp: React.FC = () => {
       <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans">
         <Navbar
           currentView={currentView}
-          setCurrentView={setCurrentView}
+          setCurrentView={handleNavigateView}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
+          setSelectedCategory={handleSelectCategory}
         />
         <main className="flex-1 flex items-center justify-center p-4">
           <div className="max-w-md w-full p-8 rounded-3xl bg-[#131c2e] border border-slate-800 text-center space-y-4 shadow-2xl">
@@ -108,13 +272,13 @@ const MainApp: React.FC = () => {
             </p>
             <div className="pt-2 flex justify-center gap-3">
               <button
-                onClick={() => setCurrentView("storefront")}
+                onClick={() => navigate("/")}
                 className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
               >
                 Về cửa hàng
               </button>
               <button
-                onClick={() => setCurrentView("auth")}
+                onClick={() => navigate("/login")}
                 className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-lg shadow-violet-600/30"
               >
                 Đăng nhập
@@ -122,10 +286,7 @@ const MainApp: React.FC = () => {
             </div>
           </div>
         </main>
-        <Footer onNavigateCategory={(catSlug) => {
-          setSelectedCategory(catSlug);
-          setCurrentView("catalog");
-        }} />
+        <Footer onNavigateCategory={handleSelectCategory} />
       </div>
     );
   }
@@ -136,11 +297,11 @@ const MainApp: React.FC = () => {
       <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans">
         <Navbar
           currentView={currentView}
-          setCurrentView={setCurrentView}
+          setCurrentView={handleNavigateView}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
+          setSelectedCategory={handleSelectCategory}
         />
         <main className="flex-1 flex items-center justify-center p-4">
           <div className="max-w-md w-full p-8 rounded-3xl bg-[#131c2e] border border-slate-800 text-center space-y-4 shadow-2xl">
@@ -153,13 +314,13 @@ const MainApp: React.FC = () => {
             </p>
             <div className="pt-2 flex justify-center gap-3">
               <button
-                onClick={() => setCurrentView("storefront")}
+                onClick={() => navigate("/")}
                 className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
               >
                 Về cửa hàng
               </button>
               <button
-                onClick={() => setCurrentView("auth")}
+                onClick={() => navigate("/login")}
                 className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30"
               >
                 Đăng nhập
@@ -167,10 +328,7 @@ const MainApp: React.FC = () => {
             </div>
           </div>
         </main>
-        <Footer onNavigateCategory={(catSlug) => {
-          setSelectedCategory(catSlug);
-          setCurrentView("catalog");
-        }} />
+        <Footer onNavigateCategory={handleSelectCategory} />
       </div>
     );
   }
@@ -182,12 +340,12 @@ const MainApp: React.FC = () => {
         <div className="flex h-screen overflow-hidden">
           <AdminSidebar
             activeTab={currentView}
-            setActiveTab={setCurrentView}
-            onNavigateHome={() => setCurrentView("storefront")}
+            setActiveTab={handleNavigateView}
+            onNavigateHome={() => navigate("/")}
           />
           <main className="flex-1 overflow-y-auto bg-[#0b0f19] p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
-              {currentView === "admin_dashboard" && <AdminDashboard onNavigateTab={setCurrentView} />}
+              {currentView === "admin_dashboard" && <AdminDashboard onNavigateTab={handleNavigateView} />}
               {currentView === "admin_products" && <AdminProducts />}
               {currentView === "admin_categories" && <AdminCategories />}
               {currentView === "admin_orders" && <AdminOrders />}
@@ -205,11 +363,11 @@ const MainApp: React.FC = () => {
         <>
           <Navbar
             currentView={currentView}
-            setCurrentView={setCurrentView}
+            setCurrentView={handleNavigateView}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
+            setSelectedCategory={handleSelectCategory}
           />
 
           <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 w-full">
@@ -220,13 +378,13 @@ const MainApp: React.FC = () => {
                 onBackToStore={() => {
                   setAuthBanner("");
                   setPostAuthTarget(null);
-                  setCurrentView("storefront");
+                  navigate("/");
                 }}
                 onSuccess={() => {
                   const target = postAuthTarget || "storefront";
                   setPostAuthTarget(null);
                   setAuthBanner("");
-                  setCurrentView(target);
+                  handleNavigateView(target);
                 }} 
               />
             )}
@@ -235,10 +393,7 @@ const MainApp: React.FC = () => {
             {(currentView === "storefront" || (currentView === "auth" && user)) && (
               <StorefrontHome
                 onSelectProduct={handleSelectProduct}
-                onNavigateCatalog={(catSlug) => {
-                  if (catSlug) setSelectedCategory(catSlug);
-                  setCurrentView("catalog");
-                }}
+                onNavigateCatalog={handleSelectCategory}
                 onOpenChat={handleOpenChat}
               />
             )}
@@ -246,7 +401,7 @@ const MainApp: React.FC = () => {
             {currentView === "catalog" && (
               <CatalogView
                 initialCategory={selectedCategory}
-                onCategoryChange={(cat) => setSelectedCategory(cat)}
+                onCategoryChange={handleSelectCategory}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 onSelectProduct={handleSelectProduct}
@@ -255,22 +410,22 @@ const MainApp: React.FC = () => {
 
             {currentView === "cart" && (
               <CartView
-                onNavigateCatalog={() => setCurrentView("catalog")}
+                onNavigateCatalog={() => navigate("/products")}
                 onProceedToCheckout={handleProceedToBuy}
               />
             )}
 
             {currentView === "checkout" && (
               <CheckoutView
-                onBackToCart={() => setCurrentView("cart")}
+                onBackToCart={() => navigate("/cart")}
                 onOrderSuccess={(orderId) => {
-                  setCurrentView("my_orders");
+                  navigate("/my-orders");
                 }}
               />
             )}
 
             {currentView === "my_orders" && (
-              <MyOrdersView onNavigateCatalog={() => setCurrentView("catalog")} />
+              <MyOrdersView onNavigateCatalog={() => navigate("/products")} />
             )}
 
             {currentView === "profile" && <ProfileView />}
@@ -278,10 +433,7 @@ const MainApp: React.FC = () => {
             {currentView === "staff_dashboard" && <StaffDashboard />}
           </main>
 
-          <Footer onNavigateCategory={(catSlug) => {
-            setSelectedCategory(catSlug);
-            setCurrentView("catalog");
-          }} />
+          <Footer onNavigateCategory={handleSelectCategory} />
         </>
       )}
 
@@ -295,11 +447,11 @@ const MainApp: React.FC = () => {
         <ErrorBoundary
           fallbackTitle="Không thể hiển thị thông tin sản phẩm"
           fallbackMessage="Đã xảy ra sự cố khi tải chi tiết sản phẩm này. Bạn có thể đóng cửa sổ và thử lại."
-          onReset={() => setActiveProduct(null)}
+          onReset={() => handleCloseProductModal()}
         >
           <ProductModal
             product={activeProduct}
-            onClose={() => setActiveProduct(null)}
+            onClose={handleCloseProductModal}
             onSelectProduct={handleSelectProduct}
             onGoToCheckout={() => {
               setActiveProduct(null);
