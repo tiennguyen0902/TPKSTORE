@@ -183,7 +183,7 @@ class FallbackStore {
         if (Array.isArray(data.users)) this.users = data.users.map((u: any) => ({ ...u, createdAt: new Date(u.createdAt), updatedAt: new Date(u.updatedAt) }));
         if (Array.isArray(data.categories)) this.categories = data.categories.map((c: any) => ({ ...c, createdAt: new Date(c.createdAt), updatedAt: new Date(c.updatedAt) }));
         if (Array.isArray(data.products)) {
-          this.products = data.products.map((p: any) => {
+          const loadedProducts = data.products.map((p: any) => {
             let stockVal = p.stock;
             if (typeof stockVal === "object" && stockVal !== null) {
               stockVal = typeof stockVal.decrement === "number" ? Math.max(0, 25 - stockVal.decrement) : 15;
@@ -195,6 +195,16 @@ class FallbackStore {
               updatedAt: new Date(p.updatedAt)
             };
           });
+          const existingIds = new Set(loadedProducts.map((p: any) => p.id));
+          const newProducts = INITIAL_PRODUCTS.filter(p => !existingIds.has(p.id)).map(p => ({
+            ...p,
+            createdAt: new Date(p.createdAt),
+            updatedAt: new Date(p.updatedAt)
+          }));
+          this.products = [...loadedProducts, ...newProducts];
+          if (newProducts.length > 0) {
+            this.saveToFile();
+          }
         }
         if (Array.isArray(data.orders)) this.orders = data.orders.map((o: any) => ({ ...o, createdAt: new Date(o.createdAt), updatedAt: new Date(o.updatedAt) }));
         if (data.settings) this.settings = data.settings;

@@ -548,6 +548,647 @@ export const INITIAL_PRODUCTS: Product[] = [
     categoryId: "cat_8",
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-20T00:00:00.000Z"
+  },
+  // --- THÊM 3 SẢN PHẨM MỖI DANH MỤC (prd_13 đến prd_42) ---
+  // 1. Điện thoại & Tablet (cat_1)
+  {
+    id: "prd_13",
+    name: "iPhone 16 Pro Max 256GB Titan Sa Mạc",
+    slug: "iphone-16-pro-max-256gb-titan-sa-mac",
+    description: "Siêu phẩm Apple Intelligence đỉnh cao, khung viền titan cấp 5, chip A18 Pro tiến trình 3nm, camera Fusion 48MP zoom quang 5x, màn hình Super Retina XDR 6.9 inch 120Hz.",
+    price: 34990000,
+    originalPrice: 37990000,
+    stock: 25,
+    thumbnail: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 5.0,
+    reviewCount: 89,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_1",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_14",
+    name: "Samsung Galaxy S24 Ultra 5G AI Phone (12GB/512GB)",
+    slug: "samsung-galaxy-s24-ultra-5g-ai-phone",
+    description: "Đỉnh cao Galaxy AI với tính năng khoanh tròn để tìm kiếm, phiên dịch cuộc gọi trực tiếp, bút S-Pen quyền năng, camera 200MP zoom quang 100x Space Zoom, màn hình chống chói Gorilla Armor.",
+    price: 29990000,
+    originalPrice: 33990000,
+    stock: 20,
+    thumbnail: "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 74,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_1",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_15",
+    name: "iPad Air M2 13 inch Wi-Fi 128GB Không Gian Xám",
+    slug: "ipad-air-m2-13-inch-wifi-128gb",
+    description: "Màn hình Liquid Retina 13 inch mở rộng trải nghiệm, sức mạnh đột phá từ vi xử lý Apple M2 thế hệ mới, hỗ trợ Apple Pencil Pro và Magic Keyboard chuyên nghiệp.",
+    price: 21490000,
+    originalPrice: 23990000,
+    stock: 15,
+    thumbnail: "https://images.unsplash.com/photo-1561154464-82e9adf32764?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1561154464-82e9adf32764?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.8,
+    reviewCount: 42,
+    isFeatured: false,
+    isNew: true,
+    categoryId: "cat_1",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  // 2. Laptop & Macbook (cat_2)
+  {
+    id: "prd_16",
+    name: "MacBook Pro 14 M3 Pro (18GB RAM / 512GB SSD)",
+    slug: "macbook-pro-14-m3-pro-18gb-512gb",
+    description: "Laptop chuyên nghiệp cho lập trình viên và sáng tạo nội dung, chip Apple M3 Pro 11 nhân CPU, màn hình Liquid Retina XDR 120Hz độ sáng 1600 nits, pin lên đến 18 tiếng.",
+    price: 48990000,
+    originalPrice: 52990000,
+    stock: 10,
+    thumbnail: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 5.0,
+    reviewCount: 56,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_2",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_17",
+    name: "Laptop ASUS Zenbook 14 OLED AI PC Intel Core Ultra 7",
+    slug: "laptop-asus-zenbook-14-oled-ai-pc",
+    description: "Chuẩn Copilot+ AI PC siêu mỏng nhẹ chỉ 1.2kg, màn hình Lumina OLED 3K 120Hz 100% DCI-P3, tích hợp NPU Intel AI Boost tăng tốc xử lý tác vụ trí tuệ nhân tạo.",
+    price: 27990000,
+    originalPrice: 31490000,
+    stock: 18,
+    thumbnail: "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.8,
+    reviewCount: 38,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_2",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_18",
+    name: "Laptop Dell XPS 13 Plus 9340 Siêu Gọn Nhẹ",
+    slug: "laptop-dell-xps-13-plus-9340",
+    description: "Thiết kế tương lai với hàng phím chức năng cảm ứng vô hình, touchpad liền mạch bằng kính, màn hình InfinityEdge FHD+ tràn viền 500 nits, chip Intel Core Ultra thế hệ mới.",
+    price: 36500000,
+    originalPrice: 39900000,
+    stock: 12,
+    thumbnail: "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.7,
+    reviewCount: 29,
+    isFeatured: false,
+    isNew: false,
+    categoryId: "cat_2",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  // 3. Tai nghe & Âm thanh (cat_3)
+  {
+    id: "prd_19",
+    name: "Tai nghe chụp tai chống ồn Sony WH-1000XM5 AI Optimizer",
+    slug: "tai-nghe-chup-tai-sony-wh-1000xm5",
+    description: "Công nghệ chống ồn đỉnh cao thế giới với 8 micro và bộ xử lý Auto NC Optimizer AI tự động tinh chỉnh theo môi trường, màng loa 30mm mạ sợi carbon, pin 30 giờ.",
+    price: 7490000,
+    originalPrice: 8690000,
+    stock: 25,
+    thumbnail: "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 5.0,
+    reviewCount: 112,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_3",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_20",
+    name: "Loa Bluetooth di động Marshall Stanmore III Vintage",
+    slug: "loa-bluetooth-marshall-stanmore-iii",
+    description: "Âm thanh nổi stereo lan tỏa rộng khắp phòng, củ loa công suất 80W Class D mạnh mẽ, kết nối Bluetooth 5.2 tương thích âm thanh thế hệ mới LE Audio, phong cách cổ điển sang trọng.",
+    price: 8990000,
+    originalPrice: 9990000,
+    stock: 16,
+    thumbnail: "https://images.unsplash.com/photo-1545454675-3531b543be5d?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1545454675-3531b543be5d?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 68,
+    isFeatured: true,
+    isNew: false,
+    categoryId: "cat_3",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_21",
+    name: "Tai nghe AirPods Pro Gen 2 USB-C Chip H2",
+    slug: "tai-nghe-airpods-pro-gen-2-usb-c",
+    description: "Khả năng khử tiếng ồn chủ động gấp 2 lần, chế độ Âm Thanh Thích Ứng tự động điều chỉnh âm lượng theo môi trường, kháng bụi nước IP54 cùng hộp sạc tìm kiếm Precision Finding.",
+    price: 5390000,
+    originalPrice: 6190000,
+    stock: 40,
+    thumbnail: "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 154,
+    isFeatured: false,
+    isNew: true,
+    categoryId: "cat_3",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  // 4. Đồng hồ thông minh (cat_4)
+  {
+    id: "prd_22",
+    name: "Apple Watch Ultra 2 Titanium Dây Ocean",
+    slug: "apple-watch-ultra-2-titanium",
+    description: "Vỏ titan 49mm chống va đập tiêu chuẩn quân đội, màn hình sáng nhất lịch sử 3000 nits, chip S9 SiP thao tác chạm hai lần Double Tap, định vị GPS tần số kép chuẩn xác dưới mọi điều kiện.",
+    price: 19990000,
+    originalPrice: 21990000,
+    stock: 14,
+    thumbnail: "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 5.0,
+    reviewCount: 63,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_4",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_23",
+    name: "Đồng hồ thể thao Garmin Fenix 7 Pro Solar Sapphire",
+    slug: "dong-ho-the-thao-garmin-fenix-7-pro-solar",
+    description: "Sạc năng lượng mặt trời cho thời lượng pin đến 37 ngày, đèn pin LED tích hợp, bản đồ địa hình Topo đa lục địa, theo dõi chỉ số sức khỏe chuyên sâu AI Endurance & Hill Score.",
+    price: 21490000,
+    originalPrice: 23500000,
+    stock: 12,
+    thumbnail: "https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1510017803434-a899398421b3?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 47,
+    isFeatured: true,
+    isNew: false,
+    categoryId: "cat_4",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_24",
+    name: "Samsung Galaxy Watch 7 AI BioActive Sensor",
+    slug: "samsung-galaxy-watch-7-ai",
+    description: "Cảm biến BioActive thế hệ mới theo dõi chỉ số AGEs (sản phẩm glycat hóa bền vững), phân tích điểm năng lượng Energy Score thông minh, chip xử lý 3nm mạnh mẽ mượt mà.",
+    price: 7290000,
+    originalPrice: 8490000,
+    stock: 22,
+    thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.8,
+    reviewCount: 35,
+    isFeatured: false,
+    isNew: true,
+    categoryId: "cat_4",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  // 5. Phụ kiện & Cáp sạc (cat_5)
+  {
+    id: "prd_25",
+    name: "Pin sạc dự phòng Anker Prime 20.000mAh 200W Màn hình số",
+    slug: "pin-sac-du-phong-anker-prime-20000mah-200w",
+    description: "Công suất khủng 200W hỗ trợ sạc cùng lúc 2 laptop, màn hình màu TFT hiển thị điện áp và công suất sạc từng cổng thời gian thực, công nghệ tản nhiệt thông minh ActiveShield 2.0.",
+    price: 2490000,
+    originalPrice: 2890000,
+    stock: 55,
+    thumbnail: "https://images.unsplash.com/photo-1609592807901-bcf3b91b92e7?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1609592807901-bcf3b91b92e7?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 88,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_5",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_26",
+    name: "Đế sạc không dây 3 trong 1 MagSafe Hợp Kim Nhôm",
+    slug: "de-sac-khong-day-3-in-1-magsafe",
+    description: "Thiết kế gập gọn thanh lịch, tích hợp sạc nhanh chuẩn Qi2 15W cho iPhone, sạc Apple Watch và AirPods đồng thời, nam châm hít siêu mạnh chống rơi rớt.",
+    price: 950000,
+    originalPrice: 1250000,
+    stock: 60,
+    thumbnail: "https://images.unsplash.com/photo-1622445262464-84b1456045b6?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1622445262464-84b1456045b6?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.8,
+    reviewCount: 52,
+    isFeatured: false,
+    isNew: true,
+    categoryId: "cat_5",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_27",
+    name: "Cáp sạc Type-C to Type-C 240W Dù Siêu Bền 2m",
+    slug: "cap-sac-type-c-to-c-240w-2m",
+    description: "Chuẩn USB 4 / Thunderbolt hỗ trợ công suất cực đại 240W (48V/5A), truyền dữ liệu siêu tốc 40Gbps, vỏ bọc dù bện sợi Kevlar chống đứt gãy 30.000 lần uốn gập.",
+    price: 320000,
+    originalPrice: 450000,
+    stock: 120,
+    thumbnail: "https://images.unsplash.com/photo-1585338107529-13afc5f02586?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1585338107529-13afc5f02586?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 140,
+    isFeatured: false,
+    isNew: false,
+    categoryId: "cat_5",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  // 6. Nhà thông minh (Smart Home) (cat_6)
+  {
+    id: "prd_28",
+    name: "Camera An Ninh AI Ngoài Trời 360 4K Còi Báo Động",
+    slug: "camera-an-ninh-ai-ngoai-troi-360-4k",
+    description: "Độ phân giải siêu nét Ultra HD 4K, AI nhận diện phân biệt người, thú cưng và phương tiện xe cộ, quay quét toàn cảnh 360 độ ban đêm có màu Starlight Color, đàm thoại 2 chiều.",
+    price: 1850000,
+    originalPrice: 2200000,
+    stock: 35,
+    thumbnail: "https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.8,
+    reviewCount: 64,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_6",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_29",
+    name: "Khóa cửa thông minh nhận diện khuôn mặt FaceID 3D AI",
+    slug: "khoa-cua-thong-minh-faceid-3d-ai",
+    description: "Mở khóa sinh trắc học khuôn mặt 3D chuẩn xác trong 0.5s chống giả mạo bằng ảnh chụp/video, tích hợp chuông cửa màn hình thông minh, kết nối app theo dõi mở cửa từ xa.",
+    price: 5890000,
+    originalPrice: 6990000,
+    stock: 20,
+    thumbnail: "https://images.unsplash.com/photo-1558002038-1055907df827?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1558002038-1055907df827?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 41,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_6",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_30",
+    name: "Bóng đèn thông minh Philips Hue White & Color Ambiance",
+    slug: "bong-den-thong-minh-philips-hue-rgb",
+    description: "Tùy biến 16 triệu màu sắc ánh sáng đồng bộ cùng nhạc, game và phim ảnh, điều khiển bằng giọng nói tiếng Việt qua Google Assistant/Siri, tiết kiệm điện năng chuẩn A++.",
+    price: 1190000,
+    originalPrice: 1450000,
+    stock: 48,
+    thumbnail: "https://images.unsplash.com/photo-1507499739999-097706ad8914?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1507499739999-097706ad8914?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.7,
+    reviewCount: 75,
+    isFeatured: false,
+    isNew: false,
+    categoryId: "cat_6",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  // 7. Màn hình máy tính (cat_7)
+  {
+    id: "prd_31",
+    name: "Màn hình cong Gaming QD-OLED 34 inch UltraWide 175Hz",
+    slug: "man-hinh-cong-gaming-qd-oled-34-inch",
+    description: "Tấm nền Quantum Dot OLED siêu thực, tần số quét 175Hz thời gian phản hồi siêu tốc 0.03ms, độ tương phản vô cực, tỷ lệ màn hình điện ảnh 21:9 chìm đắm trong game.",
+    price: 21990000,
+    originalPrice: 24500000,
+    stock: 12,
+    thumbnail: "https://images.unsplash.com/photo-1547082299-de196ea013d6?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1547082299-de196ea013d6?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 5.0,
+    reviewCount: 33,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_7",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_32",
+    name: "Màn hình di động cảm ứng 15.6 inch FHD IPS Type-C",
+    slug: "man-hinh-di-dong-cam-ung-15-6-inch-fhd",
+    description: "Độ mỏng chỉ 5mm trọng lượng 750g kèm bao da kiêm giá đỡ tiện lợi, hỗ trợ cảm ứng 10 điểm chạm mượt mà, cắm trực tiếp qua cáp Type-C duy nhất cho laptop, phone, Switch.",
+    price: 3490000,
+    originalPrice: 4200000,
+    stock: 30,
+    thumbnail: "https://images.unsplash.com/photo-1585792180666-f7347c490ee7?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1585792180666-f7347c490ee7?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.8,
+    reviewCount: 45,
+    isFeatured: false,
+    isNew: true,
+    categoryId: "cat_7",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_33",
+    name: "Màn hình văn phòng bảo vệ mắt Dell UltraSharp 24 inch IPS",
+    slug: "man-hinh-dell-ultrasharp-24-inch-ips",
+    description: "Công nghệ ComfortView Plus giảm ánh sáng xanh có hại nhưng không làm sai lệch màu, viền màn hình siêu mỏng InfinityEdge 4 cạnh, chân đế công thái học xoay nâng linh hoạt.",
+    price: 5290000,
+    originalPrice: 5990000,
+    stock: 40,
+    thumbnail: "https://images.unsplash.com/photo-1586210579191-33b45e38fa2c?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1586210579191-33b45e38fa2c?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 82,
+    isFeatured: false,
+    isNew: false,
+    categoryId: "cat_7",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  // 8. Bàn phím & Chuột (cat_8)
+  {
+    id: "prd_34",
+    name: "Bàn phím không dây Logitech MX Keys S Cao Cấp",
+    slug: "ban-phim-khong-day-logitech-mx-keys-s",
+    description: "Phím lõm thông minh ôm sát đầu ngón tay mang lại cảm giác gõ êm ái chính xác tuyệt đối, đèn nền cảm ứng tiệm cận thông minh tự sáng khi tay đến gần, sạc Type-C dùng 5 tháng.",
+    price: 2690000,
+    originalPrice: 3090000,
+    stock: 32,
+    thumbnail: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 110,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_8",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_35",
+    name: "Chuột Gaming siêu nhẹ Logitech G Pro X Superlight 2",
+    slug: "chuot-gaming-logitech-g-pro-x-superlight-2",
+    description: "Trọng lượng siêu nhẹ chỉ 60g, cảm biến HERO 2 độ phân giải lên đến 32.000 DPI, switch cơ lai quang học LIGHTFORCE độ trễ 0ms cực bền 100 triệu lần click.",
+    price: 3490000,
+    originalPrice: 3990000,
+    stock: 26,
+    thumbnail: "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 5.0,
+    reviewCount: 95,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_8",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_36",
+    name: "Bàn phím cơ Custom Nhôm CNC Rain 75 Switch HMX",
+    slug: "ban-phim-co-nhom-cnc-rain-75",
+    description: "Vỏ nhôm CNC nguyên khối anode cao cấp nặng 1.8kg, cấu trúc Gasket mount 5 lớp tiêu âm cực êm cho âm thanh gõ thock trầm ấm, 3 chế độ kết nối Type-C/2.4G/Bluetooth.",
+    price: 2150000,
+    originalPrice: 2500000,
+    stock: 22,
+    thumbnail: "https://images.unsplash.com/photo-1595225476474-87563907a212?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1595225476474-87563907a212?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 58,
+    isFeatured: false,
+    isNew: true,
+    categoryId: "cat_8",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  // 9. Thiết bị mạng & Wi-Fi 7 (cat_9)
+  {
+    id: "prd_37",
+    name: "Hệ thống Wi-Fi 7 Mesh 3 Pack Phủ Sóng 700m2 AI Roaming",
+    slug: "he-thong-wifi-7-mesh-3-pack-ai-roaming",
+    description: "Bộ 3 node phát sóng đồng nhất tạo vùng phủ sóng rộng 700m2 xuyên mọi vật cản, hỗ trợ kết nối hơn 300 thiết bị cùng lúc, thuật toán AI Mesh tự động chuyển vùng không độ trễ.",
+    price: 8990000,
+    originalPrice: 10500000,
+    stock: 15,
+    thumbnail: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1606904825846-647eb07f5be2?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 44,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_9",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_38",
+    name: "Bộ phát Wi-Fi 6 Di động 5G Tốc độ 2.5Gbps Pin 5000mAh",
+    slug: "bo-phat-wifi-6-di-dong-5g-2-5gbps",
+    description: "Lắp SIM 5G phát sóng Wi-Fi 6 tốc độ tải xuống tới 2.5Gbps, màn hình LCD 2.4 inch hiển thị dung lượng pin và lưu lượng data, pin 5000mAh hoạt động liên tục 12 tiếng.",
+    price: 2890000,
+    originalPrice: 3450000,
+    stock: 35,
+    thumbnail: "https://images.unsplash.com/photo-1563770660941-20978e870e26?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1563770660941-20978e870e26?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.8,
+    reviewCount: 52,
+    isFeatured: false,
+    isNew: true,
+    categoryId: "cat_9",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_39",
+    name: "Switch Mạng 8 Cổng 2.5Gbps Cắm Là Chạy Vỏ Kim Loại",
+    slug: "switch-mang-8-cong-2-5gbps",
+    description: "Bứt phá băng thông gấp 2.5 lần mạng Gigabit tiêu chuẩn, 8 cổng RJ45 2.5G tương thích ngược, vỏ thép tản nhiệt thụ động không quạt hoạt động êm ái bền bỉ 24/7.",
+    price: 1450000,
+    originalPrice: 1790000,
+    stock: 40,
+    thumbnail: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.7,
+    reviewCount: 31,
+    isFeatured: false,
+    isNew: false,
+    categoryId: "cat_9",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  // 10. Phần mềm & Bản quyền (cat_10)
+  {
+    id: "prd_40",
+    name: "Gói Bản Quyền Microsoft 365 Family 1 Năm (6 Người Dùng)",
+    slug: "goi-ban-quyen-microsoft-365-family-1-nam",
+    description: "Bản quyền chính hãng cho tối đa 6 người dùng, trọn bộ ứng dụng Word, Excel, PowerPoint, Outlook mới nhất, tặng kèm 6TB (1TB/người) lưu trữ đám mây OneDrive tốc độ cao.",
+    price: 1490000,
+    originalPrice: 1990000,
+    stock: 999,
+    thumbnail: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 5.0,
+    reviewCount: 168,
+    isFeatured: true,
+    isNew: true,
+    categoryId: "cat_10",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_41",
+    name: "Bản Quyền Windows 11 Pro 64-Bit Chính Hãng Vĩnh Viễn",
+    slug: "ban-quyen-windows-11-pro-chinh-hang",
+    description: "Khóa kích hoạt điện tử chính hãng kích hoạt trực tiếp từ Microsoft, hỗ trợ tính năng BitLocker mã hóa dữ liệu an toàn, máy ảo Hyper-V và cập nhật bảo mật trọn đời.",
+    price: 850000,
+    originalPrice: 1200000,
+    stock: 999,
+    thumbnail: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.9,
+    reviewCount: 220,
+    isFeatured: true,
+    isNew: false,
+    categoryId: "cat_10",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
+  },
+  {
+    id: "prd_42",
+    name: "Phần mềm Diệt Virus & Bảo Mật Kaspersky Total Security 1 Năm",
+    slug: "kaspersky-total-security-1-nam",
+    description: "Giải pháp bảo vệ toàn diện chống mã độc tống tiền (Ransomware), bảo vệ thanh toán ngân hàng trực tuyến an toàn Safe Money, VPN bảo mật và tường lửa AI ngăn chặn tin tặc.",
+    price: 390000,
+    originalPrice: 550000,
+    stock: 999,
+    thumbnail: "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=600&auto=format&fit=crop&q=80",
+    images: [
+      "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=600&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80"
+    ],
+    rating: 4.8,
+    reviewCount: 94,
+    isFeatured: false,
+    isNew: true,
+    categoryId: "cat_10",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z"
   }
 ];
 
