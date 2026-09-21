@@ -67,6 +67,28 @@ export const api = {
     return json;
   },
 
+  async forgotPassword(email: string): Promise<{ message: string; otp?: string; email: string }> {
+    const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Gửi yêu cầu khôi phục thất bại");
+    return json;
+  },
+
+  async resetPassword(data: { email: string; otp: string; newPassword: string }): Promise<{ message: string }> {
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Đặt lại mật khẩu thất bại");
+    return json;
+  },
+
   // Products & Categories
   async getProducts(params?: {
     category?: string;

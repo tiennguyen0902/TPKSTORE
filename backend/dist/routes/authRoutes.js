@@ -204,4 +204,83 @@ router.put("/change-password", auth_1.authenticateToken, async (req, res) => {
     });
     return res.json({ message: "Đổi mật khẩu thành công!" });
 });
+// Bộ nhớ lưu mã OTP khôi phục mật khẩu trong phiên (email -> { otp, expiresAt })
+const otpStore = new Map();
+// POST /api/auth/forgot-password (Yêu cầu mã OTP khôi phục mật khẩu)
+router.post("/forgot-password", async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: "Vui lòng cung cấp địa chỉ Email." });
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const user = await db_1.db.user.findFirst({
+            where: { email: { equals: normalizedEmail, mode: "insensitive" } }
+        });
+        if (!user) {
+            return res.status(404).json({ error: "Email này chưa được đăng ký trong hệ thống SHOPBEE." });
+        }
+        if (!user.isActive) {
+            return res.status(403).json({ error: "Tài khoản này đã bị tạm khóa. Vui lòng liên hệ Quản trị viên." });
+        }
+        // Sinh mã OTP 6 chữ số ngẫu nhiên
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = Date.now() + 15 * 60 * 1000; // Có hiệu lực 15 phút
+        otpStore.set(normalizedEmail, { otp, expiresAt });
+        console.log(`[AUTH] Mã OTP khôi phục mật khẩu cho ${normalizedEmail}: ${otp}`);
+        return res.json({
+            message: "Mã xác thực OTP đã được tạo thành công!",
+            email: normalizedEmail,
+            otp, // Trả về mã OTP phục vụ kiểm thử và demo trực quan
+            expiresInMinutes: 15
+        });
+    }
+    catch (err) {
+        return res.status(500).json({ error: "Lỗi hệ thống khi yêu cầu khôi phục mật khẩu: " + err.message });
+    }
+});
+// POST /api/auth/reset-password (Xác thực OTP và đặt lại mật khẩu mới)
+router.post("/reset-password", async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ error: "Vui lòng nhập đầy đủ Email, mã OTP và Mật khẩu mới." });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: "Mật khẩu mới phải có tối thiểu 6 ký tự." });
+        }
+        const normalizedEmail = email.trim().toLowerCase();
+        const storedOtp = otpStore.get(normalizedEmail);
+        if (!storedOtp) {
+            return res.status(400).json({ error: "Yêu cầu khôi phục không tồn tại hoặc đã hết hạn. Vui lòng gửi lại mã OTP." });
+        }
+        if (Date.now() > storedOtp.expiresAt) {
+            otpStore.delete(normalizedEmail);
+            return res.status(400).json({ error: "Mã OTP đã hết hạn (chỉ có hiệu lực trong 15 phút). Vui lòng yêu cầu mã mới." });
+        }
+        if (storedOtp.otp !== otp.trim()) {
+            return res.status(400).json({ error: "Mã OTP không chính xác. Vui lòng kiểm tra lại." });
+        }
+        const user = await db_1.db.user.findFirst({
+            where: { email: { equals: normalizedEmail, mode: "insensitive" } }
+        });
+        if (!user) {
+            return res.status(404).json({ error: "Người dùng không tồn tại." });
+        }
+        const newHash = await bcryptjs_1.default.hash(newPassword, 10);
+        await db_1.db.user.update({
+            where: { id: user.id },
+            data: { passwordHash: newHash }
+        });
+        // Huỷ mã OTP sau khi sử dụng thành công
+        otpStore.delete(normalizedEmail);
+        console.log(`[AUTH] Đặt lại mật khẩu thành công cho tài khoản: ${normalizedEmail}`);
+        return res.json({
+            message: "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới ngay bây giờ."
+        });
+    }
+    catch (err) {
+        return res.status(500).json({ error: "Lỗi hệ thống khi đặt lại mật khẩu: " + err.message });
+    }
+});
 exports.default = router;

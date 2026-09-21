@@ -13,9 +13,12 @@ import {
   Phone, 
   Mail, 
   Lock,
-  Sparkles
+  Sparkles,
+  KeyRound,
+  CheckCircle2
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { api } from "../services/api";
 
 interface AuthViewProps {
   onSuccess: (role?: string) => void;
@@ -23,9 +26,11 @@ interface AuthViewProps {
   messageBanner?: string;
 }
 
+type AuthMode = "login" | "register" | "forgot_password" | "reset_password";
+
 export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, messageBanner }) => {
   const { login, register } = useAuth();
-  const [isLoginTab, setIsLoginTab] = useState(true);
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
 
   // Form states
   const [email, setEmail] = useState("");
@@ -35,10 +40,19 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  // Forgot Password states
+  const [otp, setOtp] = useState("");
+  const [receivedOtp, setReceivedOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
     setIsLoading(true);
     try {
       const loggedUser = await login(email, password);
@@ -53,6 +67,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
     setIsLoading(true);
     try {
       const newUser = await register({
@@ -64,6 +79,59 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
       onSuccess(newUser?.role);
     } catch (err: any) {
       setErrorMsg(err.message || "Đăng ký không thành công.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
+    setIsLoading(true);
+    try {
+      const res = await api.forgotPassword(email);
+      setReceivedOtp(res.otp || "");
+      setSuccessMsg(res.message || "Mã xác thực OTP đã được tạo thành công!");
+      setAuthMode("reset_password");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Không thể gửi yêu cầu khôi phục mật khẩu.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    if (newPassword.length < 6) {
+      setErrorMsg("Mật khẩu mới phải có tối thiểu 6 ký tự.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMsg("Mật khẩu xác nhận không khớp. Vui lòng nhập lại.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await api.resetPassword({
+        email,
+        otp,
+        newPassword
+      });
+      setSuccessMsg(res.message || "Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.");
+      setPassword("");
+      setOtp("");
+      setReceivedOtp("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setAuthMode("login");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Đặt lại mật khẩu thất bại.");
     } finally {
       setIsLoading(false);
     }
@@ -131,7 +199,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
         </div>
 
         {/* Right Form Column */}
-        <div className="lg:col-span-6 p-8 md:p-12 flex flex-col justify-center space-y-6">
+        <div className="lg:col-span-6 p-8 md:p-12 flex flex-col justify-center space-y-5">
           {onBackToStore && (
             <div>
               <button
@@ -154,22 +222,35 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
 
           <div>
             <h3 className="text-2xl font-black text-white">
-              {isLoginTab ? "Đăng nhập" : "Đăng ký tài khoản"}
+              {authMode === "login" && "Đăng nhập"}
+              {authMode === "register" && "Đăng ký tài khoản"}
+              {authMode === "forgot_password" && "Khôi phục mật khẩu"}
+              {authMode === "reset_password" && "Đặt lại mật khẩu mới"}
             </h3>
             <p className="text-xs text-slate-400 mt-1">
-              {isLoginTab ? "Chào mừng bạn quay trở lại với SHOPBEE!" : "Tạo tài khoản mới để trải nghiệm mua sắm AI"}
+              {authMode === "login" && "Chào mừng bạn quay trở lại với SHOPBEE!"}
+              {authMode === "register" && "Tạo tài khoản mới để trải nghiệm mua sắm AI"}
+              {authMode === "forgot_password" && "Nhập email của bạn để nhận mã xác thực OTP khôi phục tài khoản."}
+              {authMode === "reset_password" && `Nhập mã OTP và thiết lập mật khẩu mới cho ${email}`}
             </p>
           </div>
 
+          {successMsg && (
+            <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2 shadow-sm animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2 animate-in fade-in">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* Form */}
-          {isLoginTab ? (
+          {/* 1. Form Đăng Nhập */}
+          {authMode === "login" && (
             <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-300 mb-1">Email</label>
@@ -189,9 +270,17 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="font-semibold text-slate-300">Mật khẩu</label>
-                  <a href="#" onClick={(e) => { e.preventDefault(); alert("Vui lòng liên hệ Admin để khôi phục mật khẩu."); }} className="text-[11px] text-violet-400 hover:text-violet-300">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode("forgot_password");
+                      setErrorMsg("");
+                      setSuccessMsg("");
+                    }}
+                    className="text-[11px] text-violet-400 hover:text-violet-300 transition-colors font-medium hover:underline"
+                  >
                     Quên mật khẩu?
-                  </a>
+                  </button>
                 </div>
                 <div className="relative">
                   <input
@@ -226,15 +315,18 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
                 Chưa có tài khoản?{" "}
                 <button
                   type="button"
-                  onClick={() => { setIsLoginTab(false); setErrorMsg(""); }}
+                  onClick={() => { setAuthMode("register"); setErrorMsg(""); setSuccessMsg(""); }}
                   className="text-violet-400 font-bold hover:underline"
                 >
                   Đăng ký miễn phí
                 </button>
               </div>
             </form>
-          ) : (
-            <form onSubmit={handleRegisterSubmit} className="space-y-3.5 text-xs">
+          )}
+
+          {/* 2. Form Đăng Ký */}
+          {authMode === "register" && (
+            <form onSubmit={handleRegisterSubmit} className="space-y-3 text-xs">
               <div>
                 <label className="block font-semibold text-slate-300 mb-1">Họ và tên đầy đủ *</label>
                 <div className="relative">
@@ -314,10 +406,151 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
                 Đã có tài khoản?{" "}
                 <button
                   type="button"
-                  onClick={() => { setIsLoginTab(true); setErrorMsg(""); }}
+                  onClick={() => { setAuthMode("login"); setErrorMsg(""); setSuccessMsg(""); }}
                   className="text-violet-400 font-bold hover:underline"
                 >
                   Đăng nhập ngay
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* 3. Form Quên Mật Khẩu (Bước 1: Nhập Email) */}
+          {authMode === "forgot_password" && (
+            <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-300 mb-1">Email tài khoản cần khôi phục</label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    required
+                    placeholder="me@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-[#162032] border border-slate-700 rounded-xl px-3 py-2.5 pl-9 text-white focus:outline-none focus:border-violet-500"
+                  />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-violet-600/30 transition-all flex items-center justify-center gap-2"
+              >
+                <span>{isLoading ? "Đang xử lý..." : "Gửi Mã Xác Thực OTP"}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <div className="pt-2 text-center text-slate-400 text-xs">
+                Đã nhớ lại mật khẩu?{" "}
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode("login"); setErrorMsg(""); setSuccessMsg(""); }}
+                  className="text-violet-400 font-bold hover:underline"
+                >
+                  Đăng nhập ngay
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* 4. Form Đặt Lại Mật Khẩu (Bước 2: Nhập OTP & Mật khẩu mới) */}
+          {authMode === "reset_password" && (
+            <form onSubmit={handleResetPasswordSubmit} className="space-y-3.5 text-xs">
+              {/* Badge demo OTP */}
+              {receivedOtp && (
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between shadow-md">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Mã OTP của bạn: <strong className="text-amber-200 text-sm font-mono tracking-widest">{receivedOtp}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOtp(receivedOtp)}
+                    className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-bold border border-amber-500/30 transition-colors"
+                  >
+                    Điền nhanh
+                  </button>
+                </div>
+              )}
+
+              <div>
+                <label className="block font-semibold text-slate-300 mb-1">Mã xác thực OTP (6 chữ số) *</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    placeholder="123456"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="w-full bg-[#162032] border border-slate-700 rounded-xl px-3 py-2.5 pl-9 text-white font-mono text-sm tracking-widest focus:outline-none focus:border-violet-500"
+                  />
+                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-300 mb-1">Mật khẩu mới (tối thiểu 6 ký tự) *</label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    required
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full bg-[#162032] border border-slate-700 rounded-xl px-3 py-2.5 pl-9 pr-9 text-white focus:outline-none focus:border-violet-500"
+                  />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-3 text-slate-400 hover:text-white"
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-300 mb-1">Xác nhận mật khẩu mới *</label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    required
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full bg-[#162032] border border-slate-700 rounded-xl px-3 py-2.5 pl-9 text-white focus:outline-none focus:border-violet-500"
+                  />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 mt-2"
+              >
+                <span>{isLoading ? "Đang xác nhận..." : "Xác Nhận Đặt Lại Mật Khẩu"}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <div className="pt-2 flex items-center justify-between text-slate-400 text-xs">
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode("forgot_password"); setErrorMsg(""); }}
+                  className="text-slate-400 hover:text-white hover:underline"
+                >
+                  ← Gửi lại mã OTP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode("login"); setErrorMsg(""); setSuccessMsg(""); }}
+                  className="text-violet-400 font-bold hover:underline"
+                >
+                  Về trang Đăng nhập
                 </button>
               </div>
             </form>
