@@ -31,12 +31,34 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) {
       // Local storage cart for unauthenticated users
       const saved = localStorage.getItem("store_ai_local_cart");
-      if (saved) setItems(JSON.parse(saved));
+      if (saved) {
+        try {
+          setItems(JSON.parse(saved));
+        } catch {
+          setItems([]);
+        }
+      }
       return;
     }
 
     try {
       setIsLoading(true);
+      // Đồng bộ giỏ hàng local lên server nếu khách vừa đăng nhập
+      const saved = localStorage.getItem("store_ai_local_cart");
+      if (saved) {
+        try {
+          const localItems: CartItem[] = JSON.parse(saved);
+          for (const li of localItems) {
+            if (li.productId) {
+              await api.addToCart(li.productId, li.quantity || 1).catch(() => {});
+            }
+          }
+          localStorage.removeItem("store_ai_local_cart");
+        } catch (e) {
+          console.warn("Could not sync local cart to server:", e);
+        }
+      }
+
       const cartData = await api.getCart();
       setItems(cartData.items || []);
     } catch (err) {

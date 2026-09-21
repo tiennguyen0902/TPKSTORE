@@ -103,13 +103,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-3">
             {/* Cart Button with Count Badge */}
             <button 
-              onClick={() => {
-                if (!user) {
-                  setCurrentView("auth");
-                  return;
-                }
-                setCurrentView("cart");
-              }}
+              onClick={() => setCurrentView("cart")}
               className="relative p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-all hover:scale-105"
             >
               <ShoppingBag className="w-5 h-5 text-slate-200" />

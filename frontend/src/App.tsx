@@ -36,56 +36,51 @@ const MainApp: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
-  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
+  const [postAuthTarget, setPostAuthTarget] = useState<string | null>(null);
   const [authBanner, setAuthBanner] = useState<string>("");
 
   // Tự động chuyển hướng & Bảo vệ các view yêu cầu tài khoản:
-  // - Nếu đã đăng nhập thành công và đang ở "auth" -> chuyển vào "storefront" (và mở lại sản phẩm nếu có)
-  // - Nếu chưa đăng nhập nhưng cố truy cập các trang giỏ hàng/thanh toán/hồ sơ -> chuyển về "auth"
+  // - Nếu đã đăng nhập thành công và đang ở "auth" -> chuyển vào postAuthTarget (nếu có) hoặc "storefront"
+  // - Khách vãng lai xem được thoải mái: storefront, catalog, cart, chi tiết sản phẩm, chat AI
+  // - CHỈ bắt đăng nhập khi đến bước mua hàng ("checkout") hoặc quản lý đơn hàng/hồ sơ
   React.useEffect(() => {
     if (!isLoading) {
       if (user && currentView === "auth") {
-        if (pendingProduct) {
-          setActiveProduct(pendingProduct);
-          setPendingProduct(null);
-        }
+        const target = postAuthTarget || "storefront";
+        setPostAuthTarget(null);
         setAuthBanner("");
-        setCurrentView("storefront");
+        setCurrentView(target);
       } else if (!user) {
-        const protectedViews = ["cart", "checkout", "my_orders", "profile"];
+        const protectedViews = ["checkout", "my_orders", "profile"];
         if (protectedViews.includes(currentView)) {
-          setAuthBanner("Vui lòng đăng nhập để sử dụng tính năng này.");
+          setPostAuthTarget(currentView);
+          setAuthBanner("Vui lòng đăng nhập tài khoản để tiến hành mua hàng và thanh toán!");
           setCurrentView("auth");
         }
       }
     }
-  }, [user, isLoading, currentView, pendingProduct]);
+  }, [user, isLoading, currentView, postAuthTarget]);
 
-  // Xử lý khi bấm vào một sản phẩm bất kỳ
+  // Bấm vào sản phẩm: mở modal xem chi tiết bình thường
   const handleSelectProduct = (product: Product) => {
-    if (!user) {
-      setPendingProduct(product);
-      setAuthBanner("Vui lòng đăng nhập để xem chi tiết sản phẩm và đặt hàng!");
-      setCurrentView("auth");
-      return;
-    }
     setActiveProduct(product);
   };
 
-  // Xử lý khi bấm vào Chatbot AI
+  // Bấm vào Chatbot AI: mở trợ lý AI tư vấn bình thường
   const handleOpenChat = () => {
-    if (!user) {
-      setAuthBanner("Vui lòng đăng nhập để sử dụng Trợ lý AI Thông minh SHOPBEE!");
-      setCurrentView("auth");
-      return;
-    }
     const el = document.querySelector("#floating-chat-button") as HTMLElement;
     if (el) el.click();
   };
 
-  const handleRequireAuth = (customMsg?: string) => {
-    setAuthBanner(customMsg || "Vui lòng đăng nhập để sử dụng chức năng này!");
-    setCurrentView("auth");
+  // Bấm đến bước mua hàng / thanh toán: ĐẾN BƯỚC NÀY MỚI BẮT ĐĂNG NHẬP
+  const handleProceedToBuy = () => {
+    if (!user) {
+      setPostAuthTarget("checkout");
+      setAuthBanner("Vui lòng đăng nhập tài khoản để tiến hành mua hàng và thanh toán đơn hàng!");
+      setCurrentView("auth");
+      return;
+    }
+    setCurrentView("checkout");
   };
 
   const isAdminRoute = currentView.startsWith("admin_");
@@ -224,15 +219,14 @@ const MainApp: React.FC = () => {
                 messageBanner={authBanner}
                 onBackToStore={() => {
                   setAuthBanner("");
+                  setPostAuthTarget(null);
                   setCurrentView("storefront");
                 }}
                 onSuccess={() => {
-                  if (pendingProduct) {
-                    setActiveProduct(pendingProduct);
-                    setPendingProduct(null);
-                  }
+                  const target = postAuthTarget || "storefront";
+                  setPostAuthTarget(null);
                   setAuthBanner("");
-                  setCurrentView("storefront");
+                  setCurrentView(target);
                 }} 
               />
             )}
@@ -262,13 +256,7 @@ const MainApp: React.FC = () => {
             {currentView === "cart" && (
               <CartView
                 onNavigateCatalog={() => setCurrentView("catalog")}
-                onProceedToCheckout={() => {
-                  if (!user) {
-                    handleRequireAuth("Vui lòng đăng nhập để tiếp tục thanh toán!");
-                    return;
-                  }
-                  setCurrentView("checkout");
-                }}
+                onProceedToCheckout={handleProceedToBuy}
               />
             )}
 
@@ -297,10 +285,9 @@ const MainApp: React.FC = () => {
         </>
       )}
 
-      {/* Floating AI Chatbot Widget */}
+      {/* Floating AI Chatbot Widget - Khách có thể chat với AI tư vấn bình thường */}
       <FloatingChatWidget 
         onSelectProduct={handleSelectProduct}
-        onRequireAuth={() => handleRequireAuth("Vui lòng đăng nhập để sử dụng Trợ lý AI Thông minh SHOPBEE!")}
       />
 
       {/* Global Product Details Modal */}
@@ -316,11 +303,7 @@ const MainApp: React.FC = () => {
             onSelectProduct={handleSelectProduct}
             onGoToCheckout={() => {
               setActiveProduct(null);
-              if (!user) {
-                handleRequireAuth("Vui lòng đăng nhập để thanh toán đơn hàng!");
-                return;
-              }
-              setCurrentView("checkout");
+              handleProceedToBuy();
             }}
           />
         </ErrorBoundary>

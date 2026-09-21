@@ -113,10 +113,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (!user) {
-                onSelect(product);
-                return;
-              }
               addToCart(product, 1);
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-md shadow-violet-600/20 active:scale-95 transition-all"

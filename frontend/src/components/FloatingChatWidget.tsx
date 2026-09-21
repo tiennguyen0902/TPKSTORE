@@ -124,13 +124,7 @@ export const FloatingChatWidget: React.FC<{
         <button
           id="floating-chat-button"
           title="Chat"
-          onClick={() => {
-            if (!user) {
-              onRequireAuth?.();
-              return;
-            }
-            setIsOpen(true);
-          }}
+          onClick={() => setIsOpen(true)}
           className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-violet-600 via-purple-600 to-indigo-600 text-white shadow-2xl shadow-violet-500/50 hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-violet-400/40"
         >
           <Bot className="w-7 h-7 animate-pulse-slow" />
