@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.INITIAL_SETTINGS = exports.INITIAL_ORDERS = exports.INITIAL_PRODUCTS = exports.INITIAL_CATEGORIES = exports.INITIAL_USERS = void 0;
+exports.INITIAL_STOCK_TICKETS = exports.INITIAL_SETTINGS = exports.INITIAL_ORDERS = exports.INITIAL_PRODUCTS = exports.INITIAL_CATEGORIES = exports.INITIAL_USERS = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 // Hash for 'Password123@'
 const DEFAULT_PASSWORD_HASH = bcryptjs_1.default.hashSync("Password123@", 10);
@@ -19,6 +19,19 @@ exports.INITIAL_USERS = [
         role: "ADMIN",
         isActive: true,
         createdAt: "2026-08-01T08:00:00.000Z",
+        updatedAt: "2026-08-20T09:00:00.000Z"
+    },
+    {
+        id: "usr_manager",
+        email: "manager@example.com",
+        passwordHash: DEFAULT_PASSWORD_HASH,
+        fullName: "Trần Quốc Quản (Quản lý kho)",
+        phone: "0908889999",
+        address: "Kho tổng TPKSTORE, Cụm Công nghiệp Nam Từ Liêm, Hà Nội",
+        avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+        role: "MANAGER",
+        isActive: true,
+        createdAt: "2026-08-01T08:30:00.000Z",
         updatedAt: "2026-08-20T09:00:00.000Z"
     },
     {
@@ -1225,3 +1238,76 @@ exports.INITIAL_SETTINGS = {
     momoAccessKey: "F8BBA842ECF85",
     momoSecretKey: "K951B6PE1waDMi640xX08PD3vg6EkVlz"
 };
+exports.INITIAL_STOCK_TICKETS = [
+    {
+        id: "stk_1",
+        type: "IMPORT",
+        productId: "prd_1",
+        productName: "Tai nghe chống ồn không dây AI Studio Pro",
+        productThumbnail: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80",
+        quantity: 25,
+        reason: "Nhập thêm hàng từ nhà phân phối Sony VN cho đợt khuyến mãi",
+        note: "Lô hàng kèm hóa đơn VAT số 08912",
+        requestedByUserId: "usr_staff_1",
+        requestedByName: "Nguyễn Đình Tiến (Staff)",
+        requestedByRole: "STAFF",
+        status: "PENDING",
+        createdAt: "2026-09-20T10:30:00.000Z",
+        updatedAt: "2026-09-20T10:30:00.000Z"
+    },
+    {
+        id: "stk_2",
+        type: "EXPORT",
+        productId: "prd_5",
+        productName: "Củ sạc nhanh thông minh GaN 65W AI Chip",
+        productThumbnail: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&auto=format&fit=crop&q=80",
+        quantity: 10,
+        reason: "Xuất kho điều chuyển sang showroom chi nhánh Cầu Giấy",
+        note: "Xe giao nhận nội bộ số 29B-883.12",
+        requestedByUserId: "usr_staff_2",
+        requestedByName: "Nguyễn Hồng Phúc (Staff)",
+        requestedByRole: "STAFF",
+        status: "PENDING",
+        createdAt: "2026-09-21T08:15:00.000Z",
+        updatedAt: "2026-09-21T08:15:00.000Z"
+    },
+    {
+        id: "stk_3",
+        type: "IMPORT",
+        productId: "prd_12",
+        productName: "Bàn phím cơ không dây RGB Hot-swap AI Knob",
+        productThumbnail: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&auto=format&fit=crop&q=80",
+        quantity: 30,
+        reason: "Nhập đợt hàng mới từ xưởng sản xuất Keychron",
+        note: "Đã kiểm đếm đạt chuẩn QC 100%",
+        requestedByUserId: "usr_staff_1",
+        requestedByName: "Nguyễn Đình Tiến (Staff)",
+        requestedByRole: "STAFF",
+        status: "APPROVED",
+        approvedByUserId: "usr_manager",
+        approvedByName: "Trần Quốc Quản (Quản lý kho)",
+        approvedAt: "2026-09-18T14:20:00.000Z",
+        createdAt: "2026-09-18T09:00:00.000Z",
+        updatedAt: "2026-09-18T14:20:00.000Z"
+    },
+    {
+        id: "stk_4",
+        type: "EXPORT",
+        productId: "prd_6",
+        productName: "Robot hút bụi lau nhà AI Vision LiDAR",
+        productThumbnail: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=80",
+        quantity: 5,
+        reason: "Xuất kho trả hàng cho đại lý lỗi phần mềm",
+        note: "Biên bản hoàn trả số 142",
+        requestedByUserId: "usr_staff_2",
+        requestedByName: "Nguyễn Hồng Phúc (Staff)",
+        requestedByRole: "STAFF",
+        status: "REJECTED",
+        approvedByUserId: "usr_manager",
+        approvedByName: "Trần Quốc Quản (Quản lý kho)",
+        approvedAt: "2026-09-19T11:00:00.000Z",
+        rejectReason: "Chưa có biên bản xác nhận lỗi từ bộ phận kỹ thuật bảo hành",
+        createdAt: "2026-09-19T08:45:00.000Z",
+        updatedAt: "2026-09-19T11:00:00.000Z"
+    }
+];

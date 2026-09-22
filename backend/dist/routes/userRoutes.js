@@ -54,8 +54,8 @@ router.put("/:id/role", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN"
             return res.status(404).json({ error: "Không tìm thấy người dùng." });
         }
         const { role } = req.body;
-        if (!role || !["ADMIN", "STAFF", "CUSTOMER"].includes(role)) {
-            return res.status(400).json({ error: "Vai trò không hợp lệ." });
+        if (!role || !["ADMIN", "MANAGER", "STAFF", "CUSTOMER"].includes(role)) {
+            return res.status(400).json({ error: "Vai trò không hợp lệ. Chọn ADMIN, MANAGER, STAFF hoặc CUSTOMER." });
         }
         const updatedUser = await db_1.db.user.update({
             where: { id: req.params.id },

@@ -145,9 +145,9 @@ export const AdminSettings: React.FC = () => {
   return (
     <div className="max-w-4xl space-y-6 pb-16">
       {/* Header */}
-      <div className="border-b border-slate-800 pb-4">
-        <h1 className="text-2xl font-black text-white">Cấu Hình Hệ Thống</h1>
-        <p className="text-xs text-slate-400 mt-0.5">Thiết lập kết nối AI Google Gemini & OpenAI ChatGPT, Cổng thanh toán VNPAY và thông tin cửa hàng</p>
+      <div className="border-b border-slate-200 pb-4">
+        <h1 className="text-2xl font-black text-slate-900">Cấu Hình Hệ Thống</h1>
+        <p className="text-xs text-slate-500 mt-0.5">Thiết lập kết nối AI Google Gemini & OpenAI ChatGPT, Cổng thanh toán VNPAY và thông tin cửa hàng</p>
       </div>
 
       {toastMsg && (
@@ -159,59 +159,59 @@ export const AdminSettings: React.FC = () => {
 
       <form onSubmit={handleSave} className="space-y-6 text-xs">
         {/* Section 1: Store Info */}
-        <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4 shadow-xl">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-            <Store className="w-4 h-4 text-violet-400" />
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-xl">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <Store className="w-4 h-4 text-rose-400" />
             1. THÔNG TIN CỬA HÀNG
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">Tên cửa hàng / Thương hiệu</label>
+              <label className="block font-semibold text-slate-700 mb-1">Tên cửa hàng / Thương hiệu</label>
               <input
                 type="text"
                 value={settings.storeName}
                 onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
-                className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">Hotline hỗ trợ</label>
+              <label className="block font-semibold text-slate-700 mb-1">Hotline hỗ trợ</label>
               <input
                 type="text"
                 value={settings.hotline}
                 onChange={(e) => setSettings({ ...settings, hotline: e.target.value })}
-                className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">Email hỗ trợ khách hàng</label>
+              <label className="block font-semibold text-slate-700 mb-1">Email hỗ trợ khách hàng</label>
               <input
                 type="email"
                 value={settings.supportEmail}
                 onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
-                className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">Ngưỡng Miễn phí vận chuyển (VND)</label>
+              <label className="block font-semibold text-slate-700 mb-1">Ngưỡng Miễn phí vận chuyển (VND)</label>
               <input
                 type="number"
                 value={settings.freeShippingThreshold}
                 onChange={(e) => setSettings({ ...settings, freeShippingThreshold: parseInt(e.target.value) || 0 })}
-                className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500"
               />
             </div>
           </div>
         </div>
 
         {/* Section 2: AI Gemini & OpenAI Config */}
-        <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-5 shadow-xl">
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-5 shadow-xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <Bot className="w-4 h-4 text-pink-400" />
               2. CẤU HÌNH AI GOOGLE GEMINI & OPENAI CHATGPT
             </h3>
@@ -221,7 +221,7 @@ export const AdminSettings: React.FC = () => {
           </div>
 
           {/* AI Provider Switch Tabs */}
-          <div className="flex p-1 bg-[#0e1626] rounded-2xl border border-slate-700/80 gap-1">
+          <div className="flex p-1 bg-slate-100 rounded-2xl border border-slate-300 gap-1">
             <button
               type="button"
               onClick={() => {
@@ -231,8 +231,8 @@ export const AdminSettings: React.FC = () => {
               }}
               className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
                 activeAiTab === "gemini"
-                  ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-600/30"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  ? "bg-gradient-to-r from-rose-600 to-rose-800 text-white shadow-md shadow-rose-600/30"
+                  : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/50"
               }`}
             >
               <Bot className="w-4 h-4 text-pink-400" />
@@ -252,7 +252,7 @@ export const AdminSettings: React.FC = () => {
               className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
                 activeAiTab === "openai"
                   ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/30"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/50"
               }`}
             >
               <Cpu className="w-4 h-4 text-emerald-400" />
@@ -266,8 +266,8 @@ export const AdminSettings: React.FC = () => {
           {/* TAB 1: GOOGLE GEMINI */}
           {activeAiTab === "gemini" && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-violet-950/40 via-indigo-900/30 to-slate-900/40 border border-violet-700/30 text-slate-300 leading-relaxed text-[11px] space-y-1">
-                <p className="font-semibold text-violet-300 flex items-center gap-1.5">
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-rose-950/40 via-indigo-900/30 to-slate-900/40 border border-rose-700/30 text-slate-700 leading-relaxed text-[11px] space-y-1">
+                <p className="font-semibold text-rose-300 flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                   Mô hình Google Gemini (Gemini 3.6 Flash, 3.7 Flash, 3.5 Flash, 2.5 Flash):
                 </p>
@@ -278,7 +278,7 @@ export const AdminSettings: React.FC = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <label className="font-semibold text-slate-700 flex items-center gap-1.5">
                     <Key className="w-3.5 h-3.5 text-pink-400" />
                     Google Gemini API Key
                   </label>
@@ -303,12 +303,12 @@ export const AdminSettings: React.FC = () => {
                         setSettings({ ...settings, geminiApiKey: e.target.value });
                         if (testResult) setTestResult(null);
                       }}
-                      className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 pr-10 text-white font-mono focus:outline-none focus:border-violet-500 text-xs"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-slate-900 font-mono focus:outline-none focus:border-rose-500 text-xs"
                     />
                     <button
                       type="button"
                       onClick={() => setShowGeminiKey(!showGeminiKey)}
-                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 transition-colors"
+                      className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-200 transition-colors"
                       title={showGeminiKey ? "Ẩn API Key" : "Hiện API Key"}
                     >
                       {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -319,7 +319,7 @@ export const AdminSettings: React.FC = () => {
                     type="button"
                     onClick={() => handleTestApiKey("gemini")}
                     disabled={isTestingKey}
-                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-pink-600/20 transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95"
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 disabled:opacity-50 text-slate-900 font-bold text-xs shadow-md shadow-pink-600/20 transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95"
                   >
                     {isTestingKey ? (
                       <>
@@ -337,14 +337,14 @@ export const AdminSettings: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="block font-semibold text-slate-300 text-xs">Mô hình AI Gemini Mới Nhất (Tự động cập nhật 2025 - 2026)</label>
+                <label className="block font-semibold text-slate-700 text-xs">Mô hình AI Gemini Mới Nhất (Tự động cập nhật 2025 - 2026)</label>
                 <select
                   value={settings.geminiModel || "gemini-2.0-flash"}
                   onChange={(e) => {
                     setSettings({ ...settings, geminiModel: e.target.value });
                     if (testResult) setTestResult(null);
                   }}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-violet-500 text-xs font-medium"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500 text-xs font-medium"
                 >
                   <optgroup label="🌟 Thế Hệ Mới Nhất 2025 - 2026 (Khuyên dùng)">
                     <option value="gemini-2.0-flash">gemini-2.0-flash ⚡ (Khuyên dùng - Flash 2.0 GA Siêu nhanh & Đa phương thức)</option>
@@ -377,7 +377,7 @@ export const AdminSettings: React.FC = () => {
                 </select>
 
                 <div className="flex items-center gap-2 pt-1">
-                  <span className="text-[11px] text-slate-400 shrink-0">Hoặc tùy chỉnh Model ID:</span>
+                  <span className="text-[11px] text-slate-500 shrink-0">Hoặc tùy chỉnh Model ID:</span>
                   <input
                     type="text"
                     placeholder="VD: gemini-2.0-flash, gemini-2.5-flash..."
@@ -386,7 +386,7 @@ export const AdminSettings: React.FC = () => {
                       setSettings({ ...settings, geminiModel: e.target.value.trim() });
                       if (testResult) setTestResult(null);
                     }}
-                    className="flex-1 bg-[#18233a] border border-slate-700/80 rounded-lg px-2.5 py-1 text-white font-mono text-[11px] focus:outline-none focus:border-violet-500"
+                    className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 font-mono text-[11px] focus:outline-none focus:border-rose-500"
                   />
                 </div>
               </div>
@@ -396,7 +396,7 @@ export const AdminSettings: React.FC = () => {
           {/* TAB 2: OPENAI CHATGPT */}
           {activeAiTab === "openai" && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-teal-900/30 to-slate-900/40 border border-emerald-700/30 text-slate-300 leading-relaxed text-[11px] space-y-1">
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-teal-900/30 to-slate-900/40 border border-emerald-700/30 text-slate-700 leading-relaxed text-[11px] space-y-1">
                 <p className="font-semibold text-emerald-300 flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                   Mô hình OpenAI ChatGPT (GPT-4o, GPT-4o-mini, o3-mini, o1):
@@ -408,7 +408,7 @@ export const AdminSettings: React.FC = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <label className="font-semibold text-slate-700 flex items-center gap-1.5">
                     <Key className="w-3.5 h-3.5 text-emerald-400" />
                     OpenAI API Key (sk-...)
                   </label>
@@ -433,12 +433,12 @@ export const AdminSettings: React.FC = () => {
                         setSettings({ ...settings, openaiApiKey: e.target.value });
                         if (testResult) setTestResult(null);
                       }}
-                      className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 pr-10 text-white font-mono focus:outline-none focus:border-emerald-500 text-xs"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-slate-900 font-mono focus:outline-none focus:border-emerald-500 text-xs"
                     />
                     <button
                       type="button"
                       onClick={() => setShowOpenAiKey(!showOpenAiKey)}
-                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 transition-colors"
+                      className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-200 transition-colors"
                       title={showOpenAiKey ? "Ẩn API Key" : "Hiện API Key"}
                     >
                       {showOpenAiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -449,7 +449,7 @@ export const AdminSettings: React.FC = () => {
                     type="button"
                     onClick={() => handleTestApiKey("openai")}
                     disabled={isTestingKey}
-                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95"
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-slate-900 font-bold text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95"
                   >
                     {isTestingKey ? (
                       <>
@@ -467,14 +467,14 @@ export const AdminSettings: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="block font-semibold text-slate-300 text-xs">Mô hình OpenAI ChatGPT Mới Nhất</label>
+                <label className="block font-semibold text-slate-700 text-xs">Mô hình OpenAI ChatGPT Mới Nhất</label>
                 <select
                   value={settings.openaiModel || "gpt-4o-mini"}
                   onChange={(e) => {
                     setSettings({ ...settings, openaiModel: e.target.value });
                     if (testResult) setTestResult(null);
                   }}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-xs font-medium"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-emerald-500 text-xs font-medium"
                 >
                   <optgroup label="⭐ Mô hình Phổ biến & Tối ưu nhất (Khuyên dùng)">
                     <option value="gpt-4o-mini">gpt-4o-mini ⭐ (Khuyên dùng - Cực nhanh, thông minh, tối ưu chi phí 100%)</option>
@@ -496,7 +496,7 @@ export const AdminSettings: React.FC = () => {
                 </select>
 
                 <div className="flex items-center gap-2 pt-1">
-                  <span className="text-[11px] text-slate-400 shrink-0">Hoặc tùy chỉnh Model ID:</span>
+                  <span className="text-[11px] text-slate-500 shrink-0">Hoặc tùy chỉnh Model ID:</span>
                   <input
                     type="text"
                     placeholder="VD: gpt-4o-mini, o3-mini..."
@@ -505,7 +505,7 @@ export const AdminSettings: React.FC = () => {
                       setSettings({ ...settings, openaiModel: e.target.value.trim() });
                       if (testResult) setTestResult(null);
                     }}
-                    className="flex-1 bg-[#18233a] border border-slate-700/80 rounded-lg px-2.5 py-1 text-white font-mono text-[11px] focus:outline-none focus:border-emerald-500"
+                    className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 font-mono text-[11px] focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -540,23 +540,23 @@ export const AdminSettings: React.FC = () => {
                   </div>
                   <p className="text-[11px] leading-relaxed opacity-90">{testResult.message}</p>
                   {testResult.sampleResponse && (
-                    <div className="p-2.5 rounded-xl bg-slate-900/70 border border-emerald-500/30 text-slate-200 font-sans text-[11px] italic">
-                      <span className="font-semibold text-emerald-400 not-italic">Phản hồi thử nghiệm: </span>
+                    <div className="p-2.5 rounded-xl bg-white border border-emerald-300 text-slate-800 font-sans text-[11px] italic">
+                      <span className="font-semibold text-emerald-600 not-italic">Phản hồi thử nghiệm: </span>
                       "{testResult.sampleResponse}"
                     </div>
                   )}
 
                   {testResult.valid && (
-                    <div className="flex items-center gap-2 text-[11px] text-emerald-300 font-medium bg-emerald-900/30 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <div className="flex items-center gap-2 text-[11px] text-emerald-800 font-medium bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                       <span>Đã tự động áp dụng cho Chatbot toàn web: Mọi khách hàng truy cập đều được AI phục vụ ngay!</span>
                     </div>
                   )}
 
                   {testResult.availableModels && testResult.availableModels.length > 0 && (
                     <div className="mt-2.5 pt-2.5 border-t border-emerald-500/20">
-                      <p className="text-[11px] font-semibold text-emerald-300 mb-1.5 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <p className="text-[11px] font-semibold text-emerald-800 mb-1.5 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                         <span>Mô hình {testResult.provider === "openai" ? "OpenAI" : "Google"} khả dụng với API Key này (bấm để chọn ngay):</span>
                       </p>
                       <div className="flex flex-wrap gap-1.5">
@@ -575,8 +575,8 @@ export const AdminSettings: React.FC = () => {
                               }}
                               className={`px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all border ${
                                 isSelected
-                                  ? "bg-violet-600 text-white border-violet-400 font-bold shadow-md shadow-violet-600/30 ring-1 ring-white/20"
-                                  : "bg-slate-900/80 text-slate-300 border-slate-700 hover:border-violet-500 hover:text-white"
+                                  ? "bg-rose-600 text-white border-rose-500 font-bold shadow-md shadow-rose-600/30"
+                                  : "bg-white text-slate-700 border-slate-300 hover:border-rose-500 hover:text-slate-900"
                               }`}
                             >
                               {m} {isSelected && "✓"}
@@ -598,28 +598,28 @@ export const AdminSettings: React.FC = () => {
         </div>
 
         {/* Section 3: VNPAY Config */}
-        <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4 shadow-xl">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-xl">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-blue-400" />
             3. CỔNG THANH TOÁN VNPAY SANDBOX
           </h3>
 
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">VNPAY TMN Code</label>
+            <label className="block font-semibold text-slate-700 mb-1">VNPAY TMN Code</label>
             <input
               type="text"
               value={settings.vnpayTmnCode}
               onChange={(e) => setSettings({ ...settings, vnpayTmnCode: e.target.value })}
-              className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-violet-500"
+              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-rose-500"
             />
           </div>
         </div>
 
         {/* Section 4: MoMo Sandbox Gateway v2 Config */}
-        <div className="p-6 rounded-3xl bg-[#131c2e] border border-pink-900/40 space-y-4 shadow-xl">
+        <div className="p-6 rounded-3xl bg-white border border-pink-900/40 space-y-4 shadow-xl">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <span className="w-5 h-5 rounded-md bg-[#a50064] text-white flex items-center justify-center font-black text-[9px]">
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <span className="w-5 h-5 rounded-md bg-[#a50064] text-slate-900 flex items-center justify-center font-black text-[9px]">
                 MM
               </span>
               4. CỔNG THANH TOÁN VÍ MOMO SANDBOX (GATEWAY V2)
@@ -629,38 +629,38 @@ export const AdminSettings: React.FC = () => {
             </span>
           </div>
 
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500">
             Thông số tài khoản thử nghiệm dành cho sinh viên và nhà phát triển (Developers MoMo).
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block font-semibold text-slate-300 mb-1 text-xs">Partner Code</label>
+              <label className="block font-semibold text-slate-700 mb-1 text-xs">Partner Code</label>
               <input
                 type="text"
                 value={settings.momoPartnerCode || "MOMO"}
                 onChange={(e) => setSettings({ ...settings, momoPartnerCode: e.target.value })}
-                className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-pink-500 text-xs"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-pink-500 text-xs"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-300 mb-1 text-xs">Access Key</label>
+              <label className="block font-semibold text-slate-700 mb-1 text-xs">Access Key</label>
               <input
                 type="text"
                 value={settings.momoAccessKey || "F8BBA842ECF85"}
                 onChange={(e) => setSettings({ ...settings, momoAccessKey: e.target.value })}
-                className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-pink-500 text-xs"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-pink-500 text-xs"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-300 mb-1 text-xs">Secret Key</label>
+              <label className="block font-semibold text-slate-700 mb-1 text-xs">Secret Key</label>
               <input
                 type="password"
                 value={settings.momoSecretKey || "K951B6PE1waDMi640xX08PD3vg6EkVlz"}
                 onChange={(e) => setSettings({ ...settings, momoSecretKey: e.target.value })}
-                className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono focus:outline-none focus:border-pink-500 text-xs"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-pink-500 text-xs"
               />
             </div>
           </div>
@@ -668,7 +668,7 @@ export const AdminSettings: React.FC = () => {
 
         <button
           type="submit"
-          className="px-6 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 text-white font-bold text-xs shadow-lg shadow-violet-600/30 transition-all flex items-center gap-2 hover:scale-105"
+          className="px-6 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-500 text-slate-900 font-bold text-xs shadow-lg shadow-rose-600/30 transition-all flex items-center gap-2 hover:scale-105"
         >
           <Save className="w-4 h-4" />
           <span>Lưu Cấu Hình Hệ Thống</span>

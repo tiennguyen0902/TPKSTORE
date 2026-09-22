@@ -81,19 +81,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
       {/* Top Welcome & Refresh Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white flex items-center gap-2">
+          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
             Xin chào, Admin! 👋
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5">
             Đây là tổng quan hoạt động của SHOPBEE hôm nay.
           </p>
         </div>
 
         <button
           onClick={handleRefresh}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 shadow-sm transition-all"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-xs transition-all"
         >
-          <RefreshCw className={`w-3.5 h-3.5 text-violet-400 ${isLoading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-3.5 h-3.5 text-rose-600 ${isLoading ? "animate-spin" : ""}`} />
           <span>Làm mới</span>
         </button>
       </div>
@@ -101,88 +101,88 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
       {/* 4 KPI Cards (Matching Screenshot) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Tổng Doanh Thu */}
-        <div className="p-5 rounded-3xl bg-[#131c2e] border border-slate-800 flex items-center justify-between shadow-lg">
+        <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">TỔNG DOANH THU</p>
-            <h3 className="text-xl font-black text-white mt-1">
-              {totalRevenue.toLocaleString("vi-VN")} <span className="text-sm font-bold text-violet-400">đ</span>
+            <h3 className="text-xl font-black text-slate-900 mt-1">
+              {totalRevenue.toLocaleString("vi-VN")} <span className="text-sm font-bold text-rose-600">đ</span>
             </h3>
-            <p className="text-[11px] text-emerald-400 font-bold mt-1">
-              +12.5% <span className="text-slate-500 font-normal">so với tháng trước</span>
+            <p className="text-[11px] text-emerald-600 font-bold mt-1">
+              +12.5% <span className="text-slate-400 font-normal">so với tháng trước</span>
             </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center shadow-inner">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shadow-xs">
             <DollarSign className="w-6 h-6" />
           </div>
         </div>
 
         {/* Card 2: Đơn Hàng */}
-        <div className="p-5 rounded-3xl bg-[#131c2e] border border-slate-800 flex items-center justify-between shadow-lg">
+        <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">ĐƠN HÀNG</p>
-            <h3 className="text-xl font-black text-white mt-1">{totalOrders}</h3>
-            <p className="text-[11px] text-purple-400 font-bold mt-1">
-              98% <span className="text-slate-500 font-normal">tỷ lệ hoàn thành</span>
+            <h3 className="text-xl font-black text-slate-900 mt-1">{totalOrders}</h3>
+            <p className="text-[11px] text-rose-600 font-bold mt-1">
+              98% <span className="text-slate-400 font-normal">tỷ lệ hoàn thành</span>
             </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-purple-600/20 text-purple-400 flex items-center justify-center shadow-inner">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center shadow-xs">
             <ShoppingBag className="w-6 h-6" />
           </div>
         </div>
 
         {/* Card 3: Khách Hàng */}
-        <div className="p-5 rounded-3xl bg-[#131c2e] border border-slate-800 flex items-center justify-between shadow-lg">
+        <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">KHÁCH HÀNG</p>
-            <h3 className="text-xl font-black text-white mt-1">{totalUsers}</h3>
-            <p className="text-[11px] text-emerald-400 font-bold mt-1">
-              +{totalUsers} <span className="text-slate-500 font-normal">khách mới tháng này</span>
+            <h3 className="text-xl font-black text-slate-900 mt-1">{totalUsers}</h3>
+            <p className="text-[11px] text-emerald-600 font-bold mt-1">
+              +{totalUsers} <span className="text-slate-400 font-normal">khách mới tháng này</span>
             </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center shadow-inner">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shadow-xs">
             <Users className="w-6 h-6" />
           </div>
         </div>
 
         {/* Card 4: Cảnh Báo Tồn Kho */}
-        <div className="p-5 rounded-3xl bg-[#131c2e] border border-slate-800 flex items-center justify-between shadow-lg">
+        <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">CẢNH BÁO TỒN KHO</p>
-            <h3 className="text-xl font-black text-white mt-1">{alertCount} SP</h3>
-            <p className="text-[11px] text-amber-400 font-bold mt-1">
-              Cần nhập thêm <span className="text-slate-500 font-normal">sắp hết hàng</span>
+            <h3 className="text-xl font-black text-slate-900 mt-1">{alertCount} SP</h3>
+            <p className="text-[11px] text-amber-600 font-bold mt-1">
+              Cần nhập thêm <span className="text-slate-400 font-normal">sắp hết hàng</span>
             </p>
             <button
               onClick={() => onNavigateTab("admin_inventory_alerts")}
-              className="text-[10px] text-violet-400 hover:underline mt-1 font-semibold flex items-center gap-1"
+              className="text-[10px] text-rose-600 hover:underline mt-1 font-semibold flex items-center gap-1"
             >
               Xem chi tiết &gt;
             </button>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-600/20 text-amber-400 flex items-center justify-center shadow-inner">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center shadow-xs">
             <AlertTriangle className="w-6 h-6" />
           </div>
         </div>
       </div>
 
       {/* AI Forecasting Highlight Banner (Matching Screenshot) */}
-      <div className="p-5 rounded-3xl bg-gradient-to-r from-[#17173b] via-[#12192e] to-[#1e1335] border border-violet-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+      <div className="p-5 rounded-3xl bg-gradient-to-r from-rose-50 via-white to-amber-50/50 border border-rose-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-bold text-violet-300 uppercase tracking-wider">
-            <Sparkles className="w-4 h-4 text-violet-400" />
+          <div className="flex items-center gap-2 text-xs font-bold text-rose-700 uppercase tracking-wider">
+            <Sparkles className="w-4 h-4 text-rose-600" />
             <span>AI SALES FORECASTING · Hybrid-Prophet-ARIMA-v2.1</span>
           </div>
-          <h2 className="text-base font-black text-white">
-            Dự báo tăng trưởng: <span className="text-emerald-400 font-extrabold">+8.5%</span> trong 30 ngày tới
+          <h2 className="text-base font-black text-slate-900">
+            Dự báo tăng trưởng: <span className="text-emerald-600 font-extrabold">+8.5%</span> trong 30 ngày tới
           </h2>
-          <p className="text-xs text-slate-300">
+          <p className="text-xs text-slate-600">
             Nhu cầu danh mục Điện thoại và Thiết bị đeo AI dự kiến tăng trưởng mạnh vào cuối tuần.
           </p>
         </div>
 
         <button
           onClick={() => onNavigateTab("admin_forecast")}
-          className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs shadow-lg shadow-violet-600/30 transition-all flex items-center gap-2 shrink-0 self-start md:self-center"
+          className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition-all flex items-center gap-2 shrink-0 self-start md:self-center"
         >
           <TrendingUp className="w-4 h-4" />
           <span>Mở AI Analytics</span>
@@ -192,17 +192,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
       {/* 2 Charts Grid (Matching Screenshot) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Chart: Doanh Thu 14 Ngày Qua */}
-        <div className="lg:col-span-8 p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4 shadow-xl relative overflow-hidden">
+        <div className="lg:col-span-8 p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-blue-400" />
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-blue-600" />
                 Doanh Thu 14 Ngày Qua
               </h3>
-              <p className="text-[10px] text-slate-400">Đơn vị: Triệu VNĐ (Dữ liệu thực tế phân tích theo ngày)</p>
+              <p className="text-[10px] text-slate-500">Đơn vị: Triệu VNĐ (Dữ liệu thực tế phân tích theo ngày)</p>
             </div>
 
-            <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-extrabold tracking-wider animate-pulse">
+            <span className="px-2.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 text-[10px] font-extrabold tracking-wider animate-pulse">
               LIVE DATA
             </span>
           </div>
@@ -244,23 +244,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                 <svg viewBox="0 0 700 220" className="w-full h-full">
                   <defs>
                     <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity="0.45" />
+                      <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
                       <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
                     </linearGradient>
-                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                      <feMerge>
-                        <feMergeNode in="coloredBlur" />
-                        <feMergeNode in="SourceGraphic" />
-                      </feMerge>
-                    </filter>
                   </defs>
 
                   {/* Horizontal Guide Grid lines */}
-                  <line x1="15" y1="30" x2="685" y2="30" stroke="#1e293b" strokeDasharray="4 4" />
-                  <line x1="15" y1="75" x2="685" y2="75" stroke="#1e293b" strokeDasharray="4 4" />
-                  <line x1="15" y1="125" x2="685" y2="125" stroke="#1e293b" strokeDasharray="4 4" />
-                  <line x1="15" y1={baseY} x2="685" y2={baseY} stroke="#334155" strokeWidth="1.5" />
+                  <line x1="15" y1="30" x2="685" y2="30" stroke="#f1f5f9" strokeDasharray="4 4" />
+                  <line x1="15" y1="75" x2="685" y2="75" stroke="#f1f5f9" strokeDasharray="4 4" />
+                  <line x1="15" y1="125" x2="685" y2="125" stroke="#f1f5f9" strokeDasharray="4 4" />
+                  <line x1="15" y1={baseY} x2="685" y2={baseY} stroke="#e2e8f0" strokeWidth="1.5" />
 
                   {/* Shaded Area Fill */}
                   <path d={areaPath} fill="url(#blueGradient)" />
@@ -269,10 +262,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                   <path
                     d={linePath}
                     fill="none"
-                    stroke="#6366f1"
+                    stroke="#4f46e5"
                     strokeWidth="3.5"
                     strokeLinecap="round"
-                    filter="url(#glow)"
                   />
 
                   {/* Individual Data Points */}
@@ -281,11 +273,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                       <circle
                         cx={pt.x}
                         cy={pt.y}
-                        r="4"
-                        fill="#0e1626"
-                        stroke="#818cf8"
+                        r="4.5"
+                        fill="#ffffff"
+                        stroke="#4f46e5"
                         strokeWidth="2.5"
-                        className="transition-all duration-150 group-hover:r-6 group-hover:fill-white group-hover:stroke-indigo-400"
+                        className="transition-all duration-150 group-hover:r-6 group-hover:fill-indigo-600 group-hover:stroke-white shadow-sm"
                       />
                       {/* Interactive Tooltip on hover */}
                       <title>{`Ngày ${pt.day}: ${pt.val.toFixed(1)} Triệu VNĐ`}</title>
@@ -300,7 +292,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                       y="198"
                       fontSize="9.5"
                       fontWeight="600"
-                      fill="#94a3b8"
+                      fill="#64748b"
                       textAnchor="middle"
                     >
                       {pt.day}
@@ -313,27 +305,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
         </div>
 
         {/* Right Chart: Đơn Hàng / Ngày */}
-        <div className="lg:col-span-4 p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4 shadow-xl">
+        <div className="lg:col-span-4 p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-sm">
           <div>
-            <h3 className="font-bold text-white text-sm flex items-center gap-2">
-              <ShoppingBag className="w-4 h-4 text-purple-400" />
+            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <ShoppingBag className="w-4 h-4 text-rose-600" />
               Đơn Hàng / Ngày
             </h3>
-            <p className="text-[10px] text-slate-400">7 ngày gần nhất</p>
+            <p className="text-[10px] text-slate-500">7 ngày gần nhất</p>
           </div>
 
           {/* Bar Chart */}
           <div className="h-64 flex items-end justify-between gap-3 pt-6 px-2">
             {orderBars.map((bar, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                <span className="text-[10px] font-bold text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="text-[10px] font-bold text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity">
                   {bar.count}
                 </span>
                 <div
-                  className="w-full bg-gradient-to-t from-purple-700 to-violet-500 rounded-xl group-hover:from-purple-600 group-hover:to-violet-400 transition-all shadow-md"
+                  className="w-full bg-gradient-to-t from-rose-600 to-rose-400 rounded-xl group-hover:from-rose-500 group-hover:to-rose-300 transition-all shadow-sm"
                   style={{ height: `${(bar.count / 45) * 160}px` }}
                 />
-                <span className="text-[9px] text-slate-400">{bar.day}</span>
+                <span className="text-[9px] text-slate-500 font-semibold">{bar.day}</span>
               </div>
             ))}
           </div>

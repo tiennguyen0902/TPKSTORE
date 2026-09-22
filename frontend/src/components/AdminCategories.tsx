@@ -104,30 +104,30 @@ export const AdminCategories: React.FC = () => {
     switch (iconName) {
       case "Smartphone": return <Smartphone className="w-5 h-5 text-indigo-400" />;
       case "Laptop": return <Laptop className="w-5 h-5 text-blue-400" />;
-      case "Headphones": return <Headphones className="w-5 h-5 text-purple-400" />;
+      case "Headphones": return <Headphones className="w-5 h-5 text-rose-400" />;
       case "Watch": return <Watch className="w-5 h-5 text-pink-400" />;
       case "Zap": return <Zap className="w-5 h-5 text-amber-400" />;
       case "Home": return <Home className="w-5 h-5 text-emerald-400" />;
       case "Monitor": return <Monitor className="w-5 h-5 text-cyan-400" />;
       case "Keyboard": return <Keyboard className="w-5 h-5 text-teal-400" />;
       case "Wifi": return <Wifi className="w-5 h-5 text-sky-400" />;
-      case "ShieldCheck": return <ShieldCheck className="w-5 h-5 text-violet-400" />;
-      default: return <Tag className="w-5 h-5 text-violet-400" />;
+      case "ShieldCheck": return <ShieldCheck className="w-5 h-5 text-rose-400" />;
+      default: return <Tag className="w-5 h-5 text-rose-400" />;
     }
   };
 
   return (
     <div className="space-y-6 pb-16">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-2xl font-black text-white">Quản Lý Danh Mục</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Danh sách các nhóm sản phẩm công nghệ trong hệ thống ({categories.length} danh mục)</p>
+          <h1 className="text-2xl font-black text-slate-900">Quản Lý Danh Mục</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Danh sách các nhóm sản phẩm công nghệ trong hệ thống ({categories.length} danh mục)</p>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs shadow-lg shadow-violet-600/30 transition-all hover:scale-105"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition-all hover:scale-105"
         >
           <Plus className="w-4 h-4" />
           <span>Thêm Danh Mục Mới</span>
@@ -146,16 +146,16 @@ export const AdminCategories: React.FC = () => {
         {categories.map((cat) => (
           <div
             key={cat.id}
-            className="p-5 rounded-3xl bg-[#131c2e] border border-slate-800 hover:border-violet-500/40 transition-all space-y-3 shadow-lg group"
+            className="p-5 rounded-3xl bg-white border border-slate-200 hover:border-rose-500/40 transition-all space-y-3 shadow-lg group"
           >
             <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-2xl bg-[#18233a] flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform">
                 {getCategoryIcon(cat.icon)}
               </div>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => handleOpenEdit(cat)}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-700 hover:text-slate-900"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                 </button>
@@ -169,14 +169,14 @@ export const AdminCategories: React.FC = () => {
             </div>
 
             <div>
-              <h3 className="font-bold text-white text-sm">{cat.name}</h3>
-              <p className="text-[10px] text-violet-400 font-mono mt-0.5">slug: {cat.slug}</p>
-              <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">
+              <h3 className="font-bold text-slate-900 text-sm">{cat.name}</h3>
+              <p className="text-[10px] text-rose-400 font-mono mt-0.5">slug: {cat.slug}</p>
+              <p className="text-xs text-slate-500 mt-2 line-clamp-2 leading-relaxed">
                 {cat.description || "Chưa có mô tả chi tiết."}
               </p>
             </div>
 
-            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+            <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
               <span className="text-slate-500">Số lượng sản phẩm:</span>
               <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
                 {cat.productCount || 0} sản phẩm
@@ -189,45 +189,45 @@ export const AdminCategories: React.FC = () => {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md bg-[#131c2e] border border-slate-700 rounded-3xl p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white">
+          <div className="w-full max-w-md bg-white border border-slate-300 rounded-3xl p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-base font-bold text-slate-900">
                 {editingCategory ? "Chỉnh Sửa Danh Mục" : "Thêm Danh Mục Mới"}
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-slate-900">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Tên danh mục *</label>
+                <label className="block font-semibold text-slate-700 mb-1">Tên danh mục *</label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-violet-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Slug URL</label>
+                <label className="block font-semibold text-slate-700 mb-1">Slug URL</label>
                 <input
                   type="text"
                   placeholder="tu-dong-tao-neu-de-trong"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-violet-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono focus:outline-none focus:border-rose-500"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Icon đại diện</label>
+                <label className="block font-semibold text-slate-700 mb-1">Icon đại diện</label>
                 <select
                   value={icon}
                   onChange={(e) => setIcon(e.target.value)}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-violet-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500"
                 >
                   <option value="Smartphone">Smartphone</option>
                   <option value="Laptop">Laptop</option>
@@ -244,26 +244,26 @@ export const AdminCategories: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Mô tả danh mục</label>
+                <label className="block font-semibold text-slate-700 mb-1">Mô tả danh mục</label>
                 <textarea
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-violet-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-700 hover:bg-slate-700"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold"
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold"
                 >
                   {editingCategory ? "Lưu Thay Đổi" : "Tạo Danh Mục"}
                 </button>

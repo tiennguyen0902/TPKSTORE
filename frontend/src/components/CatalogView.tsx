@@ -160,14 +160,14 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   return (
     <div className="space-y-6 pb-16">
       {/* Header Banner */}
-      <div className="p-6 rounded-3xl bg-[#12192e] border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-6 rounded-3xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
         <div>
-          <h1 className="text-2xl font-black text-white">{pageTitle}</h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <h1 className="text-2xl font-black text-slate-900">{pageTitle}</h1>
+          <p className="text-xs text-slate-500 mt-1">
             Hiển thị {totalItems} sản phẩm{" "}
             {currentCategory ? `thuộc danh mục "${currentCategory.name}"` : "công nghệ chính hãng chất lượng cao"}
             {totalPages > 1 && (
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-semibold text-[11px]">
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-bold text-[11px]">
                 Trang {safeCurrentPage}/{totalPages}
               </span>
             )}
@@ -176,23 +176,23 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
 
         {/* Sort and Reset */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#18233a] border border-slate-700 text-xs text-slate-300">
-            <ArrowUpDown className="w-3.5 h-3.5 text-violet-400" />
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700">
+            <ArrowUpDown className="w-3.5 h-3.5 text-rose-600" />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="bg-transparent text-slate-200 focus:outline-none cursor-pointer"
+              className="bg-transparent text-slate-800 font-semibold focus:outline-none cursor-pointer"
             >
-              <option value="newest" className="bg-[#12192e]">Mới nhất</option>
-              <option value="price_asc" className="bg-[#12192e]">Giá tăng dần</option>
-              <option value="price_desc" className="bg-[#12192e]">Giá giảm dần</option>
-              <option value="rating_desc" className="bg-[#12192e]">Đánh giá cao</option>
+              <option value="newest" className="bg-white">Mới nhất</option>
+              <option value="price_asc" className="bg-white">Giá tăng dần</option>
+              <option value="price_desc" className="bg-white">Giá giảm dần</option>
+              <option value="rating_desc" className="bg-white">Đánh giá cao</option>
             </select>
           </div>
 
           <button
             onClick={handleResetFilters}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Đặt lại bộ lọc</span>
@@ -205,19 +205,19 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
         {/* Left Sidebar Filters */}
         <div className="lg:col-span-1 space-y-6">
           {/* Category Filter */}
-          <div className="p-5 rounded-3xl bg-[#12192e] border border-slate-800 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white">
-              <Tag className="w-4 h-4 text-violet-400" />
+          <div className="p-5 rounded-3xl bg-white border border-slate-200 space-y-3 shadow-sm">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-900">
+              <Tag className="w-4 h-4 text-rose-600" />
               <span>Danh Mục Ngành Hàng</span>
             </div>
 
             <div className="space-y-1">
               <button
                 onClick={() => handleSelectCategory("all")}
-                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                   selectedCategory === "all"
-                    ? "bg-violet-600 text-white font-semibold shadow-md shadow-violet-600/30"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
                 Tất cả danh mục ({categories.length})
@@ -233,10 +233,10 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                   <button
                     key={cat.id}
                     onClick={() => handleSelectCategory(cat.slug)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition-all ${
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-all ${
                       isActive
-                        ? "bg-violet-600 text-white font-semibold shadow-md shadow-violet-600/30"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                     }`}
                   >
                     <span className="truncate">{cat.name}</span>
@@ -250,9 +250,9 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           </div>
 
           {/* Price Range Filter */}
-          <div className="p-5 rounded-3xl bg-[#12192e] border border-slate-800 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white">
-              <SlidersHorizontal className="w-4 h-4 text-amber-400" />
+          <div className="p-5 rounded-3xl bg-white border border-slate-200 space-y-3 shadow-sm">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-900">
+              <SlidersHorizontal className="w-4 h-4 text-amber-600" />
               <span>Khoảng Giá (VND)</span>
             </div>
 
@@ -267,14 +267,14 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                 <label
                   key={range.id}
                   onClick={() => setSelectedPriceRange(range.id)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-300 hover:bg-slate-800 cursor-pointer select-none"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-100 cursor-pointer select-none font-medium"
                 >
                   <input
                     type="radio"
                     name="price_range"
                     checked={selectedPriceRange === range.id}
                     onChange={() => {}}
-                    className="accent-violet-600"
+                    className="accent-rose-600"
                   />
                   <span>{range.label}</span>
                 </label>
@@ -286,7 +286,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
         {/* Right Products Grid */}
         <div className="lg:col-span-3 space-y-6" ref={productsTopRef}>
           {isLoading ? (
-            <div className="p-16 text-center text-slate-400 text-xs">
+            <div className="p-16 text-center text-slate-500 text-xs font-medium">
               Đang tải danh sách sản phẩm...
             </div>
           ) : paginatedProducts.length > 0 ? (
@@ -314,15 +314,15 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
               />
             </>
           ) : (
-            <div className="p-16 rounded-3xl bg-[#12192e] border border-slate-800 text-center space-y-3">
-              <Search className="w-10 h-10 text-slate-500 mx-auto" />
-              <h3 className="font-bold text-white text-base">Không tìm thấy sản phẩm nào</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            <div className="p-16 rounded-3xl bg-white border border-slate-200 text-center space-y-3 shadow-sm">
+              <Search className="w-10 h-10 text-slate-400 mx-auto" />
+              <h3 className="font-bold text-slate-900 text-base">Không tìm thấy sản phẩm nào</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 Không có sản phẩm nào khớp với danh mục "{pageTitle}" hoặc bộ lọc hiện tại. Vui lòng thử lại với tiêu chí khác.
               </p>
               <button
                 onClick={handleResetFilters}
-                className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-lg shadow-violet-600/30"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-lg shadow-rose-600/30"
               >
                 Xem tất cả sản phẩm
               </button>

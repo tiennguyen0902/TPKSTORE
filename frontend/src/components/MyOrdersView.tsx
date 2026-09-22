@@ -76,30 +76,30 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "DELIVERED":
-        return <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Giao thành công</span>;
+        return <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Giao thành công</span>;
       case "SHIPPING":
-        return <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30 text-xs font-bold flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> Đang giao hàng</span>;
+        return <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> Đang giao hàng</span>;
       case "CONFIRMED":
-        return <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Đã xác nhận</span>;
+        return <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Đã xác nhận</span>;
       case "PENDING":
-        return <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Chờ xác nhận</span>;
+        return <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Chờ xác nhận</span>;
       case "CANCELLED":
-        return <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold flex items-center gap-1"><XCircle className="w-3.5 h-3.5" /> Đã hủy</span>;
+        return <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-200 text-xs font-bold flex items-center gap-1"><XCircle className="w-3.5 h-3.5" /> Đã hủy</span>;
       default:
-        return <span className="px-3 py-1 rounded-full bg-slate-500/20 text-slate-400 text-xs font-bold">{status}</span>;
+        return <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold">{status}</span>;
     }
   };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-16">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-2xl font-black text-white">Đơn Hàng Của Tôi</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h1 className="text-2xl font-black text-slate-900">Đơn Hàng Của Tôi</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
             Theo dõi hành trình đơn hàng và quản lý các giao dịch ({totalItems} đơn hàng)
             {totalPages > 1 && (
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-semibold text-[10px]">
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-semibold text-[10px]">
                 Trang {safeCurrentPage}/{totalPages}
               </span>
             )}
@@ -107,16 +107,16 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
         </div>
         <button
           onClick={onNavigateCatalog}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors shadow-xs"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
+          <ArrowLeft className="w-3.5 h-3.5 text-rose-600" />
           <span>Mua thêm sản phẩm</span>
         </button>
       </div>
 
       {actionMessage && (
-        <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-medium animate-in fade-in flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium animate-in fade-in flex items-center gap-2 shadow-xs">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
           <span>{actionMessage}</span>
         </div>
       )}
@@ -125,15 +125,15 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
       {isLoading ? (
         <div className="p-16 text-center text-slate-400 text-xs">Đang tải lịch sử đơn hàng...</div>
       ) : orders.length === 0 ? (
-        <div className="p-16 rounded-3xl bg-[#131c2e] border border-slate-800 text-center space-y-3">
-          <Package className="w-12 h-12 text-slate-500 mx-auto" />
-          <h3 className="text-base font-bold text-white">Bạn chưa có đơn hàng nào</h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+        <div className="p-16 rounded-3xl bg-white border border-slate-200 text-center space-y-3 shadow-sm">
+          <Package className="w-12 h-12 text-slate-400 mx-auto" />
+          <h3 className="text-base font-bold text-slate-900">Bạn chưa có đơn hàng nào</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
             Khám phá ngay các dòng sản phẩm công nghệ AI đỉnh cao tại SHOPBEE và đặt hàng hôm nay.
           </p>
           <button
             onClick={onNavigateCatalog}
-            className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold"
+            className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/20"
           >
             Bắt đầu mua sắm
           </button>
@@ -146,23 +146,23 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
             return (
               <div
                 key={order.id}
-                className="rounded-3xl bg-[#131c2e] border border-slate-800 overflow-hidden transition-all shadow-md hover:border-slate-700"
+                className="rounded-3xl bg-white border border-slate-200 overflow-hidden transition-all shadow-sm hover:shadow-md hover:border-slate-300"
               >
                 {/* Order Top Bar (Matching Screenshot) */}
-                <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80">
+                <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-violet-600/20 text-violet-400 flex items-center justify-center font-bold">
+                    <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center font-bold">
                       <Package className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-white text-sm">{order.id}</span>
-                        <span className="text-xs text-slate-400 font-mono">
+                        <span className="font-extrabold text-slate-900 text-sm">{order.id}</span>
+                        <span className="text-xs text-slate-500 font-mono">
                           {new Date(order.createdAt).toLocaleDateString("vi-VN")} {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Người nhận: <strong className="text-slate-200">{order.customerName}</strong> ({order.phone})
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Người nhận: <strong className="text-slate-800">{order.customerName}</strong> ({order.phone})
                       </p>
                     </div>
                   </div>
@@ -176,13 +176,13 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
                 <div className="p-5 space-y-3">
                   <div className="space-y-2">
                     {order.items?.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between text-xs text-slate-300">
+                      <div key={item.id} className="flex items-center justify-between text-xs text-slate-700">
                         <div className="flex items-center gap-2 max-w-[70%]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />
-                          <span className="truncate">{item.product?.name || `Sản phẩm ID: ${item.productId}`}</span>
-                          <span className="text-slate-500 font-bold">x{item.quantity}</span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                          <span className="truncate font-medium">{item.product?.name || `Sản phẩm ID: ${item.productId}`}</span>
+                          <span className="text-slate-400 font-bold">x{item.quantity}</span>
                         </div>
-                        <span className="font-bold text-white">
+                        <span className="font-bold text-slate-900">
                           {(item.price * item.quantity).toLocaleString("vi-VN")} đ
                         </span>
                       </div>
@@ -190,11 +190,11 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
                   </div>
 
                   {/* Order Footer summary */}
-                  <div className="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="text-xs text-slate-400">
+                  <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="text-xs text-slate-500">
                       Thanh toán:{" "}
-                      <strong className="text-white">{order.paymentMethod}</strong> (
-                      <span className={order.paymentStatus === "COMPLETED" ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                      <strong className="text-slate-800">{order.paymentMethod}</strong> (
+                      <span className={order.paymentStatus === "COMPLETED" ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
                         {order.paymentStatus === "COMPLETED" ? "Đã thanh toán" : "Chờ thanh toán"}
                       </span>
                       )
@@ -202,15 +202,15 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
 
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <span className="text-xs text-slate-400">Tổng tiền: </span>
-                        <span className="text-base font-black text-violet-400">
+                        <span className="text-xs text-slate-500">Tổng tiền: </span>
+                        <span className="text-base font-black text-rose-600">
                           {order.finalAmount.toLocaleString("vi-VN")} đ
                         </span>
                       </div>
 
                       <button
                         onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
-                        className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1 transition-colors"
+                        className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center gap-1 transition-colors"
                       >
                         <span>Chi tiết đơn</span>
                         {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -221,34 +221,34 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
 
                 {/* Expanded Details Section */}
                 {isExpanded && (
-                  <div className="p-5 bg-[#0c121e] border-t border-slate-800 text-xs space-y-4 animate-in fade-in">
+                  <div className="p-5 bg-slate-50 border-t border-slate-200 text-xs space-y-4 animate-in fade-in">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-3 rounded-2xl bg-[#131c2e] border border-slate-800 space-y-1">
-                        <p className="font-bold text-slate-200">Địa chỉ giao hàng:</p>
-                        <p className="text-slate-300 leading-relaxed">{order.shippingAddress}</p>
-                        {order.note && <p className="text-slate-400 italic mt-1">Ghi chú: "{order.note}"</p>}
+                      <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-xs">
+                        <p className="font-bold text-slate-900">Địa chỉ giao hàng:</p>
+                        <p className="text-slate-600 leading-relaxed">{order.shippingAddress}</p>
+                        {order.note && <p className="text-slate-500 italic mt-1">Ghi chú: "{order.note}"</p>}
                       </div>
 
-                      <div className="p-3 rounded-2xl bg-[#131c2e] border border-slate-800 space-y-1">
-                        <p className="font-bold text-slate-200">Chi tiết thanh toán:</p>
-                        <p className="text-slate-300 flex justify-between">
+                      <div className="p-3 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-xs">
+                        <p className="font-bold text-slate-900">Chi tiết thanh toán:</p>
+                        <p className="text-slate-600 flex justify-between">
                           <span>Tiền hàng:</span> <span>{order.totalAmount.toLocaleString("vi-VN")} đ</span>
                         </p>
-                        <p className="text-slate-300 flex justify-between">
+                        <p className="text-slate-600 flex justify-between">
                           <span>Phí giao hàng:</span> <span>{order.shippingFee.toLocaleString("vi-VN")} đ</span>
                         </p>
-                        <p className="text-slate-300 flex justify-between font-bold text-violet-300 pt-1 border-t border-slate-800">
+                        <p className="text-slate-900 flex justify-between font-bold text-rose-600 pt-1 border-t border-slate-100">
                           <span>Tổng cộng:</span> <span>{order.finalAmount.toLocaleString("vi-VN")} đ</span>
                         </p>
                       </div>
                     </div>
 
                     {/* Operational Action Buttons */}
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
                       {order.status === "PENDING" && (
                         <button
                           onClick={() => handleCancelOrder(order.id)}
-                          className="px-4 py-2 rounded-xl bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 font-semibold"
+                          className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-semibold"
                         >
                           Hủy đơn hàng này
                         </button>
@@ -257,7 +257,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
                       {order.status === "DELIVERED" && (
                         <button
                           onClick={() => handleReturnRequest(order.id)}
-                          className="px-4 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-semibold flex items-center gap-1.5"
+                          className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold flex items-center gap-1.5"
                         >
                           <RotateCcw className="w-3.5 h-3.5" /> Yêu cầu đổi trả 7 ngày
                         </button>

@@ -147,16 +147,16 @@ export const ArchitectureStudio: React.FC = () => {
   return (
     <div className="space-y-6 pb-16">
       {/* Top Banner (Matching Screenshot) */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-violet-400 uppercase tracking-wider mb-1">
+          <div className="flex items-center gap-2 text-xs font-bold text-rose-400 uppercase tracking-wider mb-1">
             <Sparkles className="w-4 h-4" />
             <span>SOFTWARE ARCHITECTURE & SECURITY DESIGN STUDIO</span>
           </div>
-          <h1 className="text-2xl font-black text-white">
+          <h1 className="text-2xl font-black text-slate-900">
             Architecture Designer & AI Assistant
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5">
             Thiết kế, kiểm tra, phân tích và tối ưu hóa kiến trúc Layered Architecture & Microservices
           </p>
         </div>
@@ -165,7 +165,7 @@ export const ArchitectureStudio: React.FC = () => {
           <button
             onClick={handleAskAi}
             disabled={isAnalyzing}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 text-white text-xs font-bold shadow-lg shadow-violet-600/30 transition-all hover:scale-105"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/30 transition-all hover:scale-105"
           >
             <Sparkles className={`w-4 h-4 ${isAnalyzing ? "animate-spin" : ""}`} />
             <span>{isAnalyzing ? "AI đang phân tích..." : "Ask AI: Analyze Architecture"}</span>
@@ -173,7 +173,7 @@ export const ArchitectureStudio: React.FC = () => {
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-300 transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>Thêm Component</span>
@@ -181,7 +181,7 @@ export const ArchitectureStudio: React.FC = () => {
 
           <button
             onClick={handleExportJson}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-300 transition-colors"
           >
             <Download className="w-4 h-4" />
             <span>Export JSON</span>
@@ -203,8 +203,8 @@ export const ArchitectureStudio: React.FC = () => {
             onClick={() => setActiveSubTab(tab.id as any)}
             className={`px-4 py-2 rounded-full whitespace-nowrap transition-all ${
               activeSubTab === tab.id
-                ? "bg-violet-600 text-white shadow-md shadow-violet-600/30"
-                : "bg-slate-800/80 hover:bg-slate-700 text-slate-300"
+                ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                : "bg-slate-800/80 hover:bg-slate-700 text-slate-700"
             }`}
           >
             {tab.label}
@@ -214,9 +214,9 @@ export const ArchitectureStudio: React.FC = () => {
 
       {/* AI Analysis Result Panel (if generated) */}
       {aiAnalysisResult && (
-        <div className="p-6 rounded-3xl bg-gradient-to-r from-violet-950/60 via-[#131c2e] to-indigo-950/60 border border-violet-500/40 space-y-4 animate-in fade-in">
+        <div className="p-6 rounded-3xl bg-gradient-to-r from-rose-950/60 via-[#131c2e] to-rose-800/60 border border-rose-500/40 space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-white font-bold text-sm">
+            <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
               <ShieldCheck className="w-5 h-5 text-emerald-400" />
               <span>Kết Quả Đánh Giá Kiến Trúc Từ AI</span>
             </div>
@@ -227,8 +227,8 @@ export const ArchitectureStudio: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div className="space-y-2">
-              <p className="font-bold text-violet-300 uppercase tracking-wider">Điểm mạnh kiến trúc:</p>
-              <ul className="space-y-1.5 text-slate-300">
+              <p className="font-bold text-rose-300 uppercase tracking-wider">Điểm mạnh kiến trúc:</p>
+              <ul className="space-y-1.5 text-slate-700">
                 {aiAnalysisResult.analysis?.map((item: string, idx: number) => (
                   <li key={idx} className="flex items-start gap-2">
                     <span className="text-emerald-400 font-bold">✓</span>
@@ -240,7 +240,7 @@ export const ArchitectureStudio: React.FC = () => {
 
             <div className="space-y-2">
               <p className="font-bold text-amber-300 uppercase tracking-wider">Khuyến nghị tối ưu hóa:</p>
-              <ul className="space-y-1.5 text-slate-300">
+              <ul className="space-y-1.5 text-slate-700">
                 {aiAnalysisResult.recommendations?.map((rec: string, idx: number) => (
                   <li key={idx} className="flex items-start gap-2">
                     <span className="text-amber-400 font-bold">→</span>
@@ -257,13 +257,13 @@ export const ArchitectureStudio: React.FC = () => {
       {activeSubTab === "canvas" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left: 5-Tier Layered Interactive Canvas */}
-          <div className="lg:col-span-8 p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-white text-xs uppercase tracking-wider flex items-center gap-2">
-                <Layers className="w-4 h-4 text-violet-400" />
+          <div className="lg:col-span-8 p-6 rounded-3xl bg-white border border-slate-200 space-y-6 shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
+                <Layers className="w-4 h-4 text-rose-400" />
                 LAYERED ARCHITECTURE INTERACTIVE CANVAS (5 TẦNG)
               </h3>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[11px] text-slate-500">
                 {components.length} Components | 5 Connections
               </span>
             </div>
@@ -274,8 +274,8 @@ export const ArchitectureStudio: React.FC = () => {
                 const layerComponents = components.filter(c => c.layer === layerName);
 
                 return (
-                  <div key={layerName} className="p-4 rounded-2xl bg-[#0e1524] border border-slate-800/80 space-y-2.5">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  <div key={layerName} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                       <span>{layerName}</span>
                       <span className="text-[10px] text-slate-500">{layerComponents.length} components</span>
                     </div>
@@ -290,21 +290,21 @@ export const ArchitectureStudio: React.FC = () => {
                               onClick={() => setSelectedComponentId(comp.id)}
                               className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                                 isSelected
-                                  ? "bg-violet-950/40 border-violet-500 shadow-md shadow-violet-500/20"
-                                  : "bg-[#141c2e] border-slate-700/80 hover:border-slate-600"
+                                  ? "bg-rose-950/40 border-rose-500 shadow-md shadow-rose-500/20"
+                                  : "bg-slate-50 border-slate-300 hover:border-slate-600"
                               }`}
                             >
                               <div className="flex items-center justify-between mb-1">
-                                <span className="font-bold text-white text-xs truncate">{comp.name}</span>
+                                <span className="font-bold text-slate-900 text-xs truncate">{comp.name}</span>
                                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
                               </div>
-                              <p className="text-[11px] text-slate-400 line-clamp-1">{comp.description}</p>
+                              <p className="text-[11px] text-slate-500 line-clamp-1">{comp.description}</p>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <div className="p-3 text-center text-xs text-slate-500 italic bg-[#141c2e]/40 rounded-xl border border-dashed border-slate-800">
+                      <div className="p-3 text-center text-xs text-slate-500 italic bg-slate-50/40 rounded-xl border border-dashed border-slate-200">
                         Chưa có component ở tầng này (Có thể bổ sung qua nút Thêm Component)
                       </div>
                     )}
@@ -314,44 +314,44 @@ export const ArchitectureStudio: React.FC = () => {
             </div>
 
             {/* Component Connections & Protocols (Matching Screenshot!) */}
-            <div className="p-4 rounded-2xl bg-[#0c121e] border border-slate-800 space-y-2 text-xs">
-              <h4 className="font-bold text-slate-300 uppercase text-[11px] tracking-wider">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+              <h4 className="font-bold text-slate-700 uppercase text-[11px] tracking-wider">
                 COMPONENT CONNECTIONS & PROTOCOLS
               </h4>
               <div className="space-y-1.5 font-mono text-[11px]">
-                <div className="flex items-center justify-between text-slate-400">
+                <div className="flex items-center justify-between text-slate-500">
                   <span className="text-cyan-400">node_frontend</span>
                   <span>── [HTTPS / JSON] ──&gt;</span>
                   <span className="text-emerald-400">node_nginx</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-400">
+                <div className="flex items-center justify-between text-slate-500">
                   <span className="text-emerald-400">node_nginx</span>
                   <span>── [Proxy Pass :5000] ──&gt;</span>
-                  <span className="text-violet-400">node_backend</span>
+                  <span className="text-rose-400">node_backend</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-violet-400">node_backend</span>
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-rose-400">node_backend</span>
                   <span>── [Prisma Client] ──&gt;</span>
                   <span className="text-emerald-400">node_postgres</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-violet-400">node_backend</span>
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-rose-400">node_backend</span>
                   <span>── [ioredis :6379] ──&gt;</span>
                   <span className="text-red-400">node_redis</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-violet-400">node_backend</span>
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-rose-400">node_backend</span>
                   <span>── [Internal REST / JSON] ──&gt;</span>
-                  <span className="text-purple-400">node_ai</span>
+                  <span className="text-rose-400">node_ai</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Right: Component Inspector (Matching Screenshot!) */}
-          <div className="lg:col-span-4 p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-5 shadow-xl sticky top-24 self-start">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-white text-xs uppercase tracking-wider">
+          <div className="lg:col-span-4 p-6 rounded-3xl bg-white border border-slate-200 space-y-5 shadow-xl sticky top-24 self-start">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
                 Component Inspector
               </h3>
               <button
@@ -365,30 +365,30 @@ export const ArchitectureStudio: React.FC = () => {
 
             <div className="space-y-3.5 text-xs">
               <div>
-                <label className="block text-slate-400 font-mono text-[11px]">ID:</label>
+                <label className="block text-slate-500 font-mono text-[11px]">ID:</label>
                 <p className="font-mono text-cyan-400 font-bold">{selectedComponent.id}</p>
               </div>
 
               <div>
-                <label className="block text-slate-400 text-[11px]">Tên component:</label>
-                <p className="font-bold text-white text-sm">{selectedComponent.name}</p>
+                <label className="block text-slate-500 text-[11px]">Tên component:</label>
+                <p className="font-bold text-slate-900 text-sm">{selectedComponent.name}</p>
               </div>
 
               <div>
-                <label className="block text-slate-400 text-[11px]">Phân loại (Type):</label>
-                <span className="inline-block px-2.5 py-0.5 rounded-md bg-violet-600/30 text-violet-300 font-mono text-xs mt-1 border border-violet-500/30">
+                <label className="block text-slate-500 text-[11px]">Phân loại (Type):</label>
+                <span className="inline-block px-2.5 py-0.5 rounded-md bg-rose-600/30 text-rose-300 font-mono text-xs mt-1 border border-rose-500/30">
                   {selectedComponent.type}
                 </span>
               </div>
 
               <div>
-                <label className="block text-slate-400 text-[11px]">Tầng (Layer):</label>
+                <label className="block text-slate-500 text-[11px]">Tầng (Layer):</label>
                 <p className="font-bold text-emerald-400">{selectedComponent.layer}</p>
               </div>
 
               <div>
-                <label className="block text-slate-400 text-[11px]">Mô tả chi tiết:</label>
-                <p className="text-slate-300 leading-relaxed bg-[#0c121e] p-3 rounded-xl border border-slate-800 mt-1">
+                <label className="block text-slate-500 text-[11px]">Mô tả chi tiết:</label>
+                <p className="text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1">
                   {selectedComponent.description}
                 </p>
               </div>
@@ -399,30 +399,30 @@ export const ArchitectureStudio: React.FC = () => {
 
       {/* TAB 2: OPENAPI STUDIO */}
       {activeSubTab === "openapi" && (
-        <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4 shadow-xl text-xs">
-          <h3 className="font-bold text-white text-base flex items-center gap-2">
-            <FileCode className="w-5 h-5 text-violet-400" />
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-xl text-xs">
+          <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+            <FileCode className="w-5 h-5 text-rose-400" />
             RESTful API Specification & Swagger Documentation
           </h3>
-          <p className="text-slate-400">
+          <p className="text-slate-500">
             Đặc tả toàn bộ 25+ endpoints chuẩn OpenAPI 3.0 cho Core Backend và AI Microservices.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            <div className="p-4 rounded-2xl bg-[#0c121e] border border-slate-800 space-y-2">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
               <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono font-bold">POST /api/auth/login</span>
-              <p className="text-slate-300">Đăng nhập cấp Access Token (15m) & Refresh Token (7d).</p>
+              <p className="text-slate-700">Đăng nhập cấp Access Token (15m) & Refresh Token (7d).</p>
             </div>
-            <div className="p-4 rounded-2xl bg-[#0c121e] border border-slate-800 space-y-2">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
               <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">POST /api/orders</span>
-              <p className="text-slate-300">Tạo đơn hàng Atomic Transaction và trừ tồn kho tức thì.</p>
+              <p className="text-slate-700">Tạo đơn hàng Atomic Transaction và trừ tồn kho tức thì.</p>
             </div>
-            <div className="p-4 rounded-2xl bg-[#0c121e] border border-slate-800 space-y-2">
-              <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono font-bold">POST /api/ai/chat</span>
-              <p className="text-slate-300">RAG Chatbot truy vấn tri thức và trả kèm Product Cards.</p>
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono font-bold">POST /api/ai/chat</span>
+              <p className="text-slate-700">RAG Chatbot truy vấn tri thức và trả kèm Product Cards.</p>
             </div>
-            <div className="p-4 rounded-2xl bg-[#0c121e] border border-slate-800 space-y-2">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
               <span className="px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 font-mono font-bold">POST /api/ai/forecast</span>
-              <p className="text-slate-300">Dự báo chuỗi thời gian Hybrid Prophet-ARIMA 30 ngày.</p>
+              <p className="text-slate-700">Dự báo chuỗi thời gian Hybrid Prophet-ARIMA 30 ngày.</p>
             </div>
           </div>
         </div>
@@ -430,13 +430,13 @@ export const ArchitectureStudio: React.FC = () => {
 
       {/* TAB 3: JWT & TOKEN ROTATION DESIGNER */}
       {activeSubTab === "jwt" && (
-        <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4 shadow-xl text-xs">
-          <h3 className="font-bold text-white text-base flex items-center gap-2">
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-xl text-xs">
+          <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
             <Key className="w-5 h-5 text-amber-400" />
             JWT Access Token & Refresh Token Rotation
           </h3>
-          <div className="p-4 rounded-2xl bg-[#0c121e] border border-slate-800 space-y-2 text-slate-300 leading-relaxed font-mono">
-            <p className="text-violet-400 font-bold">1. Client gửi Access Token (15 phút) trong Authorization Header.</p>
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-slate-700 leading-relaxed font-mono">
+            <p className="text-rose-400 font-bold">1. Client gửi Access Token (15 phút) trong Authorization Header.</p>
             <p className="text-blue-400 font-bold">2. Khi Access Token hết hạn, Client gửi Refresh Token (7 ngày) qua `/api/auth/refresh-token`.</p>
             <p className="text-emerald-400 font-bold">3. Backend kiểm tra SHA-256 Hash trong DB và Redis Blacklist.</p>
             <p className="text-pink-400 font-bold">4. Thu hồi Refresh Token cũ, cấp cặp Access Token & Refresh Token mới (Rotation).</p>
@@ -446,12 +446,12 @@ export const ArchitectureStudio: React.FC = () => {
 
       {/* TAB 4: OAUTH2 PKCE STUDIO */}
       {activeSubTab === "oauth2" && (
-        <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4 shadow-xl text-xs">
-          <h3 className="font-bold text-white text-base flex items-center gap-2">
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-xl text-xs">
+          <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
             <Lock className="w-5 h-5 text-cyan-400" />
             OAuth2 with PKCE Security Studio
           </h3>
-          <p className="text-slate-300 leading-relaxed">
+          <p className="text-slate-700 leading-relaxed">
             Hỗ trợ cơ chế Code Challenge (SHA256) & Code Verifier bảo vệ ứng dụng SPA Single Page Application chống lại tấn công chặn bắt Authorization Code.
           </p>
         </div>
@@ -459,14 +459,14 @@ export const ArchitectureStudio: React.FC = () => {
 
       {/* TAB 5: RBAC PERMISSION MATRIX */}
       {activeSubTab === "rbac" && (
-        <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4 shadow-xl text-xs">
-          <h3 className="font-bold text-white text-base flex items-center gap-2">
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-xl text-xs">
+          <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-emerald-400" />
             Role-Based Access Control (RBAC) Permission Matrix
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#0c121e] text-slate-400 border-b border-slate-800">
+              <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                 <tr>
                   <th className="p-3">Tính Năng / API Route</th>
                   <th className="p-3 text-center">CUSTOMER</th>
@@ -474,7 +474,7 @@ export const ArchitectureStudio: React.FC = () => {
                   <th className="p-3 text-center">ADMIN</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              <tbody className="divide-y divide-slate-800/60 text-slate-700">
                 <tr>
                   <td className="p-3">Xem & Tìm kiếm sản phẩm, Giỏ hàng, Đặt hàng</td>
                   <td className="p-3 text-center text-emerald-400 font-bold">✓</td>
@@ -520,42 +520,42 @@ export const ArchitectureStudio: React.FC = () => {
       {/* Add Component Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md bg-[#131c2e] border border-slate-700 rounded-3xl p-6 space-y-4 shadow-2xl">
-            <h3 className="text-base font-bold text-white">Thêm Component Vào Kiến Trúc</h3>
+          <div className="w-full max-w-md bg-white border border-slate-300 rounded-3xl p-6 space-y-4 shadow-2xl">
+            <h3 className="text-base font-bold text-slate-900">Thêm Component Vào Kiến Trúc</h3>
             <form onSubmit={handleAddComponent} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Tên Component</label>
+                <label className="block font-semibold text-slate-700 mb-1">Tên Component</label>
                 <input
                   type="text"
                   required
                   placeholder="VD: Redis Queue / Payment Gateway"
                   value={newCompName}
                   onChange={(e) => setNewCompName(e.target.value)}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-violet-500 text-xs"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500 text-xs"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Tầng Phân Lớp (Layer)</label>
+                <label className="block font-semibold text-slate-700 mb-1">Tầng Phân Lớp (Layer)</label>
                 <select
                   value={newCompLayer}
                   onChange={(e) => setNewCompLayer(e.target.value)}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-violet-500 text-xs"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500 text-xs"
                 >
                   {layersList.map((l) => (
-                    <option key={l} value={l} className="bg-[#131c2e]">{l}</option>
+                    <option key={l} value={l} className="bg-white">{l}</option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Mô tả chức năng</label>
+                <label className="block font-semibold text-slate-700 mb-1">Mô tả chức năng</label>
                 <textarea
                   rows={2}
                   placeholder="Mô tả trách nhiệm của thành phần..."
                   value={newCompDesc}
                   onChange={(e) => setNewCompDesc(e.target.value)}
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-violet-500 text-xs"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500 text-xs"
                 />
               </div>
 
@@ -563,13 +563,13 @@ export const ArchitectureStudio: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-700 hover:bg-slate-700"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold"
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold"
                 >
                   Thêm Component
                 </button>

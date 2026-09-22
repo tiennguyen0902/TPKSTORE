@@ -107,21 +107,21 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-16">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+      <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
         <button
           onClick={onBackToCart}
-          className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors border border-slate-200"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div>
-          <h1 className="text-2xl font-black text-white">Thanh Toán & Đặt Hàng</h1>
-          <p className="text-xs text-slate-400">Vui lòng kiểm tra thông tin giao hàng và chọn phương thức thanh toán</p>
+          <h1 className="text-2xl font-black text-slate-900">Thanh Toán & Đặt Hàng</h1>
+          <p className="text-xs text-slate-500 font-medium">Vui lòng kiểm tra thông tin giao hàng và chọn phương thức thanh toán</p>
         </div>
       </div>
 
       {errorMsg && (
-        <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+        <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{errorMsg}</span>
         </div>
@@ -131,15 +131,15 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         {/* Left Column: Delivery Info & Payment Method */}
         <div className="lg:col-span-7 space-y-6">
           {/* Section 1: Customer Info */}
-          <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-violet-400" />
+          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-rose-600" />
               1. Thông Tin Nhận Hàng
             </h3>
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Họ và tên người nhận *</label>
+                <label className="block font-bold text-slate-700 mb-1">Họ và tên người nhận *</label>
                 <div className="relative">
                   <input
                     type="text"
@@ -147,14 +147,14 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="Nguyễn Văn A"
-                    className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3 py-2.5 pl-9 text-white focus:outline-none focus:border-violet-500"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 pl-9 text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
                   />
                   <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Số điện thoại liên hệ *</label>
+                <label className="block font-bold text-slate-700 mb-1">Số điện thoại liên hệ *</label>
                 <div className="relative">
                   <input
                     type="tel"
@@ -162,33 +162,33 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="0912345678"
-                    className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3 py-2.5 pl-9 text-white focus:outline-none focus:border-violet-500"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 pl-9 text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
                   />
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Địa chỉ chi tiết (Số nhà, Tòa nhà, Phường/Xã, Tỉnh/TP) *</label>
+                <label className="block font-bold text-slate-700 mb-1">Địa chỉ chi tiết (Số nhà, Tòa nhà, Phường/Xã, Tỉnh/TP) *</label>
                 <textarea
                   required
                   rows={2}
                   value={shippingAddress}
                   onChange={(e) => setShippingAddress(e.target.value)}
                   placeholder="Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội"
-                  className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-violet-500 leading-relaxed"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 leading-relaxed"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Ghi chú đơn hàng (Tùy chọn)</label>
+                <label className="block font-bold text-slate-700 mb-1">Ghi chú đơn hàng (Tùy chọn)</label>
                 <div className="relative">
                   <input
                     type="text"
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     placeholder="Giao trong giờ hành chính, gọi trước khi tới..."
-                    className="w-full bg-[#18233a] border border-slate-700 rounded-xl px-3 py-2.5 pl-9 text-white focus:outline-none focus:border-violet-500"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 pl-9 text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
                   />
                   <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 </div>
@@ -197,9 +197,9 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
           </div>
 
           {/* Section 2: Payment Method */}
-          <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-amber-400" />
+          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-amber-600" />
               2. Phương Thức Thanh Toán
             </h3>
 
@@ -209,8 +209,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 onClick={() => setPaymentMethod("COD")}
                 className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${
                   paymentMethod === "COD"
-                    ? "bg-violet-600/15 border-violet-500 shadow-sm"
-                    : "bg-[#18233a] border-slate-700 hover:border-slate-600"
+                    ? "bg-rose-50/80 border-rose-500 shadow-sm"
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -219,19 +219,19 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     name="payment"
                     checked={paymentMethod === "COD"}
                     onChange={() => {}}
-                    className="accent-violet-600"
+                    className="accent-rose-600"
                   />
                   <div>
-                    <p className="font-bold text-white flex items-center gap-2">
-                      <Banknote className="w-4 h-4 text-emerald-400" />
+                    <p className="font-bold text-slate-900 flex items-center gap-2">
+                      <Banknote className="w-4 h-4 text-emerald-600" />
                       Thanh toán khi nhận hàng (COD)
                     </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-slate-500 mt-0.5">
                       Kiểm tra hàng và thanh toán tiền mặt cho shipper khi giao tới
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
                   Tiện lợi
                 </span>
               </label>
@@ -241,8 +241,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 onClick={() => setPaymentMethod("VNPAY")}
                 className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${
                   paymentMethod === "VNPAY"
-                    ? "bg-blue-600/15 border-blue-500 shadow-sm"
-                    : "bg-[#18233a] border-slate-700 hover:border-slate-600"
+                    ? "bg-blue-50/80 border-blue-500 shadow-sm"
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -254,16 +254,16 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     className="accent-blue-600"
                   />
                   <div>
-                    <p className="font-bold text-white flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-blue-400" />
+                    <p className="font-bold text-slate-900 flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-blue-600" />
                       Cổng thanh toán VNPAY Sandbox
                     </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-slate-500 mt-0.5">
                       Hỗ trợ quét mã VNPAY-QR, Thẻ ATM nội địa, Thẻ quốc tế Visa/Mastercard
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-semibold">
+                <span className="text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold border border-blue-200">
                   Thẻ / VNPAY-QR
                 </span>
               </label>
@@ -273,8 +273,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 onClick={() => setPaymentMethod("MOMO")}
                 className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${
                   paymentMethod === "MOMO"
-                    ? "bg-pink-600/15 border-pink-500 shadow-sm"
-                    : "bg-[#18233a] border-slate-700 hover:border-slate-600"
+                    ? "bg-pink-50/80 border-pink-500 shadow-sm"
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -283,21 +283,21 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     name="payment"
                     checked={paymentMethod === "MOMO"}
                     onChange={() => {}}
-                    className="accent-pink-500"
+                    className="accent-pink-600"
                   />
                   <div>
-                    <p className="font-bold text-white flex items-center gap-2">
+                    <p className="font-bold text-slate-900 flex items-center gap-2">
                       <span className="w-4 h-4 rounded bg-[#a50064] text-white flex items-center justify-center font-black text-[7px]">
                         MM
                       </span>
                       Ví Điện Tử MoMo Sandbox (Gateway v2)
                     </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-slate-500 mt-0.5">
                       Quét mã MoMo QR hoặc mở trực tiếp Cổng thanh toán MoMo Sandbox
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 font-semibold">
+                <span className="text-[10px] px-2 py-0.5 rounded bg-pink-100 text-pink-800 font-bold border border-pink-200">
                   Siêu tốc ⭐
                 </span>
               </label>
@@ -307,21 +307,21 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 
         {/* Right Column: Order Summary & Confirmation */}
         <div className="lg:col-span-5">
-          <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-5 sticky top-24 shadow-xl text-xs">
-            <h3 className="text-base font-bold text-white border-b border-slate-800 pb-3">
+          <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-5 sticky top-24 shadow-xl text-xs">
+            <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
               Chi Tiết Đơn Hàng ({items.length} mặt hàng)
             </h3>
 
             {/* Items list */}
             <div className="max-h-56 overflow-y-auto space-y-3 pr-1">
               {items.map((i) => (
-                <div key={i.id} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-[#18233a]">
-                  <img src={i.product?.thumbnail} alt="" className="w-10 h-10 rounded-lg object-cover bg-slate-900 shrink-0" />
+                <div key={i.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <img src={i.product?.thumbnail} alt="" className="w-10 h-10 rounded-lg object-cover bg-white border border-slate-200 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white truncate text-[11px]">{i.product?.name}</p>
-                    <p className="text-[10px] text-slate-400">SL: {i.quantity} x {i.product?.price.toLocaleString("vi-VN")} đ</p>
+                    <p className="font-bold text-slate-900 truncate text-[11px]">{i.product?.name}</p>
+                    <p className="text-[10px] text-slate-500">SL: {i.quantity} x {i.product?.price.toLocaleString("vi-VN")} đ</p>
                   </div>
-                  <span className="font-bold text-white text-xs">
+                  <span className="font-black text-rose-600 text-xs">
                     {((i.product?.price || 0) * i.quantity).toLocaleString("vi-VN")} đ
                   </span>
                 </div>
@@ -329,27 +329,27 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             </div>
 
             {/* Calculations */}
-            <div className="space-y-2.5 pt-3 border-t border-slate-800">
-              <div className="flex justify-between text-slate-300">
+            <div className="space-y-2.5 pt-3 border-t border-slate-100">
+              <div className="flex justify-between text-slate-600 font-medium">
                 <span>Tạm tính tiền hàng:</span>
-                <span className="font-bold text-white">{subtotal.toLocaleString("vi-VN")} đ</span>
+                <span className="font-bold text-slate-900">{subtotal.toLocaleString("vi-VN")} đ</span>
               </div>
-              <div className="flex justify-between text-slate-300">
+              <div className="flex justify-between text-slate-600 font-medium">
                 <span>Phí giao hàng:</span>
-                <span className={`font-semibold ${isFreeShipping ? "text-emerald-400" : "text-white"}`}>
+                <span className={`font-semibold ${isFreeShipping ? "text-emerald-600" : "text-slate-900"}`}>
                   {isFreeShipping ? "Miễn phí (Free Ship)" : `${shippingFee.toLocaleString("vi-VN")} đ`}
                 </span>
               </div>
-              <div className="flex justify-between text-slate-300">
+              <div className="flex justify-between text-slate-600 font-medium">
                 <span>Giảm giá:</span>
                 <span className="text-slate-400">-0đ</span>
               </div>
             </div>
 
             {/* Final Total */}
-            <div className="pt-3 border-t border-slate-800 flex items-baseline justify-between">
-              <span className="text-sm font-bold text-white">Tổng cộng:</span>
-              <span className="text-xl font-black text-violet-400">
+            <div className="pt-3 border-t border-slate-100 flex items-baseline justify-between">
+              <span className="text-sm font-bold text-slate-900">Tổng cộng:</span>
+              <span className="text-xl font-black text-rose-600">
                 {total.toLocaleString("vi-VN")} đ
               </span>
             </div>
@@ -358,7 +358,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             <button
               type="submit"
               disabled={isLoading || items.length === 0}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 text-white font-black text-sm shadow-xl shadow-violet-600/30 transition-all hover:scale-[1.02] active:scale-98"
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 disabled:opacity-40 text-white font-black text-sm shadow-xl shadow-rose-600/30 transition-all hover:scale-[1.02] active:scale-98"
             >
               {isLoading 
                 ? "Đang xử lý đơn hàng..." 
@@ -369,8 +369,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 : "Xác Nhận Đặt Hàng"}
             </button>
 
-            <p className="text-[10px] text-slate-500 text-center flex items-center justify-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Bằng việc đặt hàng, bạn đồng ý với các điều khoản mua sắm của SHOPBEE.
+            <p className="text-[10px] text-slate-500 text-center flex items-center justify-center gap-1 font-medium">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Bằng việc đặt hàng, bạn đồng ý với các điều khoản mua sắm của SHOPBEE.
             </p>
           </div>
         </div>

@@ -31,6 +31,7 @@ import paymentRoutes from "./routes/paymentRoutes";
 import aiRoutes from "./routes/aiRoutes";
 import userRoutes from "./routes/userRoutes";
 import settingsRoutes from "./routes/settingsRoutes";
+import inventoryRoutes from "./routes/inventoryRoutes";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -71,6 +72,7 @@ app.use("/api/payment", paymentRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/inventory", inventoryRoutes);
 
 // Static files & SPA fallback for Frontend (Fullstack / Tenten / Plesk Production)
 const possibleFrontendPaths = [

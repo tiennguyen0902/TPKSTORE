@@ -142,12 +142,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#111827] border border-slate-700/80 rounded-3xl shadow-2xl overflow-y-auto flex flex-col my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-y-auto flex flex-col my-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors"
+          className="absolute top-4 right-4 z-20 p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors shadow-sm"
         >
           <X className="w-5 h-5" />
         </button>
@@ -156,7 +156,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left Column: Image Gallery */}
           <div className="flex flex-col gap-3">
-            <div className="relative w-full pt-[85%] rounded-2xl bg-slate-900 overflow-hidden border border-slate-800">
+            <div className="relative w-full pt-[85%] rounded-2xl bg-slate-50 overflow-hidden border border-slate-200">
               <img
                 src={selectedImage || product.thumbnail || safeImages[0]}
                 alt={product.name}
@@ -176,7 +176,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   <button
                     key={idx}
                     onClick={() => setSelectedImage(img)}
-                    className={`w-16 h-16 rounded-xl overflow-hidden shrink-0 border-2 transition-all ${selectedImage === img ? "border-violet-500 shadow-md shadow-violet-500/20" : "border-slate-800 opacity-60 hover:opacity-100"}`}
+                    className={`w-16 h-16 rounded-xl overflow-hidden shrink-0 border-2 transition-all ${selectedImage === img ? "border-rose-500 shadow-md shadow-rose-500/20" : "border-slate-200 opacity-70 hover:opacity-100"}`}
                   >
                     <img src={img} alt="thumb" className="w-full h-full object-cover" />
                   </button>
@@ -185,17 +185,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             )}
 
             {/* Badges / Guarantees */}
-            <div className="grid grid-cols-3 gap-2 pt-2 text-[10px] text-slate-300">
-              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-[#162032] border border-slate-800">
-                <Truck className="w-4 h-4 text-blue-400 shrink-0" />
+            <div className="grid grid-cols-3 gap-2 pt-2 text-[10px] text-slate-700">
+              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 border border-slate-200 font-medium">
+                <Truck className="w-4 h-4 text-blue-600 shrink-0" />
                 <span>Giao 2h siêu tốc</span>
               </div>
-              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-[#162032] border border-slate-800">
-                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 border border-slate-200 font-medium">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>BH 12 tháng</span>
               </div>
-              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-[#162032] border border-slate-800">
-                <RotateCcw className="w-4 h-4 text-purple-400 shrink-0" />
+              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 border border-slate-200 font-medium">
+                <RotateCcw className="w-4 h-4 text-rose-600 shrink-0" />
                 <span>Đổi trả 7 ngày</span>
               </div>
             </div>
@@ -205,69 +205,69 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           <div className="flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="px-2.5 py-0.5 rounded-full bg-violet-600/20 text-violet-300 border border-violet-500/30 text-[10px] font-bold uppercase tracking-wider">
+                <span className="px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold uppercase tracking-wider">
                   {product.category?.name || "Công nghệ"}
                 </span>
                 <span className="text-xs text-slate-400">Mã: {product.id}</span>
               </div>
 
-              <h2 className="text-lg md:text-xl font-bold text-white leading-snug mb-2">
+              <h2 className="text-lg md:text-xl font-black text-slate-900 leading-snug mb-2">
                 {product.name}
               </h2>
 
               {/* Rating & Stock */}
               <div className="flex items-center gap-4 text-xs mb-4">
-                <div className="flex items-center gap-1 text-amber-400">
-                  <Star className="w-4 h-4 fill-amber-400" />
-                  <span className="font-bold text-white">{safeRating.toFixed(1)}</span>
-                  <span className="text-slate-400">({product.reviewCount || 0} đánh giá)</span>
+                <div className="flex items-center gap-1 text-amber-500">
+                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                  <span className="font-bold text-slate-800">{safeRating.toFixed(1)}</span>
+                  <span className="text-slate-500">({product.reviewCount || 0} đánh giá)</span>
                 </div>
-                <div className="text-slate-400">
-                  Tồn kho: <span className={`font-semibold ${safeStock > 5 ? "text-emerald-400" : "text-amber-400"}`}>{safeStock} sản phẩm</span>
+                <div className="text-slate-500">
+                  Tồn kho: <span className={`font-bold ${safeStock > 5 ? "text-emerald-600" : "text-amber-600"}`}>{safeStock} sản phẩm</span>
                 </div>
               </div>
 
               {/* Price Banner */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-[#172138] to-[#1a1c3b] border border-slate-700/80 mb-4">
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-50 via-white to-amber-50 border border-rose-100 mb-4 shadow-sm">
                 <div className="flex items-baseline gap-3">
-                  <span className="text-2xl font-black text-white">
-                    {safePrice.toLocaleString("vi-VN")} <span className="text-sm font-bold text-violet-400">VNĐ</span>
+                  <span className="text-2xl font-black text-rose-600">
+                    {safePrice.toLocaleString("vi-VN")} <span className="text-sm font-bold">VNĐ</span>
                   </span>
                   {safeOriginalPrice && safeOriginalPrice > safePrice && (
-                    <span className="text-xs text-slate-400 line-through">
+                    <span className="text-xs text-slate-400 line-through font-medium">
                       {safeOriginalPrice.toLocaleString("vi-VN")} VNĐ
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1 font-medium">
+                <p className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1 font-semibold">
                   ✓ Miễn phí giao hàng cho đơn hàng trên 500.000 VNĐ
                 </p>
               </div>
 
               {/* Description */}
               <div className="mb-6">
-                <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2">Đặc điểm nổi bật & Thông số:</h4>
-                <p className="text-xs text-slate-300 leading-relaxed bg-[#131c2e] p-3 rounded-xl border border-slate-800 whitespace-pre-line">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Đặc điểm nổi bật & Thông số:</h4>
+                <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200 whitespace-pre-line font-medium">
                   {product.description || "Không có mô tả chi tiết."}
                 </p>
               </div>
 
               {/* Quantity Selector */}
               <div className="flex items-center gap-4 mb-6">
-                <span className="text-xs font-semibold text-slate-300">Số lượng:</span>
-                <div className="flex items-center border border-slate-700 rounded-xl bg-[#131c2e] overflow-hidden">
+                <span className="text-xs font-bold text-slate-700">Số lượng:</span>
+                <div className="flex items-center border border-slate-300 rounded-xl bg-white overflow-hidden shadow-sm">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     disabled={quantity <= 1}
-                    className="p-2 text-slate-300 hover:bg-slate-700 hover:text-white disabled:opacity-40 transition-colors"
+                    className="p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
-                  <span className="w-12 text-center text-xs font-bold text-white">{quantity}</span>
+                  <span className="w-12 text-center text-xs font-bold text-slate-900">{quantity}</span>
                   <button
                     onClick={() => setQuantity(Math.min(safeStock, quantity + 1))}
                     disabled={quantity >= safeStock}
-                    className="p-2 text-slate-300 hover:bg-slate-700 hover:text-white disabled:opacity-40 transition-colors"
+                    className="p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
@@ -281,23 +281,23 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <button
                   onClick={handleAddToCart}
                   disabled={safeStock <= 0}
-                  className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 text-xs font-bold border border-slate-700 transition-all active:scale-98 shadow-md"
+                  className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 text-xs font-bold border border-slate-300 transition-all active:scale-98 shadow-sm"
                 >
-                  <ShoppingBag className="w-4 h-4 text-violet-400" />
+                  <ShoppingBag className="w-4 h-4 text-rose-600" />
                   <span>{addedToast ? "✓ Đã thêm vào giỏ" : "Thêm vào giỏ"}</span>
                 </button>
 
                 <button
                   onClick={handleBuyNow}
                   disabled={safeStock <= 0}
-                  className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 text-white text-xs font-bold shadow-lg shadow-violet-600/30 transition-all active:scale-98"
+                  className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 disabled:opacity-40 text-white text-xs font-bold shadow-lg shadow-rose-600/30 transition-all active:scale-98"
                 >
                   <span>{safeStock <= 0 ? "Hết hàng" : "Mua ngay"}</span>
                 </button>
               </div>
 
               {addedToast && (
-                <div className="p-2 bg-emerald-600/20 border border-emerald-500/30 rounded-xl text-center text-xs text-emerald-300 font-medium animate-in fade-in">
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs text-emerald-700 font-semibold animate-in fade-in">
                   ✓ Đã thêm {quantity} sản phẩm vào giỏ hàng thành công!
                 </div>
               )}
@@ -307,10 +307,10 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
         {/* Similar Products Block (AI Recommendations) */}
         {similarProducts.length > 0 && (
-          <div className="p-6 md:p-8 bg-[#0c121e] border-t border-slate-800">
+          <div className="p-6 md:p-8 bg-slate-50/80 border-t border-slate-200">
             <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-4 h-4 text-violet-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+              <Sparkles className="w-4 h-4 text-rose-600" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                 Sản phẩm tương tự được AI đề xuất (Similar Products):
               </h3>
             </div>
@@ -321,12 +321,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   <div
                     key={p.id}
                     onClick={() => onSelectProduct(p)}
-                    className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#141c2e] border border-slate-800 hover:border-violet-500/50 cursor-pointer transition-all hover:-translate-y-1"
+                    className="flex items-center gap-3 p-2.5 rounded-2xl bg-white border border-slate-200 hover:border-rose-300 cursor-pointer transition-all hover:-translate-y-1 shadow-sm"
                   >
-                    <img src={p.thumbnail} alt={p.name} className="w-12 h-12 rounded-xl object-cover shrink-0 bg-slate-900" />
+                    <img src={p.thumbnail} alt={p.name} className="w-12 h-12 rounded-xl object-cover shrink-0 bg-slate-50 border border-slate-100" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-white truncate">{p.name}</p>
-                      <p className="text-xs font-bold text-violet-400 mt-0.5">{pPrice.toLocaleString("vi-VN")} đ</p>
+                      <p className="text-xs font-bold text-slate-900 truncate">{p.name}</p>
+                      <p className="text-xs font-black text-rose-600 mt-0.5">{pPrice.toLocaleString("vi-VN")} đ</p>
                     </div>
                   </div>
                 );

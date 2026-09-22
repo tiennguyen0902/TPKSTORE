@@ -60,7 +60,7 @@ export const AdminOrders: React.FC = () => {
       case "DELIVERED":
         return <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">Giao thành công</span>;
       case "SHIPPING":
-        return <span className="px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-400 text-[10px] font-bold">Đang giao hàng</span>;
+        return <span className="px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400 text-[10px] font-bold">Đang giao hàng</span>;
       case "CONFIRMED":
         return <span className="px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold">Đã xác nhận</span>;
       case "PROCESSING":
@@ -102,13 +102,13 @@ export const AdminOrders: React.FC = () => {
   return (
     <div className="space-y-6 pb-16">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-2xl font-black text-white">Quản Lý Đơn Hàng</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h1 className="text-2xl font-black text-slate-900">Quản Lý Đơn Hàng</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
             Xử lý quy trình giao hàng, đổi trả và trạng thái thanh toán ({totalItems} đơn)
             {totalPages > 1 && (
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 font-semibold text-[10px]">
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-semibold text-[10px]">
                 Trang {safeCurrentPage}/{totalPages}
               </span>
             )}
@@ -116,19 +116,19 @@ export const AdminOrders: React.FC = () => {
         </div>
 
         {/* Tabs (Matching Screenshot) */}
-        <div className="flex items-center gap-1.5 p-1 bg-[#131c2e] border border-slate-700/80 rounded-2xl text-xs">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-2xl text-xs overflow-x-auto max-w-full">
           <button
             onClick={() => handleTabChange("all")}
-            className={`px-3 py-1.5 rounded-xl font-semibold transition-all ${
-              activeTab === "all" ? "bg-violet-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+            className={`px-3 py-1.5 rounded-xl font-semibold transition-all whitespace-nowrap ${
+              activeTab === "all" ? "bg-rose-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
             }`}
           >
             Tất cả đơn hàng ({orders.length})
           </button>
           <button
             onClick={() => handleTabChange("returns")}
-            className={`px-3 py-1.5 rounded-xl font-semibold transition-all ${
-              activeTab === "returns" ? "bg-violet-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+            className={`px-3 py-1.5 rounded-xl font-semibold transition-all whitespace-nowrap ${
+              activeTab === "returns" ? "bg-rose-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
             }`}
           >
             Yêu cầu đổi trả ({returnsCount})
@@ -137,8 +137,8 @@ export const AdminOrders: React.FC = () => {
       </div>
 
       {toastMsg && (
-        <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in shadow-xs">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
           <span>{toastMsg}</span>
         </div>
       )}
@@ -151,7 +151,7 @@ export const AdminOrders: React.FC = () => {
             placeholder="Tìm theo mã đơn (#ord_1001), khách hàng, SĐT..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[#131c2e] border border-slate-700/80 rounded-xl px-3.5 py-2 pl-9 text-xs text-white focus:outline-none focus:border-violet-500"
+            className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 pl-9 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-rose-500 shadow-xs"
           />
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
         </div>
@@ -159,7 +159,7 @@ export const AdminOrders: React.FC = () => {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-full sm:w-56 bg-[#131c2e] border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500 cursor-pointer"
+          className="w-full sm:w-56 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-rose-500 cursor-pointer shadow-xs"
         >
           <option value="all">Tất cả trạng thái</option>
           <option value="PENDING">Chờ xác nhận</option>
@@ -172,10 +172,10 @@ export const AdminOrders: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="rounded-3xl bg-[#131c2e] border border-slate-800 overflow-hidden shadow-xl">
+      <div className="rounded-3xl bg-white border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#0c121e] text-slate-400 border-b border-slate-800 uppercase tracking-wider text-[10px]">
+            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="p-4">Mã Đơn</th>
                 <th className="p-4">Khách Hàng</th>
@@ -186,7 +186,7 @@ export const AdminOrders: React.FC = () => {
                 <th className="p-4 text-right">Chi Tiết</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+            <tbody className="divide-y divide-slate-100 text-slate-700">
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-400">Đang tải đơn hàng...</td>
@@ -198,23 +198,23 @@ export const AdminOrders: React.FC = () => {
               ) : (
                 paginatedOrders.map((o) => (
                   <React.Fragment key={o.id}>
-                    <tr className="hover:bg-[#18233a] transition-colors">
-                      <td className="p-4 font-mono font-bold text-white whitespace-nowrap">
+                    <tr className="hover:bg-slate-50 transition-colors">
+                      <td className="p-4 font-mono font-bold text-slate-900 whitespace-nowrap">
                         {o.id}
                       </td>
                       <td className="p-4">
-                        <p className="font-bold text-white">{o.customerName}</p>
+                        <p className="font-bold text-slate-900">{o.customerName}</p>
                         <p className="text-[10px] text-slate-400">{o.phone}</p>
                       </td>
-                      <td className="p-4 text-slate-400 whitespace-nowrap text-[11px]">
+                      <td className="p-4 text-slate-500 whitespace-nowrap text-[11px]">
                         {new Date(o.createdAt).toLocaleDateString("vi-VN")}
                       </td>
-                      <td className="p-4 font-black text-violet-400 whitespace-nowrap">
+                      <td className="p-4 font-black text-rose-600 whitespace-nowrap">
                         {o.finalAmount.toLocaleString("vi-VN")} đ
                       </td>
                       <td className="p-4 whitespace-nowrap">
-                        <span className="font-semibold text-white">{o.paymentMethod}</span>
-                        <span className={`block text-[10px] ${o.paymentStatus === "COMPLETED" ? "text-emerald-400" : "text-amber-400"}`}>
+                        <span className="font-semibold text-slate-800">{o.paymentMethod}</span>
+                        <span className={`block text-[10px] font-bold ${o.paymentStatus === "COMPLETED" ? "text-emerald-600" : "text-amber-600"}`}>
                           {o.paymentStatus === "COMPLETED" ? "Đã thanh toán" : "Chờ thanh toán"}
                         </span>
                       </td>
@@ -222,7 +222,7 @@ export const AdminOrders: React.FC = () => {
                         <select
                           value={o.status}
                           onChange={(e) => handleStatusChange(o.id, e.target.value)}
-                          className="bg-[#18233a] border border-slate-700 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500 cursor-pointer"
+                          className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-rose-500 cursor-pointer"
                         >
                           <option value="PENDING">Chờ xác nhận</option>
                           <option value="CONFIRMED">Đã xác nhận</option>
@@ -235,7 +235,7 @@ export const AdminOrders: React.FC = () => {
                       <td className="p-4 text-right whitespace-nowrap">
                         <button
                           onClick={() => setExpandedId(expandedId === o.id ? null : o.id)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
                         >
                           {expandedId === o.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
@@ -243,22 +243,22 @@ export const AdminOrders: React.FC = () => {
                     </tr>
 
                     {expandedId === o.id && (
-                      <tr className="bg-[#0e1626]">
+                      <tr className="bg-slate-50">
                         <td colSpan={7} className="p-4">
-                          <div className="p-4 rounded-2xl bg-[#131c2e] border border-slate-800 space-y-3">
+                          <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3 shadow-xs">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
-                                <p className="font-bold text-slate-300">Địa chỉ nhận hàng:</p>
-                                <p className="text-slate-400 mt-0.5">{o.shippingAddress}</p>
-                                {o.note && <p className="text-slate-400 italic mt-1">Ghi chú: {o.note}</p>}
+                                <p className="font-bold text-slate-800">Địa chỉ nhận hàng:</p>
+                                <p className="text-slate-600 mt-0.5">{o.shippingAddress}</p>
+                                {o.note && <p className="text-slate-500 italic mt-1">Ghi chú: {o.note}</p>}
                               </div>
                               <div>
-                                <p className="font-bold text-slate-300">Danh sách sản phẩm:</p>
+                                <p className="font-bold text-slate-800">Danh sách sản phẩm:</p>
                                 <div className="space-y-1 mt-1">
                                   {o.items?.map((item) => (
-                                    <div key={item.id} className="flex justify-between text-slate-400">
+                                    <div key={item.id} className="flex justify-between text-slate-600">
                                       <span>• {item.product?.name || item.productId} x{item.quantity}</span>
-                                      <span className="font-bold text-white">{(item.price * item.quantity).toLocaleString("vi-VN")} đ</span>
+                                      <span className="font-bold text-slate-900">{(item.price * item.quantity).toLocaleString("vi-VN")} đ</span>
                                     </div>
                                   ))}
                                 </div>

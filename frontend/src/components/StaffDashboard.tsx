@@ -4,6 +4,7 @@ import {
   ShoppingBag, 
   Boxes, 
   AlertTriangle, 
+  ArrowDownToLine,
   Truck, 
   CheckCircle2, 
   Clock, 
@@ -12,54 +13,75 @@ import {
 import { AdminOrders } from "./AdminOrders";
 import { AdminProducts } from "./AdminProducts";
 import { AdminInventoryAlerts } from "./AdminInventoryAlerts";
+import { StockTicketsView } from "./StockTicketsView";
 
 export const StaffDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"orders" | "products" | "alerts">("orders");
+  const [activeTab, setActiveTab] = useState<"tickets" | "products" | "orders" | "alerts">("tickets");
 
   return (
     <div className="space-y-6 pb-16">
       {/* Staff Header Banner */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-950/60 via-[#131c2e] to-indigo-950/60 border border-blue-500/30 space-y-4 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-5 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-300 text-[11px] font-semibold mb-1">
-              <Package className="w-3.5 h-3.5" />
-              <span>STAFF OPERATIONS PORTAL</span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[11px] font-bold mb-1 border border-rose-200">
+              <Package className="w-3.5 h-3.5 text-rose-600" />
+              <span>STAFF OPERATIONS & WAREHOUSE PORTAL</span>
             </div>
-            <h1 className="text-2xl font-black text-white">
-              Cổng Vận Hành & Bán Hàng Dành Cho Nhân Viên
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Cổng Vận Hành & Xuất Nhập Kho Cho Nhân Viên
             </h1>
-            <p className="text-xs text-slate-300 mt-0.5">
-              Xử lý đơn hàng, theo dõi giao vận, kiểm soát số lượng tồn kho và duyệt nhập hàng thông minh
+            <p className="text-xs text-slate-500 mt-0.5 font-medium">
+              Lập yêu cầu xuất/nhập kho gửi Quản lý phê duyệt, quản lý tồn kho và xử lý đơn hàng
             </p>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2 p-1 bg-[#18233a] border border-slate-700/80 rounded-2xl text-xs">
+        {/* Tab Navigation Strip (All 4 tabs aligned cleanly in one horizontal row) */}
+        <div className="pt-3 border-t border-slate-100">
+          <div className="inline-flex items-center gap-1.5 p-1.5 bg-slate-100 border border-slate-200 rounded-2xl text-xs overflow-x-auto max-w-full shadow-xs">
             <button
-              onClick={() => setActiveTab("orders")}
-              className={`px-3.5 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === "orders" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+              onClick={() => setActiveTab("tickets")}
+              className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "tickets"
+                  ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span>Xử Lý Đơn Hàng</span>
+              <ArrowDownToLine className="w-4 h-4" />
+              <span>Phiếu Xuất / Nhập Kho</span>
             </button>
             <button
               onClick={() => setActiveTab("products")}
-              className={`px-3.5 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === "products" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+              className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "products"
+                  ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
-              <Boxes className="w-3.5 h-3.5" />
-              <span>Sản Phẩm</span>
+              <Boxes className="w-4 h-4" />
+              <span>Sản Phẩm Kho</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("orders")}
+              className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "orders"
+                  ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span>Xử Lý Đơn Hàng</span>
             </button>
             <button
               onClick={() => setActiveTab("alerts")}
-              className={`px-3.5 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
-                activeTab === "alerts" ? "bg-amber-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+              className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "alerts"
+                  ? "bg-amber-600 text-white shadow-md shadow-amber-600/30"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
-              <AlertTriangle className="w-3.5 h-3.5" />
+              <AlertTriangle className="w-4 h-4" />
               <span>Cảnh Báo Tồn Kho</span>
             </button>
           </div>
@@ -67,8 +89,9 @@ export const StaffDashboard: React.FC = () => {
       </div>
 
       {/* Main Tab View */}
-      {activeTab === "orders" && <AdminOrders />}
+      {activeTab === "tickets" && <StockTicketsView embeddedRole="STAFF" />}
       {activeTab === "products" && <AdminProducts />}
+      {activeTab === "orders" && <AdminOrders />}
       {activeTab === "alerts" && <AdminInventoryAlerts />}
     </div>
   );

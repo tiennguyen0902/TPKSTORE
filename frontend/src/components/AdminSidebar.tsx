@@ -6,6 +6,7 @@ import {
   ShoppingBag, 
   Users, 
   Boxes, 
+  ArrowDownToLine,
   Cpu, 
   TrendingUp, 
   AlertTriangle, 
@@ -27,6 +28,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onNavigateHome
 }) => {
   const { user, logout } = useAuth();
+  const isManager = user?.role === "MANAGER";
 
   const navSections = [
     {
@@ -36,21 +38,22 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       ]
     },
     {
-      title: "QUẢN LÝ BÁN HÀNG",
+      title: "QUẢN LÝ KHO & BÁN HÀNG",
       items: [
-        { id: "admin_products", label: "Sản phẩm", icon: <Package className="w-4 h-4" /> },
+        { id: "admin_stock_tickets", label: "Duyệt Xuất/Nhập Kho", icon: <ArrowDownToLine className="w-4 h-4 text-rose-400" /> },
+        { id: "admin_products", label: "Sản phẩm kho", icon: <Package className="w-4 h-4" /> },
         { id: "admin_categories", label: "Danh mục", icon: <Tag className="w-4 h-4" /> },
         { id: "admin_orders", label: "Đơn hàng", icon: <ShoppingBag className="w-4 h-4" /> },
         { id: "admin_customers", label: "Khách hàng", icon: <Users className="w-4 h-4" /> },
-        { id: "admin_inventory", label: "Tồn kho", icon: <Boxes className="w-4 h-4" /> }
+        { id: "admin_inventory", label: "Tồn kho & Cảnh báo", icon: <Boxes className="w-4 h-4" /> }
       ]
     },
     {
       title: "TRÍ TUỆ NHÂN TẠO",
       items: [
-        { id: "admin_studio", label: "Architecture Studio", icon: <Cpu className="w-4 h-4 text-violet-400" /> },
-        { id: "admin_forecast", label: "AI Analytics & Dự báo", icon: <TrendingUp className="w-4 h-4 text-emerald-400" /> },
-        { id: "admin_inventory_alerts", label: "Cảnh báo tồn kho", icon: <AlertTriangle className="w-4 h-4 text-amber-400" /> }
+        { id: "admin_studio", label: "Architecture Studio", icon: <Cpu className="w-4 h-4 text-rose-400" /> },
+        { id: "admin_forecast", label: "AI Dự Báo Doanh Thu", icon: <TrendingUp className="w-4 h-4 text-emerald-400" /> },
+        { id: "admin_inventory_alerts", label: "Cảnh báo cạn kho AI", icon: <AlertTriangle className="w-4 h-4 text-amber-400" /> }
       ]
     },
     {
@@ -62,19 +65,23 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   ];
 
   return (
-    <aside className="w-64 bg-[#0a0e17] border-r border-slate-800/80 flex flex-col justify-between shrink-0 h-screen sticky top-0 z-30 select-none overflow-y-auto">
+    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 h-screen sticky top-0 z-30 select-none overflow-y-auto shadow-sm">
       <div>
         {/* Brand Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-violet-600 flex items-center justify-center font-black text-white shadow-md">
+        <div className="p-5 border-b border-slate-100 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-600 to-rose-700 flex items-center justify-center font-black text-white shadow-md shadow-rose-600/30">
             🐝
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-sm text-white tracking-wider">SHOPBEE</span>
-              <span className="text-[9px] uppercase font-bold text-violet-400 bg-violet-400/10 px-1 py-0.2 rounded border border-violet-400/20">ADMIN</span>
+              <span className="font-extrabold text-sm text-slate-900 tracking-wider">SHOPBEE</span>
+              <span className="text-[9px] uppercase font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                {isManager ? "MANAGER" : "ADMIN"}
+              </span>
             </div>
-            <p className="text-[10px] text-slate-500 font-medium">BẢNG QUẢN TRỊ</p>
+            <p className="text-[10px] text-slate-500 font-medium">
+              {isManager ? "ĐIỀU HÀNH KHO HÀNG" : "BẢNG QUẢN TRỊ TỐI CAO"}
+            </p>
           </div>
         </div>
 
@@ -82,7 +89,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <div className="p-4 space-y-6">
           {navSections.map((sec, idx) => (
             <div key={idx} className="space-y-1.5">
-              <p className="text-[10px] font-extrabold tracking-wider text-slate-500 uppercase px-3">
+              <p className="text-[10px] font-extrabold tracking-wider text-slate-400 uppercase px-3">
                 {sec.title}
               </p>
               <div className="space-y-0.5">
@@ -94,8 +101,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       onClick={() => setActiveTab(item.id)}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                         isActive
-                          ? "bg-violet-600 text-white shadow-md shadow-violet-600/30"
-                          : "text-slate-400 hover:bg-[#131c2e] hover:text-slate-200"
+                          ? "bg-rose-600 text-white shadow-md shadow-rose-600/25"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
@@ -113,17 +120,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       </div>
 
       {/* Bottom Profile Info & Actions */}
-      <div className="p-4 border-t border-slate-800/80 space-y-3 bg-[#080b12]">
+      <div className="p-4 border-t border-slate-100 space-y-3 bg-slate-50">
         {/* User Card */}
-        <div className="flex items-center gap-3 p-2 rounded-xl bg-[#111827] border border-slate-800">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {user?.fullName?.charAt(0) || "A"}
+        <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-slate-200 shadow-sm">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-600 to-rose-800 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-md">
+            {user?.fullName?.charAt(0) || "U"}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-white truncate">
-              {user?.fullName || "Thang Quốc Khải (Admin)"}
+            <p className="text-xs font-bold text-slate-900 truncate">
+              {user?.fullName || (isManager ? "Trần Quốc Quản" : "Thang Quốc Khải")}
             </p>
-            <p className="text-[10px] text-slate-400 truncate">{user?.email || "admin@example.com"}</p>
+            <p className="text-[10px] text-slate-500 truncate">{user?.email || (isManager ? "manager@example.com" : "admin@example.com")}</p>
           </div>
         </div>
 
@@ -131,15 +138,15 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <div className="space-y-1 text-xs">
           <button
             onClick={onNavigateHome}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition-colors"
           >
-            <Home className="w-4 h-4 text-violet-400" />
+            <Home className="w-4 h-4 text-rose-600" />
             <span>Về cửa hàng</span>
           </button>
 
           <button
             onClick={logout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 transition-colors font-medium"
           >
             <LogOut className="w-4 h-4" />
             <span>Đăng xuất</span>

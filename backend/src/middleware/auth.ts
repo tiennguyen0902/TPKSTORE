@@ -86,7 +86,7 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
   });
 }
 
-export function authorize(allowedRoles: ("ADMIN" | "STAFF" | "CUSTOMER")[]) {
+export function authorize(allowedRoles: ("ADMIN" | "MANAGER" | "STAFF" | "CUSTOMER")[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: "Chưa xác thực người dùng." });

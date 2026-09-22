@@ -5,9 +5,30 @@ export interface User {
   phone?: string;
   address?: string;
   avatar?: string;
-  role: "ADMIN" | "STAFF" | "CUSTOMER";
+  role: "ADMIN" | "MANAGER" | "STAFF" | "CUSTOMER";
   isActive: boolean;
   createdAt?: string;
+}
+
+export interface StockTicket {
+  id: string;
+  type: "IMPORT" | "EXPORT";
+  productId: string;
+  productName: string;
+  productThumbnail?: string;
+  quantity: number;
+  reason: string;
+  note?: string;
+  requestedByUserId: string;
+  requestedByName: string;
+  requestedByRole: "STAFF" | "MANAGER" | "ADMIN";
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  approvedByUserId?: string;
+  approvedByName?: string;
+  approvedAt?: string;
+  rejectReason?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Category {

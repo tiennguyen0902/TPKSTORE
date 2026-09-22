@@ -1,4 +1,4 @@
-import { User, Product, Category, CartData, Order, InventoryAlert, ForecastData, SystemSettings } from "../types";
+import { User, Product, Category, CartData, Order, InventoryAlert, ForecastData, SystemSettings, StockTicket } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE || (typeof window !== "undefined" && window.location.hostname === "localhost" && window.location.port === "5173" ? "http://localhost:5000/api" : "/api");
 
@@ -98,6 +98,8 @@ export const api = {
     sortBy?: string;
     isFeatured?: boolean;
     isNew?: boolean;
+    limit?: number;
+    page?: number;
   }): Promise<{ total: number; products: Product[] }> {
     const url = buildUrl("/products");
     if (params) {
@@ -108,6 +110,8 @@ export const api = {
       if (params.sortBy) url.searchParams.append("sortBy", params.sortBy);
       if (params.isFeatured !== undefined) url.searchParams.append("isFeatured", params.isFeatured.toString());
       if (params.isNew !== undefined) url.searchParams.append("isNew", params.isNew.toString());
+      if (params.limit !== undefined) url.searchParams.append("limit", params.limit.toString());
+      if (params.page !== undefined) url.searchParams.append("page", params.page.toString());
     }
     const res = await fetch(url.toString());
     return res.json();
@@ -481,6 +485,65 @@ export const api = {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "Lưu cài đặt thất bại");
+    return json;
+  },
+
+  // Stock Inbound / Outbound Tickets Management (Warehouse Manager & Staff)
+  async getStockTickets(status?: string, type?: string, search?: string, mine?: boolean): Promise<{ total: number; tickets: StockTicket[] }> {
+    const url = buildUrl("/inventory/tickets");
+    if (status && status !== "ALL") url.searchParams.append("status", status);
+    if (type && type !== "ALL") url.searchParams.append("type", type);
+    if (search) url.searchParams.append("search", search);
+    if (mine) url.searchParams.append("mine", "true");
+    const res = await fetch(url.toString(), {
+      headers: { ...getAuthHeader() }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Không thể tải danh sách phiếu kho");
+    return data;
+  },
+
+  async getStockSummary() {
+    const res = await fetch(`${API_BASE}/inventory/summary`, {
+      headers: { ...getAuthHeader() }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Không thể lấy thống kê kho");
+    return data;
+  },
+
+  async createStockTicket(data: { productId: string; type: "IMPORT" | "EXPORT"; quantity: number; reason: string; note?: string }): Promise<{ message: string; ticket: StockTicket }> {
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
+    const res = await fetch(`${API_BASE}/inventory/tickets`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Tạo phiếu xuất/nhập kho thất bại");
+    return json;
+  },
+
+  async approveStockTicket(ticketId: string): Promise<{ message: string; ticket: StockTicket; newStock?: number }> {
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
+    const res = await fetch(`${API_BASE}/inventory/tickets/${ticketId}/approve`, {
+      method: "PUT",
+      headers
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Phê duyệt phiếu thất bại");
+    return json;
+  },
+
+  async rejectStockTicket(ticketId: string, reason?: string): Promise<{ message: string; ticket: StockTicket }> {
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
+    const res = await fetch(`${API_BASE}/inventory/tickets/${ticketId}/reject`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ reason })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Từ chối phiếu thất bại");
     return json;
   }
 };

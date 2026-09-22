@@ -24,6 +24,7 @@ import { AdminAiForecast } from "./components/AdminAiForecast";
 import { ArchitectureStudio } from "./components/ArchitectureStudio";
 import { AdminSettings } from "./components/AdminSettings";
 import { StaffDashboard } from "./components/StaffDashboard";
+import { StockTicketsView } from "./components/StockTicketsView";
 import { Product } from "./types";
 import { ShieldAlert } from "lucide-react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -44,6 +45,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   admin_orders: "/admin/orders",
   admin_customers: "/admin/customers",
   admin_inventory: "/admin/inventory",
+  admin_stock_tickets: "/admin/stock-tickets",
   admin_studio: "/admin/studio",
   admin_forecast: "/admin/forecast",
   admin_inventory_alerts: "/admin/inventory-alerts",
@@ -96,6 +98,7 @@ function parseUrl(pathname: string, search: string): ParsedRoute {
   if (path === "/admin/orders") return { view: "admin_orders" };
   if (path === "/admin/customers") return { view: "admin_customers" };
   if (path === "/admin/inventory") return { view: "admin_inventory" };
+  if (path === "/admin/stock-tickets" || path === "/admin/tickets") return { view: "admin_stock_tickets" };
   if (path === "/admin/studio") return { view: "admin_studio" };
   if (path === "/admin/forecast") return { view: "admin_forecast" };
   if (path === "/admin/inventory-alerts" || path === "/admin/alerts") return { view: "admin_inventory_alerts" };
@@ -249,10 +252,10 @@ const MainApp: React.FC = () => {
 
   const isAdminRoute = currentView.startsWith("admin_");
 
-  // Route Protection: Admin Portal
-  if (isAdminRoute && user?.role !== "ADMIN") {
+  // Route Protection: Admin & Warehouse Manager Portal
+  if (isAdminRoute && user?.role !== "ADMIN" && user?.role !== "MANAGER") {
     return (
-      <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans">
+      <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
         <Navbar
           currentView={currentView}
           setCurrentView={handleNavigateView}
@@ -262,24 +265,24 @@ const MainApp: React.FC = () => {
           setSelectedCategory={handleSelectCategory}
         />
         <main className="flex-1 flex items-center justify-center p-4">
-          <div className="max-w-md w-full p-8 rounded-3xl bg-[#131c2e] border border-slate-800 text-center space-y-4 shadow-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center mx-auto">
+          <div className="max-w-md w-full p-8 rounded-3xl bg-white border border-slate-200 text-center space-y-4 shadow-xl">
+            <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto">
               <ShieldAlert className="w-7 h-7" />
             </div>
-            <h2 className="text-lg font-bold text-white">Yêu Cầu Quyền Quản Trị Viên</h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Khu vực này yêu cầu đăng nhập bằng tài khoản Quản trị viên (ADMIN). Vui lòng đăng nhập để tiếp tục.
+            <h2 className="text-lg font-bold text-slate-900">Yêu Cầu Quyền Quản Trị Hoặc Quản Lý Kho</h2>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Khu vực này yêu cầu đăng nhập bằng tài khoản Quản trị viên (ADMIN) hoặc Quản lý kho (MANAGER). Vui lòng đăng nhập để tiếp tục.
             </p>
             <div className="pt-2 flex justify-center gap-3">
               <button
                 onClick={() => navigate("/")}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
               >
                 Về cửa hàng
               </button>
               <button
                 onClick={() => navigate("/login")}
-                className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-lg shadow-violet-600/30"
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/30"
               >
                 Đăng nhập
               </button>
@@ -294,7 +297,7 @@ const MainApp: React.FC = () => {
   // Route Protection: Staff Portal
   if (currentView === "staff_dashboard" && user?.role !== "STAFF" && user?.role !== "ADMIN") {
     return (
-      <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans">
+      <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
         <Navbar
           currentView={currentView}
           setCurrentView={handleNavigateView}
@@ -304,24 +307,24 @@ const MainApp: React.FC = () => {
           setSelectedCategory={handleSelectCategory}
         />
         <main className="flex-1 flex items-center justify-center p-4">
-          <div className="max-w-md w-full p-8 rounded-3xl bg-[#131c2e] border border-slate-800 text-center space-y-4 shadow-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center mx-auto">
+          <div className="max-w-md w-full p-8 rounded-3xl bg-white border border-slate-200 text-center space-y-4 shadow-xl">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center mx-auto">
               <ShieldAlert className="w-7 h-7" />
             </div>
-            <h2 className="text-lg font-bold text-white">Yêu Cầu Quyền Nhân Viên Vận Hành</h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <h2 className="text-lg font-bold text-slate-900">Yêu Cầu Quyền Nhân Viên Vận Hành</h2>
+            <p className="text-xs text-slate-600 leading-relaxed">
               Cổng vận hành yêu cầu tài khoản Nhân viên (STAFF) hoặc Quản trị viên (ADMIN).
             </p>
             <div className="pt-2 flex justify-center gap-3">
               <button
                 onClick={() => navigate("/")}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
               >
                 Về cửa hàng
               </button>
               <button
                 onClick={() => navigate("/login")}
-                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30"
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/30"
               >
                 Đăng nhập
               </button>
@@ -334,18 +337,19 @@ const MainApp: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans selection:bg-violet-600 selection:text-white">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-rose-600 selection:text-white">
       {/* If Admin view -> Render Admin Layout with Sidebar */}
       {isAdminRoute ? (
-        <div className="flex h-screen overflow-hidden">
+        <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
           <AdminSidebar
             activeTab={currentView}
             setActiveTab={handleNavigateView}
             onNavigateHome={() => navigate("/")}
           />
-          <main className="flex-1 overflow-y-auto bg-[#0b0f19] p-6 lg:p-8">
+          <main className="flex-1 overflow-y-auto bg-[#f8fafc] p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
               {currentView === "admin_dashboard" && <AdminDashboard onNavigateTab={handleNavigateView} />}
+              {currentView === "admin_stock_tickets" && <StockTicketsView embeddedRole={user?.role as any} />}
               {currentView === "admin_products" && <AdminProducts />}
               {currentView === "admin_categories" && <AdminCategories />}
               {currentView === "admin_orders" && <AdminOrders />}

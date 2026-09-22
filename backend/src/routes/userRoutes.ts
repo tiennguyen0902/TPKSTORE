@@ -60,8 +60,8 @@ router.put("/:id/role", authenticateToken, authorize(["ADMIN"]), async (req: Aut
     }
 
     const { role } = req.body;
-    if (!role || !["ADMIN", "STAFF", "CUSTOMER"].includes(role)) {
-      return res.status(400).json({ error: "Vai trò không hợp lệ." });
+    if (!role || !["ADMIN", "MANAGER", "STAFF", "CUSTOMER"].includes(role)) {
+      return res.status(400).json({ error: "Vai trò không hợp lệ. Chọn ADMIN, MANAGER, STAFF hoặc CUSTOMER." });
     }
 
     const updatedUser = await db.user.update({

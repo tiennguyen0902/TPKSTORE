@@ -32,6 +32,7 @@ const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 const aiRoutes_1 = __importDefault(require("./routes/aiRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const settingsRoutes_1 = __importDefault(require("./routes/settingsRoutes"));
+const inventoryRoutes_1 = __importDefault(require("./routes/inventoryRoutes"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
 // Middlewares
@@ -67,6 +68,7 @@ app.use("/api/payment", paymentRoutes_1.default);
 app.use("/api/ai", aiRoutes_1.default);
 app.use("/api/users", userRoutes_1.default);
 app.use("/api/settings", settingsRoutes_1.default);
+app.use("/api/inventory", inventoryRoutes_1.default);
 // Static files & SPA fallback for Frontend (Fullstack / Tenten / Plesk Production)
 const possibleFrontendPaths = [
     path_1.default.resolve(process.cwd(), "frontend/dist"),

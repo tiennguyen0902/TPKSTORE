@@ -60,7 +60,13 @@ function isConnectionError(err) {
         msg.includes("connection closed") ||
         msg.includes("does not exist") ||
         msg.includes("access denied") ||
-        msg.includes("permission denied"));
+        msg.includes("permission denied") ||
+        msg.includes("libssl") ||
+        msg.includes("shared library") ||
+        msg.includes("unable to require") ||
+        msg.includes("query_engine") ||
+        msg.includes("compatible") ||
+        msg.includes("prisma engine"));
 }
 /**
  * Fallback Database Engine (Bộ lưu trữ dự phòng tự động khi PostgreSQL trên Hosting chưa bật)
@@ -76,6 +82,7 @@ class FallbackStore {
     carts = [];
     cartItems = [];
     aiInteractions = [];
+    stockTickets = [];
     dataDir;
     dataFilePath;
     hasLoggedFallback = false;
@@ -114,6 +121,12 @@ class FallbackStore {
         for (const u of this.users) {
             this.carts.push({ id: `cart_${u.id}`, userId: u.id, createdAt: new Date(), updatedAt: new Date() });
         }
+        // Stock tickets mặc định
+        this.stockTickets = mockData_1.INITIAL_STOCK_TICKETS.map(s => ({
+            ...s,
+            createdAt: new Date(s.createdAt),
+            updatedAt: new Date(s.updatedAt)
+        }));
         // Đọc thêm từ file store.json nếu có
         this.loadFromFile();
     }
@@ -144,6 +157,7 @@ class FallbackStore {
                 refreshTokens: this.refreshTokens,
                 carts: this.carts,
                 cartItems: this.cartItems,
+                stockTickets: this.stockTickets,
                 savedAt: new Date().toISOString()
             };
             fs_1.default.writeFileSync(this.dataFilePath, JSON.stringify(data, null, 2), "utf8");
@@ -195,6 +209,20 @@ class FallbackStore {
                     this.carts = data.carts;
                 if (Array.isArray(data.cartItems))
                     this.cartItems = data.cartItems;
+                if (Array.isArray(data.stockTickets)) {
+                    const loadedTickets = data.stockTickets.map((s) => ({
+                        ...s,
+                        createdAt: new Date(s.createdAt),
+                        updatedAt: new Date(s.updatedAt)
+                    }));
+                    const existingIds = new Set(loadedTickets.map((s) => s.id));
+                    const newTickets = mockData_1.INITIAL_STOCK_TICKETS.filter(s => !existingIds.has(s.id)).map(s => ({
+                        ...s,
+                        createdAt: new Date(s.createdAt),
+                        updatedAt: new Date(s.updatedAt)
+                    }));
+                    this.stockTickets = [...loadedTickets, ...newTickets];
+                }
             }
         }
         catch (e) { }
@@ -598,6 +626,76 @@ function createModelProxy(modelName) {
                         const record = { id: (0, uuid_1.v4)(), ...options.data, createdAt: new Date() };
                         fallback.aiInteractions.push(record);
                         return record;
+                    }
+                }
+                if (modelName === "stockTicket") {
+                    if (method === "findMany") {
+                        let list = [...fallback.stockTickets];
+                        if (options.where) {
+                            const w = options.where;
+                            if (w.status && w.status !== "ALL") {
+                                list = list.filter(t => t.status === w.status);
+                            }
+                            if (w.type && w.type !== "ALL") {
+                                list = list.filter(t => t.type === w.type);
+                            }
+                            if (w.requestedByUserId) {
+                                list = list.filter(t => t.requestedByUserId === w.requestedByUserId);
+                            }
+                            if (w.search) {
+                                const q = String(w.search).toLowerCase();
+                                list = list.filter(t => t.productName?.toLowerCase().includes(q) ||
+                                    t.reason?.toLowerCase().includes(q) ||
+                                    t.requestedByName?.toLowerCase().includes(q) ||
+                                    t.id?.toLowerCase().includes(q));
+                            }
+                        }
+                        // Sắp xếp mặc định mới nhất trước
+                        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                        return list;
+                    }
+                    if (method === "count") {
+                        let list = [...fallback.stockTickets];
+                        if (options.where) {
+                            const w = options.where;
+                            if (w.status && w.status !== "ALL")
+                                list = list.filter(t => t.status === w.status);
+                            if (w.type && w.type !== "ALL")
+                                list = list.filter(t => t.type === w.type);
+                        }
+                        return list.length;
+                    }
+                    if (method === "findUnique" || method === "findFirst") {
+                        return fallback.stockTickets.find(t => t.id === options.where?.id) || null;
+                    }
+                    if (method === "create") {
+                        const ticket = {
+                            id: options.data.id || `stk_${(0, uuid_1.v4)().substring(0, 8)}`,
+                            ...options.data,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        };
+                        fallback.stockTickets.unshift(ticket);
+                        fallback.saveToFile();
+                        return ticket;
+                    }
+                    if (method === "update") {
+                        const idx = fallback.stockTickets.findIndex(t => t.id === options.where?.id);
+                        if (idx !== -1) {
+                            fallback.stockTickets[idx] = {
+                                ...fallback.stockTickets[idx],
+                                ...options.data,
+                                updatedAt: new Date()
+                            };
+                            fallback.saveToFile();
+                            return fallback.stockTickets[idx];
+                        }
+                        return null;
+                    }
+                    if (method === "delete") {
+                        fallback.stockTickets = fallback.stockTickets.filter(t => t.id !== options.where?.id);
+                        fallback.saveToFile();
+                        return { success: true };
                     }
                 }
                 return null;

@@ -3,18 +3,18 @@
 }
 
 :root {
-  --bg-main: #0b0f19;
-  --card-bg: rgba(19, 27, 46, 0.85);
-  --border-color: rgba(30, 41, 59, 0.8);
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --accent-purple: #8b5cf6;
-  --accent-glow: rgba(99, 102, 241, 0.15);
+  --bg-main: #f8fafc;
+  --card-bg: #ffffff;
+  --border-color: rgba(226, 232, 240, 0.9);
+  --primary: #e11d48;
+  --primary-hover: #be123c;
+  --accent-cherry: #f43f5e;
+  --accent-glow: rgba(225, 29, 72, 0.12);
 }
 
 body {
-  background-color: #0b0f19;
-  color: #f1f5f9;
+  background-color: #f8fafc;
+  color: #0f172a;
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   margin: 0;
   padding: 0;
@@ -31,48 +31,51 @@ body {
   max-width: 100vw;
   text-align: left;
   border: none;
+  background-color: #f8fafc;
 }
 
-/* Glassmorphism Classes */
+/* Glassmorphism Classes for Light Theme */
 .glass-panel {
-  background: rgba(19, 27, 46, 0.75);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .glass-card {
-  background: rgba(19, 27, 46, 0.65);
+  background: #ffffff;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
-  background: rgba(26, 36, 61, 0.85);
-  border-color: rgba(99, 102, 241, 0.4);
+  background: #ffffff;
+  border-color: rgba(225, 29, 72, 0.35);
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 12px 25px -4px rgba(225, 29, 72, 0.12);
 }
 
-/* Custom Scrollbars */
+/* Custom Scrollbars for Light Theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0b0f19;
+  background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #cbd5e1;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #94a3b8;
 }
 
 /* Keyframe Animations */

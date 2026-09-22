@@ -44,28 +44,28 @@ export const AdminAiForecast: React.FC = () => {
   return (
     <div className="space-y-6 pb-16">
       {/* Top Banner (Matching Screenshot!) */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-violet-950/70 via-[#131c2e] to-indigo-950/70 border border-violet-500/30 space-y-6 shadow-xl">
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-rose-950/70 via-[#131c2e] to-rose-800/70 border border-rose-500/30 space-y-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-violet-500 to-indigo-500 flex items-center justify-center text-white shadow-lg">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-500 to-rose-800 flex items-center justify-center text-slate-900 shadow-lg">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-black text-white">
+              <h2 className="text-base font-black text-slate-900">
                 Mô Hình AI Time-Series: {metrics.modelName}
               </h2>
-              <p className="text-xs text-violet-300">
+              <p className="text-xs text-rose-300">
                 Tự động phân tích chuỗi thời gian, tính mùa vụ (Seasonality) và dự phóng xu hướng
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-center">
-            <span className="text-xs text-slate-400">Khung thời gian:</span>
+            <span className="text-xs text-slate-500">Khung thời gian:</span>
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(parseInt(e.target.value))}
-              className="bg-[#18233a] border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500 cursor-pointer"
+              className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-rose-500 cursor-pointer"
             >
               <option value="30">30 ngày tới</option>
               <option value="60">60 ngày tới</option>
@@ -76,36 +76,36 @@ export const AdminAiForecast: React.FC = () => {
 
         {/* 4 Metric Cards (Matching Screenshot!) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-          <div className="p-4 rounded-2xl bg-[#0e1626] border border-slate-800">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tăng trưởng dự báo</p>
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tăng trưởng dự báo</p>
             <p className="text-xl font-black text-emerald-400 mt-1">{metrics.forecastGrowth}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-[#0e1626] border border-slate-800">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sai số tuyệt đối (MAPE)</p>
-            <p className="text-xl font-black text-white mt-1">{metrics.mape}</p>
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Sai số tuyệt đối (MAPE)</p>
+            <p className="text-xl font-black text-slate-900 mt-1">{metrics.mape}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-[#0e1626] border border-slate-800">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Độ lệch chuẩn (RMSE)</p>
-            <p className="text-xl font-black text-white mt-1">{metrics.rmse}</p>
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Độ lệch chuẩn (RMSE)</p>
+            <p className="text-xl font-black text-slate-900 mt-1">{metrics.rmse}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-[#0e1626] border border-slate-800">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Độ chính xác R² Score</p>
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Độ chính xác R² Score</p>
             <p className="text-xl font-black text-amber-400 mt-1">{metrics.r2Score}</p>
           </div>
         </div>
       </div>
 
       {/* Big Chart: Doanh thu thực tế vs Doanh thu dự báo (Matching Screenshot!) */}
-      <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4 shadow-xl">
+      <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="font-bold text-white text-sm uppercase tracking-wider">
+            <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider">
               ĐỒ THỊ DỰ BÁO DOANH THU TƯƠNG LAI & KHOẢNG TIN CẬY (CONFIDENCE INTERVAL 95%)
             </h3>
-            <p className="text-[10px] text-slate-400">Đơn vị: Triệu VNĐ (Bao gồm Upper / Lower Bounds)</p>
+            <p className="text-[10px] text-slate-500">Đơn vị: Triệu VNĐ (Bao gồm Upper / Lower Bounds)</p>
           </div>
 
           {/* Legend */}
@@ -263,33 +263,33 @@ export const AdminAiForecast: React.FC = () => {
       </div>
 
       {/* AI Business Actionable Insights (Matching Screenshot!) */}
-      <div className="p-6 rounded-3xl bg-[#131c2e] border border-slate-800 space-y-4 shadow-xl">
-        <div className="flex items-center gap-2 text-white font-bold text-sm">
+      <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-xl">
+        <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
           <Lightbulb className="w-5 h-5 text-amber-400" />
           <span>KHUYẾN NGHỊ KINH DOANH TỰ ĐỘNG TỪ AI (AI BUSINESS ACTIONABLE INSIGHTS)</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-2xl bg-[#0c121e] border border-slate-800 space-y-2">
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
             <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-[10px] font-bold">MỨC ĐỘ: CAO</span>
-            <h4 className="font-bold text-white text-xs">Tăng Trưởng Nhu Cầu Cuối Tuần</h4>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
+            <h4 className="font-bold text-slate-900 text-xs">Tăng Trưởng Nhu Cầu Cuối Tuần</h4>
+            <p className="text-[11px] text-slate-700 leading-relaxed">
               Nhu cầu danh mục Điện thoại và Phụ kiện dự kiến tăng 28% vào các ngày Thứ 6 - Chủ Nhật. Khuyến nghị chuẩn bị đủ tồn kho.
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-[#0c121e] border border-slate-800 space-y-2">
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
             <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold">MỨC ĐỘ: TRUNG BÌNH</span>
-            <h4 className="font-bold text-white text-xs">Xu Hướng Mua Kèm Tai Nghe ANC</h4>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
+            <h4 className="font-bold text-slate-900 text-xs">Xu Hướng Mua Kèm Tai Nghe ANC</h4>
+            <p className="text-[11px] text-slate-700 leading-relaxed">
               Tỷ lệ mua kèm Tai nghe ANC cùng với Laptop AI đạt 42%. Nên kích hoạt chương trình combo khuyến mãi.
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-[#0c121e] border border-slate-800 space-y-2">
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
             <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[10px] font-bold">MỨC ĐỘ: ĐỊNH KỲ</span>
-            <h4 className="font-bold text-white text-xs">Dự Báo Đợt Mua Sắm Đầu Tháng</h4>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
+            <h4 className="font-bold text-slate-900 text-xs">Dự Báo Đợt Mua Sắm Đầu Tháng</h4>
+            <p className="text-[11px] text-slate-700 leading-relaxed">
               Doanh số Robot hút bụi và Camera AI tăng đột biến vào tuần đầu mỗi tháng sau kỳ nhận lương.
             </p>
           </div>

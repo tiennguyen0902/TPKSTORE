@@ -54,6 +54,17 @@ async function main() {
       isActive: true,
     },
     {
+      id: "usr_manager",
+      email: "manager@example.com",
+      passwordHash: DEFAULT_PASSWORD_HASH,
+      fullName: "Trần Quốc Quản (Quản lý kho)",
+      phone: "0908889999",
+      address: "Kho tổng TPKSTORE, Cụm Công nghiệp Nam Từ Liêm, Hà Nội",
+      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+      role: "MANAGER" as const,
+      isActive: true,
+    },
+    {
       id: "usr_staff_1",
       email: "staff@example.com",
       passwordHash: DEFAULT_PASSWORD_HASH,
