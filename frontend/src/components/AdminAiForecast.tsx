@@ -43,18 +43,18 @@ export const AdminAiForecast: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Top Banner (Matching Screenshot!) */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-rose-950/70 via-[#131c2e] to-rose-800/70 border border-rose-500/30 space-y-6 shadow-xl">
+      {/* Top Banner */}
+      <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-500 to-rose-800 flex items-center justify-center text-slate-900 shadow-lg">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-600 to-rose-700 flex items-center justify-center text-white shadow-md">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-base font-black text-slate-900">
                 Mô Hình AI Time-Series: {metrics.modelName}
               </h2>
-              <p className="text-xs text-rose-300">
+              <p className="text-xs text-rose-700 font-semibold">
                 Tự động phân tích chuỗi thời gian, tính mùa vụ (Seasonality) và dự phóng xu hướng
               </p>
             </div>
