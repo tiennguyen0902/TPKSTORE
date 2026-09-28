@@ -391,13 +391,41 @@ export const api = {
     return res.json();
   },
 
-  async chatWithAi(message: string, history: any[] = [], provider?: "gemini" | "openai") {
+  async chatWithAi(message: string, history: any[] = [], provider?: "gemini" | "openai", isVoice?: boolean) {
     const res = await fetch(`${API_BASE}/ai/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history, provider })
+      body: JSON.stringify({ message, history, provider, isVoice })
     });
     return res.json();
+  },
+
+  async transcribeAudio(audioBlob: Blob): Promise<{ transcript: string }> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64Data = (reader.result as string) || "";
+          const res = await fetch(`${API_BASE}/ai/speech-to-text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              audioBase64: base64Data,
+              mimeType: audioBlob.type || "audio/webm"
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || "Lỗi chuyển đổi giọng nói.");
+          }
+          resolve(data);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error("Lỗi đọc dữ liệu ghi âm."));
+      reader.readAsDataURL(audioBlob);
+    });
   },
 
   async getAiForecast(days: number = 30): Promise<{ status: string; data: ForecastData }> {

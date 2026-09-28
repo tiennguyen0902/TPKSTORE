@@ -41,6 +41,10 @@ async function main() {
 
   // 2. Seed Users
   console.log("👥 Tạo tài khoản người dùng...");
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'MANAGER';`);
+  } catch (e) {}
+
   const users = [
     {
       id: "usr_admin",

@@ -8,17 +8,22 @@ import {
   RotateCcw, 
   AlertCircle,
   ExternalLink,
-  Globe
+  Globe,
+  Mic,
+  MicOff,
+  Loader2
 } from "lucide-react";
 import { api } from "../services/api";
 import { Product } from "../types";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import { HybridSTTService, MicState } from "../services/speechToText";
 
 interface ChatMessage {
   id: string;
   sender: "user" | "ai";
   text: string;
+  isVoice?: boolean;
   suggestedProducts?: Product[];
   suggestedQuickReplies?: string[];
   disclaimer?: string;
@@ -35,18 +40,28 @@ export const FloatingChatWidget: React.FC<{
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [micState, setMicState] = useState<MicState>("IDLE");
+  const [micError, setMicError] = useState<string | null>(null);
+  const sttServiceRef = useRef<HybridSTTService | null>(null);
   const { addToCart } = useCart();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    sttServiceRef.current = new HybridSTTService(api.transcribeAudio);
+    return () => {
+      sttServiceRef.current?.stopListening().catch(() => {});
+    };
+  }, []);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "msg_welcome",
       sender: "ai",
-      text: "Xin chào! 👋 Tôi là **Trợ lý AI Bán hàng & Trí tuệ Đa năng của SHOPBEE**.\n\nTôi có thể:\n1. 🛍️ **Tư vấn sản phẩm**: Tìm theo ngân sách (VD: *'laptop dưới 25 triệu'*, *'tai nghe chống ồn'*), tra cứu chính sách bảo hành & giao hàng 2h.\n2. 🌐 **Giải đáp mọi câu hỏi ngoài CSDL**: Kiến thức khoa học, công nghệ, so sánh kỹ thuật, đời sống nhờ trí tuệ **Google Gemini AI**!\n\nBạn cần hỗ trợ gì hôm nay ạ?",
+      text: "Xin chào! 👋 Tôi là **Trợ lý AI Bán hàng & Trí tuệ Đa năng của SHOPBEE**.\n\nTôi có thể:\n1. 🛍️ **Tư vấn sản phẩm**: Tìm theo ngân sách (VD: *'laptop dưới 25 triệu'*, *'tai nghe chống ồn'*), tra cứu chính sách bảo hành & giao hàng 2h.\n2. 🎙️ **Hỗ trợ giọng nói Tiếng Việt**: Bạn có thể nhấn biểu tượng Micro để nói tự nhiên bằng tiếng Việt!\n3. 🌐 **Giải đáp mọi câu hỏi ngoài CSDL**: Kiến thức khoa học, công nghệ, so sánh kỹ thuật với dữ liệu cửa hàng thời gian thực.\n\nBạn cần hỗ trợ gì hôm nay ạ?",
       suggestedQuickReplies: [
         "Tư vấn Laptop Gaming",
+        "Điện thoại nào rẻ nhất?",
         "Tai nghe chống ồn AI",
-        "AI Agent hoạt động thế nào?",
         "Chính sách bảo hành 1 đổi 1"
       ],
       source: "SHOPBEE AI Engine",
@@ -64,7 +79,7 @@ export const FloatingChatWidget: React.FC<{
     }
   }, [messages, isOpen]);
 
-  const handleSendMessage = async (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string, isVoice: boolean = false) => {
     const text = (textToSend || inputMessage).trim();
     if (!text || isLoading) return;
 
@@ -72,20 +87,24 @@ export const FloatingChatWidget: React.FC<{
       id: `msg_u_${Date.now()}`,
       sender: "user",
       text,
+      isVoice,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInputMessage("");
+    setMicState("IDLE");
+    setMicError(null);
     setIsLoading(true);
 
     try {
       const history = messages.map(m => ({
         role: m.sender === "user" ? "user" : "assistant",
-        content: m.text
+        content: m.text,
+        suggestedProducts: m.suggestedProducts
       }));
 
-      const res = await api.chatWithAi(text, history);
+      const res = await api.chatWithAi(text, history, undefined, isVoice);
 
       const aiMsg: ChatMessage = {
         id: `msg_a_${Date.now()}`,
@@ -110,6 +129,52 @@ export const FloatingChatWidget: React.FC<{
       setMessages(prev => [...prev, errorMsg]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleToggleMic = async () => {
+    if (micState === "LISTENING") {
+      setMicState("PROCESSING_AUDIO");
+      try {
+        const transcript = await sttServiceRef.current?.stopListening();
+        if (transcript && transcript.trim()) {
+          setInputMessage(transcript.trim());
+          setMicState("TRANSCRIPT_READY");
+          handleSendMessage(transcript.trim(), true);
+        } else {
+          setMicState("IDLE");
+        }
+      } catch (e: any) {
+        setMicError(e.message || "Lỗi xử lý âm thanh.");
+        setMicState("IDLE");
+      }
+      return;
+    }
+
+    setMicError(null);
+    try {
+      if (!sttServiceRef.current) {
+        sttServiceRef.current = new HybridSTTService(api.transcribeAudio);
+      }
+      await sttServiceRef.current.startListening(
+        (transcript, isFinal) => {
+          setInputMessage(transcript);
+          if (isFinal) {
+            setMicState("TRANSCRIPT_READY");
+            handleSendMessage(transcript, true);
+          }
+        },
+        (err) => {
+          setMicError(err);
+          setMicState("IDLE");
+        },
+        (state) => {
+          setMicState(state);
+        }
+      );
+    } catch (err: any) {
+      setMicError(err.message || "Không thể khởi động micro.");
+      setMicState("IDLE");
     }
   };
 
@@ -149,8 +214,9 @@ export const FloatingChatWidget: React.FC<{
                 <div className="flex items-center gap-1.5">
                   <h3 className="font-bold text-white text-sm">SHOPBEE AI Smart</h3>
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[10px] bg-white/20 text-white font-semibold px-1.5 py-0.5 rounded-full backdrop-blur-sm">Gemini 3.8 Flash</span>
                 </div>
-                <p className="text-[11px] text-rose-100 font-medium">CSDL Cửa Hàng & Trí Tuệ Mở Rộng</p>
+                <p className="text-[11px] text-rose-100 font-medium">CSDL Cửa Hàng & Google Gemini AI</p>
               </div>
             </div>
 
@@ -185,6 +251,14 @@ export const FloatingChatWidget: React.FC<{
                       : "bg-white text-slate-800 border border-slate-200 rounded-bl-none shadow-sm"
                   }`}
                 >
+                  {/* Voice Input Badge */}
+                  {msg.sender === "user" && msg.isVoice && (
+                    <div className="flex items-center gap-1 text-[10px] text-rose-100 font-semibold mb-1 pb-1 border-b border-rose-500/40">
+                      <Mic className="w-3 h-3 text-rose-200" />
+                      <span>Giọng nói đã nhận diện</span>
+                    </div>
+                  )}
+
                   {/* AI Source & Tri thức mở rộng Badge */}
                   {msg.sender === "ai" && msg.source && (
                     <div className="mb-2 flex items-center justify-between gap-1 pb-1.5 border-b border-slate-100 text-[10px]">
@@ -305,6 +379,23 @@ export const FloatingChatWidget: React.FC<{
 
           {/* Input Footer */}
           <div className="p-3 bg-white border-t border-slate-200">
+            {/* Friendly Microphone Error Banner */}
+            {micError && (
+              <div className="mb-2 p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] flex items-center justify-between gap-1.5 animate-in fade-in">
+                <span className="flex items-center gap-1.5 truncate">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span className="truncate">{micError}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMicError(null)}
+                  className="text-amber-500 hover:text-amber-700 p-0.5 shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -312,17 +403,62 @@ export const FloatingChatWidget: React.FC<{
               }}
               className="flex items-center gap-2"
             >
-              <input
-                type="text"
-                placeholder="Nhập câu hỏi (VD: tìm tai nghe dưới 1tr)..."
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                className="flex-1 bg-slate-100 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-rose-500 transition-all"
-              />
+              <div className="relative flex-1 flex items-center">
+                <input
+                  type="text"
+                  placeholder={
+                    micState === "LISTENING"
+                      ? "🔴 Đang nghe bạn nói... (Nhấn mic hoặc Enter để gửi)"
+                      : micState === "PROCESSING_AUDIO" || micState === "TRANSCRIBING"
+                      ? "⏳ Đang xử lý giọng nói..."
+                      : "Nhập câu hỏi hoặc nhấn mic để nói..."
+                  }
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  className={`w-full bg-slate-100 border rounded-xl pl-3 pr-9 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white transition-all ${
+                    micState === "LISTENING"
+                      ? "border-rose-400 bg-rose-50/40 ring-2 ring-rose-200"
+                      : "border-slate-200 focus:border-rose-500"
+                  }`}
+                />
+
+                {/* Microphone Button inside input area */}
+                <button
+                  type="button"
+                  onClick={handleToggleMic}
+                  disabled={isLoading || micState === "PROCESSING_AUDIO" || micState === "TRANSCRIBING"}
+                  title={
+                    micState === "LISTENING"
+                      ? "Đang nghe... Nhấn để dừng và gửi"
+                      : micState === "REQUEST_MICROPHONE_PERMISSION"
+                      ? "Đang yêu cầu quyền truy cập micro..."
+                      : micState === "PROCESSING_AUDIO" || micState === "TRANSCRIBING"
+                      ? "Đang xử lý giọng nói..."
+                      : "Nhập bằng giọng nói (Tiếng Việt)"
+                  }
+                  className={`absolute right-2 p-1.5 rounded-lg transition-all ${
+                    micState === "LISTENING"
+                      ? "text-red-600 bg-red-100 hover:bg-red-200"
+                      : "text-slate-400 hover:text-rose-600 hover:bg-slate-200/60"
+                  }`}
+                >
+                  {micState === "LISTENING" ? (
+                    <span className="relative flex items-center justify-center">
+                      <span className="absolute w-3 h-3 bg-red-500 rounded-full animate-ping opacity-75" />
+                      <Mic className="w-4 h-4 text-red-600 shrink-0" />
+                    </span>
+                  ) : micState === "REQUEST_MICROPHONE_PERMISSION" || micState === "PROCESSING_AUDIO" || micState === "TRANSCRIBING" ? (
+                    <Loader2 className="w-4 h-4 text-rose-600 animate-spin shrink-0" />
+                  ) : (
+                    <Mic className="w-4 h-4 shrink-0" />
+                  )}
+                </button>
+              </div>
+
               <button
                 type="submit"
                 disabled={!inputMessage.trim() || isLoading}
-                className="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white shadow-md shadow-rose-600/30 transition-all"
+                className="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white shadow-md shadow-rose-600/30 transition-all shrink-0"
               >
                 <Send className="w-4 h-4" />
               </button>

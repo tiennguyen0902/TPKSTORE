@@ -2,6 +2,10 @@ import { Router, Request, Response } from "express";
 import axios from "axios";
 import { db } from "../db";
 import { authenticateToken, authorize, AuthenticatedRequest } from "../middleware/auth";
+import { ProductSearchService } from "../services/productSearchService";
+import { IntentParserService } from "../services/intentParserService";
+import { GroundedChatService } from "../services/groundedChatService";
+import { SpeechToTextService } from "../services/speechToTextService";
 
 const router = Router();
 
@@ -49,31 +53,18 @@ async function callAiService(endpoint: string, payload: any, timeoutMs: number =
 
 // Danh sách toàn bộ mô hình Google Gemini chính thức & thế hệ mới (2025 - 2026)
 const ALL_GEMINI_MODELS = [
-  // 1. Google Gemini 2.5 Series
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  // 2. Google Gemini 2.0 Series (GA & Exp)
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-2.0-flash-thinking-exp-01-21",
-  "gemini-2.0-pro-exp-02-05",
-  // 3. Google Gemini 1.5 Series (Stable GA)
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-latest",
-  "gemini-1.5-flash-8b",
-  "gemini-1.5-flash-8b-latest",
-  "gemini-1.5-pro-latest",
-  // 4. Aliases & Experimental
-  "gemini-flash-latest",
-  "gemini-pro-latest",
-  "gemini-exp-1206",
-  "learnlm-1.5-pro-experimental",
-  // 5. Future / 2026 Aliases
   "gemini-3.8-flash",
   "gemini-3.7-flash",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
-  "gemini-3.1-flash-lite",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-latest",
+  "gemini-flash-latest",
+  "gemini-pro-latest"
 ];
 
 // Danh sách toàn bộ mô hình OpenAI ChatGPT chính thức & thế hệ mới
@@ -615,141 +606,212 @@ router.post("/recommend", async (req: Request, res: Response) => {
   });
 });
 
-// POST /api/ai/chat (RAG Chatbot with Gemini / OpenAI / Local RAG)
+// Helper: Extract contextual products from prior conversation turns
+function extractRecentProductsFromHistory(history: any[], allProducts: any[]): any[] {
+  const result: any[] = [];
+  const seenIds = new Set<string>();
+
+  if (!Array.isArray(history)) return result;
+
+  for (const h of history.slice().reverse()) {
+    if (h.suggestedProducts && Array.isArray(h.suggestedProducts)) {
+      for (const p of h.suggestedProducts) {
+        if (p && p.id && !seenIds.has(p.id)) {
+          seenIds.add(p.id);
+          result.push(p);
+        }
+      }
+    }
+    const text = ((h.content || h.text || "") as string).toLowerCase();
+    for (const p of allProducts) {
+      if (!seenIds.has(p.id) && text.includes(p.name.toLowerCase())) {
+        seenIds.add(p.id);
+        result.push(p);
+      }
+    }
+    if (result.length >= 6) break;
+  }
+  return result;
+}
+
+// POST /api/ai/speech-to-text (STT Transcription Endpoint)
+router.post("/speech-to-text", async (req: Request, res: Response) => {
+  try {
+    const { audioBase64, mimeType } = req.body;
+    if (!audioBase64) {
+      return res.status(400).json({ error: "Không tìm thấy dữ liệu âm thanh (audioBase64 is required)." });
+    }
+
+    const settings = await getSettings();
+    const activeGeminiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
+
+    if (!activeGeminiKey) {
+      return res.status(400).json({ error: "Chưa cấu hình Google Gemini API Key để nhận diện giọng nói." });
+    }
+
+    console.log(`[VOICE] User audio received: ${audioBase64.length} chars (mime: ${mimeType || "audio/webm"})`);
+
+    const transcript = await SpeechToTextService.transcribe({
+      audioBase64,
+      mimeType: mimeType || "audio/webm",
+      apiKey: activeGeminiKey,
+      preferredModel: settings.geminiModel || "gemini-3.8-flash"
+    });
+
+    console.log(`[STT] Transcript: "${transcript}"`);
+
+    return res.json({ transcript });
+  } catch (err: any) {
+    console.error("[STT] Transcription error:", err.message);
+    return res.status(500).json({ error: err.message || "Lỗi chuyển đổi giọng nói thành văn bản." });
+  }
+});
+
+// Alias for STT
+router.post("/transcribe", async (req: Request, res: Response) => {
+  try {
+    const { audioBase64, mimeType } = req.body;
+    if (!audioBase64) {
+      return res.status(400).json({ error: "Không tìm thấy dữ liệu âm thanh." });
+    }
+
+    const settings = await getSettings();
+    const activeGeminiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
+
+    if (!activeGeminiKey) {
+      return res.status(400).json({ error: "Chưa cấu hình Google Gemini API Key." });
+    }
+
+    console.log(`[VOICE] User audio received: ${audioBase64.length} chars`);
+
+    const transcript = await SpeechToTextService.transcribe({
+      audioBase64,
+      mimeType: mimeType || "audio/webm",
+      apiKey: activeGeminiKey,
+      preferredModel: settings.geminiModel || "gemini-3.8-flash"
+    });
+
+    console.log(`[STT] Transcript: "${transcript}"`);
+
+    return res.json({ transcript });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || "Lỗi nhận diện âm thanh." });
+  }
+});
+
+// POST /api/ai/chat (Single Unified Voice & Text Pipeline with Database Grounding)
 router.post("/chat", async (req: Request, res: Response) => {
-  const { message, history, provider } = req.body;
-  const products = await db.product.findMany({ include: { category: true } });
+  let { message, history, provider, isVoice, audioBase64, mimeType } = req.body;
   const settings = await getSettings();
+  const activeGeminiKey = (settings.geminiApiKey || process.env.GEMINI_API_KEY || "").trim();
+  const activeOpenAiKey = (settings.openaiApiKey || process.env.OPENAI_API_KEY || "").trim();
+  const selectedProvider = (provider || settings.aiProvider || "gemini").toLowerCase().trim();
+  const targetModel = selectedProvider === "openai" 
+    ? (settings.openaiModel || "gpt-4o-mini") 
+    : (settings.geminiModel || "gemini-3.8-flash");
+
+  // 1. If voice audio is sent directly to /chat, transcribe it first
+  if (audioBase64) {
+    isVoice = true;
+    console.log(`[VOICE] User audio received (${audioBase64.length} chars)`);
+    try {
+      if (activeGeminiKey) {
+        message = await SpeechToTextService.transcribe({
+          audioBase64,
+          mimeType: mimeType || "audio/webm",
+          apiKey: activeGeminiKey,
+          preferredModel: settings.geminiModel || "gemini-3.8-flash"
+        });
+        console.log(`[STT] Transcript: "${message}"`);
+      }
+    } catch (sttErr: any) {
+      console.warn("[STT] Audio transcription error:", sttErr.message);
+      return res.status(400).json({ error: "Không thể nhận diện giọng nói: " + sttErr.message });
+    }
+  }
 
   if (!message || !message.trim()) {
     return res.status(400).json({ error: "Nội dung tin nhắn không được để trống." });
   }
 
-  const selectedProvider = provider || settings.aiProvider;
+  const userQuery = message.trim();
+  if (isVoice) {
+    console.log(`[VOICE] Pipeline processing voice input`);
+    console.log(`[STT] Transcript: "${userQuery}"`);
+  }
 
-  // 1. Thử gọi qua Python AI Microservice nếu đang hoạt động (với Circuit Breaker)
-  if (isAiServiceAlive()) {
-    const aiRes = await callAiService("/api/ai/chat", {
-      message,
+  try {
+    // 2. Natural-Language Intent & Constraint Extraction
+    const structuredQuery = await IntentParserService.parse(
+      userQuery,
+      history,
+      activeGeminiKey,
+      settings.geminiModel || "gemini-3.8-flash"
+    );
+
+    console.log(`[INTENT] ${structuredQuery.intent}`);
+    console.log(`[STRUCTURED_QUERY]`, JSON.stringify(structuredQuery));
+
+    // 3. Extract prior conversation context products (for queries like "cái nào", "giá bao nhiêu", "còn hàng không")
+    const allDbProducts = await db.product.findMany({ include: { category: true } });
+    const contextProducts = extractRecentProductsFromHistory(history || [], allDbProducts);
+
+    // 4. Safe Parameterized Database Search (Real DB Source of Truth)
+    const searchResult = await ProductSearchService.search(structuredQuery, contextProducts);
+    const retrievedProducts = searchResult.products;
+
+    console.log(`[DATABASE] ${retrievedProducts.length} products found matching query`);
+
+    // 5. Database-Grounded AI Response Generation (Gemini / LLM)
+    console.log(`[LLM] Generating response`);
+    const groundedResult = await GroundedChatService.generateResponse({
+      userMessage: userQuery,
       history: history || [],
-      products,
+      structuredQuery,
+      retrievedProducts,
+      apiKey: activeGeminiKey,
+      model: settings.geminiModel || "gemini-3.8-flash",
+      openaiApiKey: activeOpenAiKey,
+      openaiModel: settings.openaiModel || "gpt-4o-mini",
       provider: selectedProvider,
-      geminiApiKey: settings.geminiApiKey,
-      geminiModel: settings.geminiModel,
-      openaiApiKey: settings.openaiApiKey,
-      openaiModel: settings.openaiModel
-    }, 2500);
+      isVoice: !!isVoice
+    });
 
-    if (aiRes.success && aiRes.data?.reply) {
-      try {
-        await db.aIInteraction.create({
-          data: {
-            sessionId: req.headers["x-session-id"] as string || "anonymous_session",
-            query: message,
-            response: aiRes.data.reply,
-            type: "CHAT",
-          }
-        });
-      } catch (logErr) {
-        // Logging error should never break user chat response
-      }
-      return res.json(aiRes.data);
-    }
-  }
+    console.log(`[CHATBOT] Response generated`);
 
-  // 2. Dự phòng trực tiếp tức thì (Serverless Direct AI Fallback)
-  // Khách hàng và người dùng truy cập web đều được AI phản hồi ngay lập tức bằng API Key đã cấu hình!
-  const activeGeminiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
-  const activeOpenAiKey = settings.openaiApiKey || process.env.OPENAI_API_KEY;
-
-  if (selectedProvider === "openai" && activeOpenAiKey) {
+    // 6. Safe Interaction Logging (Does not block user response)
     try {
-      const result = await directOpenAIChat(
-        activeOpenAiKey,
-        settings.openaiModel || "gpt-4o-mini",
-        message,
-        products,
-        history
-      );
-      if (result && result.reply) {
-        try {
-          await db.aIInteraction.create({
-            data: {
-              sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
-              query: message,
-              response: result.reply,
-              type: "CHAT",
-            }
-          });
-        } catch (e) {}
-        return res.json({
-          reply: result.reply,
-          suggestedProducts: result.suggestedProducts,
-          suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành 1 đổi 1", "Giao hàng hỏa tốc 2h"],
-          source: `OpenAI ChatGPT (${result.model})`,
-          provider: "openai",
-          model: result.model
-        });
-      }
-    } catch (directErr: any) {
-      console.warn("Direct OpenAI chat fallback error:", directErr?.message || directErr);
-    }
+      await db.aIInteraction.create({
+        data: {
+          sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
+          query: userQuery,
+          response: groundedResult.reply,
+          type: "CHAT"
+        }
+      });
+    } catch (e) {}
+
+    // 7. Return Final Unified Response
+    return res.json({
+      reply: groundedResult.reply,
+      suggestedProducts: groundedResult.suggestedProducts,
+      suggestedQuickReplies: groundedResult.suggestedQuickReplies,
+      source: groundedResult.source,
+      provider: groundedResult.provider,
+      model: groundedResult.model,
+      structuredQuery,
+      transcript: isVoice ? userQuery : undefined,
+      dbCount: retrievedProducts.length,
+      disclaimer: groundedResult.disclaimer
+    });
+
+  } catch (err: any) {
+    console.error("[CHATBOT] Error in chatbot pipeline:", err.message);
+    return res.status(500).json({
+      error: "Đã xảy ra lỗi trong quá trình xử lý: " + err.message,
+      reply: "Dạ xin lỗi bạn, hệ thống AI tạm thời gặp sự cố kết nối. Bạn vui lòng thử lại sau giây lát nhé!"
+    });
   }
-
-  if ((selectedProvider === "gemini" || !selectedProvider) && activeGeminiKey) {
-    try {
-      const result = await directGeminiChat(
-        activeGeminiKey,
-        settings.geminiModel || "gemini-2.0-flash",
-        message,
-        products,
-        history
-      );
-      if (result && result.reply) {
-        try {
-          await db.aIInteraction.create({
-            data: {
-              sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
-              query: message,
-              response: result.reply,
-              type: "CHAT",
-            }
-          });
-        } catch (e) {}
-        return res.json({
-          reply: result.reply,
-          suggestedProducts: result.suggestedProducts,
-          suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành 1 đổi 1", "Giao hàng hỏa tốc 2h"],
-          source: `Google Gemini (${result.model})`,
-          provider: "gemini",
-          model: result.model
-        });
-      }
-    } catch (directErr: any) {
-      console.warn("Direct Gemini chat fallback error:", directErr?.message || directErr);
-    }
-  }
-
-  // 3. Fallback cục bộ thông minh nếu chưa cấu hình API Key hoặc cả 2 nhà cung cấp đều bận
-  const normQuery = message.toLowerCase();
-  const matchedProd = (products || []).filter(p => {
-    const name = (p.name || "").toLowerCase();
-    return normQuery.split(/\s+/).some(w => w.length > 2 && name.includes(w));
-  }).slice(0, 3);
-
-  let fallbackReply = "Xin chào bạn! Tôi là Trợ lý AI Bán hàng của SHOPBEE. Hiện tại tôi có thể hỗ trợ bạn tìm kiếm sản phẩm theo ngân sách, gợi ý điện thoại, laptop nổi bật và giải đáp chính sách bảo hành 1 đổi 1, giao hàng nhanh 2h!";
-  if (matchedProd.length > 0) {
-    const names = matchedProd.map(p => `**${p.name}** (${Number(p.price).toLocaleString("vi-VN")} đ)`).join(", ");
-    fallbackReply = `Dạ SHOPBEE xin gợi ý các sản phẩm phù hợp nhất với tìm kiếm của bạn:\n${names}\n\nBạn có muốn biết thêm chi tiết về cấu hình hoặc ưu đãi giao hàng 2h không ạ?`;
-  }
-
-  return res.json({
-    reply: fallbackReply,
-    suggestedProducts: matchedProd.length > 0 ? matchedProd : products.slice(0, 3),
-    suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành 1 đổi 1", "Giao hàng hỏa tốc 2h"],
-    source: "SHOPBEE Smart RAG Engine",
-    disclaimer: activeGeminiKey || activeOpenAiKey ? undefined : "💡 Quản trị viên chưa thiết lập API Key hoặc đang kết nối lại."
-  });
 });
 
 // POST /api/ai/forecast (AI Revenue & Demand Forecasting)
