@@ -13,6 +13,8 @@ export interface GroundedChatParams {
   openaiModel?: string;
   provider?: string;
   isVoice?: boolean;
+  isImage?: boolean;
+  visualAnalysis?: any;
 }
 
 export interface GroundedChatResponse {
@@ -45,6 +47,8 @@ export class GroundedChatService {
     } = params;
 
     const hasResults = retrievedProducts.length > 0;
+    const isImageSearch = !!params.isImage && !!params.visualAnalysis;
+    const visualInfo = params.visualAnalysis;
 
     // 1. Build Grounded Context from Real DB Records
     let dbContext = "";
@@ -55,7 +59,8 @@ export class GroundedChatService {
         const origPriceText = p.originalPrice && p.originalPrice > p.price
           ? `(Giá gốc: ${Number(p.originalPrice).toLocaleString("vi-VN")} đ - ĐANG GIẢM GIÁ)`
           : "";
-        return `${idx + 1}. [ID: ${p.id}] ${p.name}
+        const matchTag = p._matchType === "exact" ? "[KHỚP CHÍNH XÁC / LIKELY MATCH]" : "[SẢN PHẨM TƯƠNG TỰ / SIMILAR]";
+        return `${idx + 1}. [ID: ${p.id}] ${p.name} ${matchTag}
 - Giá bán thực tế: ${Number(p.price).toLocaleString("vi-VN")} đ ${origPriceText}
 - Tồn kho khả dụng: ${p.stock} sản phẩm
 - Danh mục: ${cat}
@@ -68,9 +73,29 @@ export class GroundedChatService {
     }
 
     // 2. Anti-Hallucination System Prompt
-    const systemPrompt = `Bạn là Trợ lý AI Bán hàng Thông minh của SHOPBEE (STORE AI) - Chuỗi bán lẻ công nghệ và điện tử cao cấp.
-Bạn nhận được câu hỏi từ khách hàng (qua chat văn bản hoặc giọng nói tiếng Việt).
+    let visualContextPrompt = "";
+    if (isImageSearch && visualInfo) {
+      visualContextPrompt = `
+KẾT QUẢ PHÂN TÍCH THỊ GIÁC (AI VISION):
+- Nhận diện sản phẩm trong ảnh: ${visualInfo.visual_description || "Thiết bị công nghệ"}
+- Danh mục: ${visualInfo.category || "Chưa xác định"}
+- Thương hiệu: ${visualInfo.brand || "Chưa xác định"}
+- Dòng máy / Model: ${visualInfo.model || "Chưa xác định"}
+- Màu sắc: ${visualInfo.color || "Chưa xác định"}
+- Chữ OCR phát hiện trên sản phẩm/hộp: ${visualInfo.detected_text?.join(", ") || "Không có"}
+- Đặc điểm nhận diện: ${visualInfo.visible_features?.join(", ") || "Không có"}
+- Độ tin cậy nhận diện: ${Math.round((visualInfo.confidence || 0.8) * 100)}%
 
+HƯỚNG DẪN TRẢ LỜI CHO TÌM KIẾM BẰNG HÌNH ẢNH:
+- Nếu CSDL có sản phẩm khớp chính xác ([KHỚP CHÍNH XÁC]): Hãy hào hứng xác nhận đã tìm thấy đúng dòng sản phẩm trong ảnh của khách, cung cấp giá tiền và số lượng còn hàng thực tế.
+- Nếu CSDL chỉ có sản phẩm tương tự ([SẢN PHẨM TƯƠNG TỰ]): Hãy nói rõ ràng, thành thật rằng cửa hàng chưa có chính xác mã/thương hiệu trong ảnh, nhưng xin giới thiệu các mẫu tương tự cùng phân khúc đang có sẵn trong kho.
+- Nếu CSDL không có sản phẩm nào (0 sản phẩm): Hãy lịch sự thông báo cửa hàng hiện chưa có sản phẩm khớp với hình ảnh này trong kho CSDL.
+`;
+    }
+
+    const systemPrompt = `Bạn là Trợ lý AI Bán hàng Thông minh của SHOPBEE (STORE AI) - Chuỗi bán lẻ công nghệ và điện tử cao cấp.
+Bạn nhận được câu hỏi từ khách hàng (qua chat văn bản, giọng nói tiếng Việt hoặc tìm kiếm bằng hình ảnh).
+${visualContextPrompt}
 NGUỒN SỰ THẬT DUY NHẤT (SOURCE OF TRUTH):
 ${dbContext}
 
@@ -88,19 +113,23 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
 - Nếu khách hỏi "cái nào", "giá bao nhiêu", "còn hàng không": hãy trả lời trực diện vào sản phẩm đang đề cập.`;
 
     // Quick replies based on context
-    const quickReplies = hasResults
-      ? [
-          "Chính sách bảo hành 1 đổi 1",
-          "Giao hàng hỏa tốc 2h",
-          "Tư vấn thêm về sản phẩm",
-          "Sản phẩm đang giảm giá khác"
-        ]
-      : [
-          "Xem điện thoại bán chạy",
-          "Laptop AI nổi bật",
-          "Chính sách bảo hành",
-          "Liên hệ nhân viên hỗ trợ"
-        ];
+    const quickReplies = isImageSearch
+      ? (hasResults
+          ? ["Xem chi tiết cấu hình", "Kiểm tra tình trạng còn hàng", "Chính sách bảo hành 1 đổi 1", "Sản phẩm tương tự khác"]
+          : ["Tìm điện thoại khác", "Xem Laptop AI", "Chính sách bảo hành", "Liên hệ nhân viên hỗ trợ"])
+      : (hasResults
+          ? [
+              "Chính sách bảo hành 1 đổi 1",
+              "Giao hàng hỏa tốc 2h",
+              "Tư vấn thêm về sản phẩm",
+              "Sản phẩm đang giảm giá khác"
+            ]
+          : [
+              "Xem điện thoại bán chạy",
+              "Laptop AI nổi bật",
+              "Chính sách bảo hành",
+              "Liên hệ nhân viên hỗ trợ"
+            ]);
 
     // 3. Call LLM (Gemini or OpenAI)
     const normalizedProvider = (provider || "gemini").toLowerCase().trim();
@@ -137,16 +166,18 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
     }
 
     // 4. Safe Deterministic Fallback if AI provider is unavailable
-    const fallbackReply = this.buildDeterministicResponse(userMessage, retrievedProducts, structuredQuery);
+    const fallbackReply = this.buildDeterministicResponse(userMessage, retrievedProducts, structuredQuery, isImageSearch, visualInfo);
     return {
       reply: fallbackReply,
       suggestedProducts: retrievedProducts.slice(0, 4),
       suggestedQuickReplies: quickReplies,
-      source: "SHOPBEE Database Grounded Engine",
+      source: isImageSearch ? "SHOPBEE Visual Grounded Engine" : "SHOPBEE Database Grounded Engine",
       provider: "local",
       model: "deterministic-rag",
       structuredQuery,
-      disclaimer: "ℹ️ Phản hồi tự động từ cơ sở dữ liệu sản phẩm của cửa hàng."
+      disclaimer: isImageSearch
+        ? "✨ Phản hồi được phân tích từ hình ảnh và đối chiếu trực tiếp từ cơ sở dữ liệu thời gian thực của SHOPBEE."
+        : "ℹ️ Phản hồi tự động từ cơ sở dữ liệu sản phẩm của cửa hàng."
     };
   }
 
@@ -253,9 +284,14 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
   private static buildDeterministicResponse(
     query: string,
     products: any[],
-    structuredQuery: StructuredProductQuery
+    structuredQuery: StructuredProductQuery,
+    isImageSearch?: boolean,
+    visualInfo?: any
   ): string {
     if (products.length === 0) {
+      if (isImageSearch && visualInfo) {
+        return `Dạ rất tiếc, qua phân tích hình ảnh (**${visualInfo.visual_description || "sản phẩm"}**), hiện tại SHOPBEE chưa tìm thấy sản phẩm nào phù hợp trong kho hàng của cửa hàng.\n\nBạn có thể thử tìm kiếm với các danh mục khác hoặc liên hệ nhân viên cửa hàng để được hỗ trợ kiểm tra nguồn hàng nhập mới nhé!`;
+      }
       return `Dạ rất tiếc, hiện tại SHOPBEE chưa tìm thấy sản phẩm nào phù hợp với yêu cầu của bạn trong cơ sở dữ liệu cửa hàng.\n\nBạn có thể thử tìm kiếm với các danh mục khác hoặc liên hệ nhân viên cửa hàng để được hỗ trợ kiểm tra nguồn hàng nhập mới nhé!`;
     }
 
@@ -264,9 +300,16 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
       const origText = p.originalPrice && p.originalPrice > p.price
         ? ` ~~${Number(p.originalPrice).toLocaleString("vi-VN")} đ~~ 🔥 Đang giảm giá!`
         : "";
-      return `${i + 1}. **${p.name}**\n   - Giá: **${Number(p.price).toLocaleString("vi-VN")} đ**${origText}\n   - Trạng thái: ${stockBadge}\n   - Điểm nổi bật: ${p.description?.slice(0, 100)}...`;
+      const matchBadge = p._matchType === "exact" ? " ⭐ *Khớp chính xác với hình ảnh*" : "";
+      return `${i + 1}. **${p.name}**${matchBadge}\n   - Giá: **${Number(p.price).toLocaleString("vi-VN")} đ**${origText}\n   - Trạng thái: ${stockBadge}\n   - Điểm nổi bật: ${p.description?.slice(0, 100)}...`;
     }).join("\n\n");
 
-    return `Dạ chào bạn! Dựa trên cơ sở dữ liệu thực tế tại SHOPBEE, tôi xin gửi tới bạn các sản phẩm phù hợp nhất:\n\n${itemsText}\n\n✨ **Chính sách ưu đãi độc quyền tại SHOPBEE:**\n- 🛡️ Đổi trả miễn phí trong 7 ngày\n- 🔄 Bảo hành 1 đổi 1 toàn diện\n- ⚡ Giao hàng hỏa tốc trong 2 giờ tại nội thành\n\nBạn cần biết thêm thông tin chi tiết hoặc muốn đặt mua sản phẩm nào không ạ?`;
+    const header = isImageSearch && visualInfo
+      ? (products.some(p => p._matchType === "exact")
+          ? `Dạ chào bạn! Dựa trên hình ảnh bạn vừa tải lên (**${visualInfo.visual_description}**), SHOPBEE đã tìm thấy sản phẩm khớp trong cơ sở dữ liệu cửa hàng:\n\n`
+          : `Dạ chào bạn! Dựa trên hình ảnh bạn tải lên (**${visualInfo.visual_description}**), cửa hàng chưa có chính xác dòng máy này nhưng xin giới thiệu các mẫu tương tự cùng phân khúc có sẵn tại SHOPBEE:\n\n`)
+      : `Dạ chào bạn! Dựa trên cơ sở dữ liệu thực tế tại SHOPBEE, tôi xin gửi tới bạn các sản phẩm phù hợp nhất:\n\n`;
+
+    return `${header}${itemsText}\n\n✨ **Chính sách ưu đãi độc quyền tại SHOPBEE:**\n- 🛡️ Đổi trả miễn phí trong 7 ngày\n- 🔄 Bảo hành 1 đổi 1 toàn diện\n- ⚡ Giao hàng hỏa tốc trong 2 giờ tại nội thành\n\nBạn cần biết thêm thông tin chi tiết hoặc muốn đặt mua sản phẩm nào không ạ?`;
   }
 }

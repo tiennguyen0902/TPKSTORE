@@ -6,6 +6,7 @@ import { ProductSearchService } from "../services/productSearchService";
 import { IntentParserService } from "../services/intentParserService";
 import { GroundedChatService } from "../services/groundedChatService";
 import { SpeechToTextService } from "../services/speechToTextService";
+import { ImageAnalysisService } from "../services/imageAnalysisService";
 
 const router = Router();
 
@@ -699,9 +700,9 @@ router.post("/transcribe", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/ai/chat (Single Unified Voice & Text Pipeline with Database Grounding)
-router.post("/chat", async (req: Request, res: Response) => {
-  let { message, history, provider, isVoice, audioBase64, mimeType } = req.body;
+// Unified Multimodal Voice, Image & Text Pipeline with Database Grounding
+const unifiedChatHandler = async (req: Request, res: Response) => {
+  let { message, history, provider, isVoice, audioBase64, mimeType, imageBase64, imageMimeType } = req.body;
   const settings = await getSettings();
   const activeGeminiKey = (settings.geminiApiKey || process.env.GEMINI_API_KEY || "").trim();
   const activeOpenAiKey = (settings.openaiApiKey || process.env.OPENAI_API_KEY || "").trim();
@@ -710,19 +711,20 @@ router.post("/chat", async (req: Request, res: Response) => {
     ? (settings.openaiModel || "gpt-4o-mini") 
     : (settings.geminiModel || "gemini-3.8-flash");
 
-  // 1. If voice audio is sent directly to /chat, transcribe it first
+  // 1. If voice audio is sent to /chat, transcribe it first
   if (audioBase64) {
     isVoice = true;
     console.log(`[VOICE] User audio received (${audioBase64.length} chars)`);
     try {
       if (activeGeminiKey) {
-        message = await SpeechToTextService.transcribe({
+        const transcript = await SpeechToTextService.transcribe({
           audioBase64,
           mimeType: mimeType || "audio/webm",
           apiKey: activeGeminiKey,
           preferredModel: settings.geminiModel || "gemini-3.8-flash"
         });
-        console.log(`[STT] Transcript: "${message}"`);
+        console.log(`[STT] Transcript: "${transcript}"`);
+        message = message && message.trim() ? `${message.trim()} ${transcript}` : transcript;
       }
     } catch (sttErr: any) {
       console.warn("[STT] Audio transcription error:", sttErr.message);
@@ -730,17 +732,121 @@ router.post("/chat", async (req: Request, res: Response) => {
     }
   }
 
-  if (!message || !message.trim()) {
-    return res.status(400).json({ error: "Nội dung tin nhắn không được để trống." });
+  // Ensure at least message or imageBase64 is provided
+  if ((!message || !message.trim()) && !imageBase64) {
+    return res.status(400).json({ error: "Nội dung tin nhắn hoặc hình ảnh không được để trống." });
   }
 
-  const userQuery = message.trim();
+  const userQuery = (message || "").trim();
   if (isVoice) {
-    console.log(`[VOICE] Pipeline processing voice input`);
-    console.log(`[STT] Transcript: "${userQuery}"`);
+    console.log(`[VOICE] Pipeline processing voice input: "${userQuery}"`);
   }
 
   try {
+    const allDbProducts = await db.product.findMany({ include: { category: true } });
+    const contextProducts = extractRecentProductsFromHistory(history || [], allDbProducts);
+
+    // ==========================================
+    // CASE A: IMAGE-BASED MULTIMODAL SEARCH PIPELINE
+    // ==========================================
+    if (imageBase64) {
+      console.log("[IMAGE SEARCH]");
+      console.log("Image received");
+
+      const validation = ImageAnalysisService.validateImage(imageBase64, imageMimeType);
+      if (!validation.valid) {
+        console.warn("[IMAGE SEARCH] Validation failed:", validation.error);
+        return res.status(400).json({ error: validation.error });
+      }
+      console.log("Image validation: OK");
+
+      if (!activeGeminiKey) {
+        return res.status(400).json({
+          error: "Chưa cấu hình Google Gemini API Key để thực hiện tìm kiếm bằng hình ảnh."
+        });
+      }
+
+      // Vision Analysis with Gemini Vision Model
+      const visualAnalysis = await ImageAnalysisService.analyzeImage({
+        imageBase64: validation.cleanBase64,
+        mimeType: validation.safeMime,
+        userText: userQuery,
+        apiKey: activeGeminiKey,
+        preferredModel: settings.geminiModel || "gemini-3.8-flash"
+      });
+
+      console.log(`Vision analysis:\ncategory = ${visualAnalysis.category}\nbrand = ${visualAnalysis.brand}\nmodel = ${visualAnalysis.model}`);
+
+      // Build Structured Product Query combining Visual Analysis & User Text/Voice Constraints
+      const structuredQuery = ImageAnalysisService.buildVisualProductQuery(visualAnalysis, userQuery);
+      console.log(`Structured query:\nbrand = ${structuredQuery.brand}\nmodel = ${structuredQuery.targetProductName || visualAnalysis.model}`);
+
+      // Database Search & Multi-Stage Matching
+      const searchResult = await ProductSearchService.search(structuredQuery, contextProducts);
+      const retrievedProducts = searchResult.products;
+
+      console.log(`Database:\n${retrievedProducts.length} results`);
+      const exactCount = searchResult.exactCount || 0;
+      const similarCount = searchResult.similarCount || Math.max(0, retrievedProducts.length - exactCount);
+      console.log(`Ranking:\n${exactCount} exact/likely match\n${similarCount} similar`);
+
+      // Database-Grounded AI Response Generation
+      console.log(`[LLM] Generating grounded response for visual search`);
+      const groundedResult = await GroundedChatService.generateResponse({
+        userMessage: userQuery || `Tìm sản phẩm qua hình ảnh: ${visualAnalysis.visual_description}`,
+        history: history || [],
+        structuredQuery,
+        retrievedProducts,
+        apiKey: activeGeminiKey,
+        model: settings.geminiModel || "gemini-3.8-flash",
+        openaiApiKey: activeOpenAiKey,
+        openaiModel: settings.openaiModel || "gpt-4o-mini",
+        provider: selectedProvider,
+        isVoice: !!isVoice,
+        isImage: true,
+        visualAnalysis
+      });
+
+      console.log("Response generated");
+
+      // Safe Interaction Logging
+      try {
+        await db.aIInteraction.create({
+          data: {
+            sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
+            query: userQuery ? `[IMAGE] ${userQuery}` : `[IMAGE] ${visualAnalysis.visual_description}`,
+            response: groundedResult.reply,
+            type: "CHAT"
+          }
+        });
+      } catch (e) {}
+
+      return res.json({
+        reply: groundedResult.reply,
+        suggestedProducts: groundedResult.suggestedProducts,
+        suggestedQuickReplies: groundedResult.suggestedQuickReplies,
+        source: groundedResult.source,
+        provider: groundedResult.provider,
+        model: groundedResult.model,
+        structuredQuery,
+        visualAnalysis,
+        analysis: {
+          category: visualAnalysis.category,
+          brand: visualAnalysis.brand,
+          model: visualAnalysis.model,
+          confidence: visualAnalysis.confidence
+        },
+        transcript: isVoice ? userQuery : undefined,
+        dbCount: retrievedProducts.length,
+        exactCount,
+        similarCount,
+        disclaimer: groundedResult.disclaimer
+      });
+    }
+
+    // ==========================================
+    // CASE B: STANDARD TEXT / VOICE PIPELINE
+    // ==========================================
     // 2. Natural-Language Intent & Constraint Extraction
     const structuredQuery = await IntentParserService.parse(
       userQuery,
@@ -751,10 +857,6 @@ router.post("/chat", async (req: Request, res: Response) => {
 
     console.log(`[INTENT] ${structuredQuery.intent}`);
     console.log(`[STRUCTURED_QUERY]`, JSON.stringify(structuredQuery));
-
-    // 3. Extract prior conversation context products (for queries like "cái nào", "giá bao nhiêu", "còn hàng không")
-    const allDbProducts = await db.product.findMany({ include: { category: true } });
-    const contextProducts = extractRecentProductsFromHistory(history || [], allDbProducts);
 
     // 4. Safe Parameterized Database Search (Real DB Source of Truth)
     const searchResult = await ProductSearchService.search(structuredQuery, contextProducts);
@@ -812,7 +914,11 @@ router.post("/chat", async (req: Request, res: Response) => {
       reply: "Dạ xin lỗi bạn, hệ thống AI tạm thời gặp sự cố kết nối. Bạn vui lòng thử lại sau giây lát nhé!"
     });
   }
-});
+};
+
+// Route Registrations for Unified Multimodal Chatbot
+router.post("/chat", unifiedChatHandler);
+router.post("/chat/image", unifiedChatHandler);
 
 // POST /api/ai/forecast (AI Revenue & Demand Forecasting)
 router.post("/forecast", async (req: Request, res: Response) => {

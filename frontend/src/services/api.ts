@@ -391,11 +391,18 @@ export const api = {
     return res.json();
   },
 
-  async chatWithAi(message: string, history: any[] = [], provider?: "gemini" | "openai", isVoice?: boolean) {
+  async chatWithAi(
+    message: string,
+    history: any[] = [],
+    provider?: "gemini" | "openai",
+    isVoice?: boolean,
+    imageBase64?: string,
+    imageMimeType?: string
+  ) {
     const res = await fetch(`${API_BASE}/ai/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history, provider, isVoice })
+      body: JSON.stringify({ message, history, provider, isVoice, imageBase64, imageMimeType })
     });
     return res.json();
   },

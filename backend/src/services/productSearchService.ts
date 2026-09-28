@@ -4,6 +4,7 @@ import { removeVietnameseAccents } from "./vietnameseUtils";
 export interface StructuredProductQuery {
   intent:
     | "product_search"
+    | "visual_product_search"
     | "product_details"
     | "price_query"
     | "stock_query"
@@ -30,6 +31,8 @@ export interface SearchResult {
   products: any[];
   total: number;
   appliedFilters: Record<string, any>;
+  exactCount?: number;
+  similarCount?: number;
 }
 
 // Exact category map by category ID
@@ -63,41 +66,130 @@ export class ProductSearchService {
     };
 
     let pool = [...allDbProducts];
+    let exactCount = 0;
+    let similarCount = 0;
 
-    // 1. Resolve Conversation Context Reference
-    // If the query references prior context (e.g. "cái nào rẻ nhất?", "còn hàng không?", "giá bao nhiêu?")
-    if (query.contextReference && contextProducts.length > 0) {
-      appliedFilters.contextResolvedFrom = contextProducts.map(p => p.name);
-      pool = contextProducts.map(cp => {
-        // Refresh with latest DB state to ensure stock & price are 100% current
-        const fresh = allDbProducts.find(p => p.id === cp.id || p.name === cp.name);
-        return fresh || cp;
-      });
-    }
+    // Handle Visual Product Search (Image Search Pipeline)
+    if (query.intent === "visual_product_search") {
+      appliedFilters.visualSearch = true;
+      const targetModel = query.targetProductName ? removeVietnameseAccents(query.targetProductName) : "";
+      
+      // Stage 1: Exact / Likely Model Search in entire DB
+      let exactMatches: any[] = [];
+      if (targetModel && targetModel.length > 2) {
+        exactMatches = allDbProducts.filter(p => {
+          const pName = removeVietnameseAccents(p.name);
+          const pSlug = removeVietnameseAccents(p.slug);
+          return pName.includes(targetModel) || targetModel.includes(pName) || pSlug.includes(targetModel);
+        });
+      }
 
-    // 2. Category Filter (Strict by category ID / category metadata)
-    if (query.category) {
-      const targetCat = removeVietnameseAccents(query.category);
-      appliedFilters.category = query.category;
-
-      let matchedCatId: string | null = null;
-      for (const [catId, aliases] of Object.entries(CATEGORY_MAP)) {
-        if (aliases.some(a => targetCat.includes(a) || a.includes(targetCat))) {
-          matchedCatId = catId;
-          break;
+      // Stage 2: Category Filter
+      let categoryMatches = [...allDbProducts];
+      if (query.category) {
+        appliedFilters.category = query.category;
+        const targetCat = removeVietnameseAccents(query.category);
+        let matchedCatId: string | null = null;
+        for (const [catId, aliases] of Object.entries(CATEGORY_MAP)) {
+          if (aliases.some(a => targetCat.includes(a) || a.includes(targetCat))) {
+            matchedCatId = catId;
+            break;
+          }
+        }
+        if (matchedCatId) {
+          categoryMatches = allDbProducts.filter(p => p.categoryId === matchedCatId);
+        } else {
+          categoryMatches = allDbProducts.filter(p => {
+            const catName = removeVietnameseAccents(p.category?.name || "");
+            const catSlug = removeVietnameseAccents(p.category?.slug || "");
+            return catName.includes(targetCat) || catSlug.includes(targetCat);
+          });
         }
       }
 
-      if (matchedCatId) {
-        pool = pool.filter(p => p.categoryId === matchedCatId);
-      } else {
-        pool = pool.filter(p => {
-          const catName = removeVietnameseAccents(p.category?.name || "");
-          const catSlug = removeVietnameseAccents(p.category?.slug || "");
-          return catName.includes(targetCat) || catSlug.includes(targetCat);
+      // Stage 3: Brand & Feature / Keyword Scoring on Candidate Pool
+      const candidatePool = categoryMatches.length > 0 ? categoryMatches : allDbProducts;
+      const targetBrand = query.brand ? removeVietnameseAccents(query.brand) : "";
+      const validKws = (query.keywords || [])
+        .map(kw => removeVietnameseAccents(kw))
+        .filter(kw => kw.length > 1);
+
+      const scoredSimilar = candidatePool.map(p => {
+        const pSearchable = removeVietnameseAccents(`${p.name} ${p.description || ""}`);
+        let score = 0;
+        if (targetBrand && pSearchable.includes(targetBrand)) score += 5;
+        for (const kw of validKws) {
+          if (pSearchable.includes(kw)) score += 2;
+        }
+        return { product: p, score };
+      }).filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(item => item.product);
+
+      // Combine: Exact matches first, followed by scored similar products
+      const seenIds = new Set<string>();
+      const combinedPool: any[] = [];
+
+      for (const p of exactMatches) {
+        if (!seenIds.has(p.id)) {
+          seenIds.add(p.id);
+          combinedPool.push({ ...p, _matchType: "exact" });
+        }
+      }
+      exactCount = combinedPool.length;
+
+      for (const p of scoredSimilar) {
+        if (!seenIds.has(p.id)) {
+          seenIds.add(p.id);
+          combinedPool.push({ ...p, _matchType: "similar" });
+        }
+      }
+
+      // Fallback: If still empty but category is recognized, suggest top rated products from category
+      if (combinedPool.length === 0 && query.category && categoryMatches.length > 0) {
+        for (const p of categoryMatches) {
+          if (!seenIds.has(p.id)) {
+            seenIds.add(p.id);
+            combinedPool.push({ ...p, _matchType: "similar" });
+          }
+        }
+      }
+      similarCount = combinedPool.length - exactCount;
+      pool = combinedPool;
+    } else {
+      // Standard Text / Voice Search Pipeline
+      // 1. Resolve Conversation Context Reference
+      if (query.contextReference && contextProducts.length > 0) {
+        appliedFilters.contextResolvedFrom = contextProducts.map(p => p.name);
+        pool = contextProducts.map(cp => {
+          const fresh = allDbProducts.find(p => p.id === cp.id || p.name === cp.name);
+          return fresh || cp;
         });
       }
-    }
+
+      // 2. Category Filter (Strict by category ID / category metadata)
+      if (query.category) {
+        const targetCat = removeVietnameseAccents(query.category);
+        appliedFilters.category = query.category;
+
+        let matchedCatId: string | null = null;
+        for (const [catId, aliases] of Object.entries(CATEGORY_MAP)) {
+          if (aliases.some(a => targetCat.includes(a) || a.includes(targetCat))) {
+            matchedCatId = catId;
+            break;
+          }
+        }
+
+        if (matchedCatId) {
+          pool = pool.filter(p => p.categoryId === matchedCatId);
+        } else {
+          pool = pool.filter(p => {
+            const catName = removeVietnameseAccents(p.category?.name || "");
+            const catSlug = removeVietnameseAccents(p.category?.slug || "");
+            return catName.includes(targetCat) || catSlug.includes(targetCat);
+          });
+        }
+      }
 
     // 3. Brand Filter
     if (query.brand) {
@@ -163,6 +255,7 @@ export class ProductSearchService {
         }
       }
     }
+  }
 
     // 6. Price Range Filters
     if (typeof query.minPrice === "number" && !isNaN(query.minPrice)) {
@@ -210,7 +303,9 @@ export class ProductSearchService {
     return {
       products: finalProducts,
       total,
-      appliedFilters
+      appliedFilters,
+      exactCount,
+      similarCount
     };
   }
 }
