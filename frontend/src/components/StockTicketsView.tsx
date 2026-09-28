@@ -16,7 +16,7 @@ import {
   Building2,
   X
 } from "lucide-react";
-import { StockTicket, Product } from "../types";
+import { StockTicket, Product, User } from "../types";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
@@ -34,6 +34,8 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [staffFilter, setStaffFilter] = useState<string>("ALL");
+  const [staffList, setStaffList] = useState<User[]>([]);
   const [search, setSearch] = useState<string>("");
   const [toastMsg, setToastMsg] = useState<string>("");
   const [summary, setSummary] = useState<any>(null);
@@ -54,19 +56,27 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [ticketsRes, prodRes, sumRes] = await Promise.all([
+      const [ticketsRes, prodRes, sumRes, usersRes] = await Promise.all([
         api.getStockTickets(
           statusFilter !== "ALL" ? statusFilter : undefined,
           typeFilter !== "ALL" ? typeFilter : undefined,
-          search || undefined
+          search || undefined,
+          false,
+          staffFilter !== "ALL" ? staffFilter : undefined
         ),
         api.getProducts({ limit: 100 }),
-        api.getStockSummary().catch(() => null)
+        api.getStockSummary().catch(() => null),
+        canApprove ? api.getAllUsers().catch(() => ({ users: [] })) : Promise.resolve({ users: [] })
       ]);
 
       setTickets(ticketsRes.tickets || []);
       setProducts(prodRes.products || []);
       if (sumRes) setSummary(sumRes);
+
+      if (usersRes?.users) {
+        const staffMembers = usersRes.users.filter((u: any) => u.role === "STAFF" || u.role === "MANAGER" || u.role === "ADMIN");
+        setStaffList(staffMembers);
+      }
 
       if (prodRes.products && prodRes.products.length > 0 && !selectedProductId) {
         setSelectedProductId(prodRes.products[0].id);
@@ -80,7 +90,7 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
 
   useEffect(() => {
     fetchData();
-  }, [statusFilter, typeFilter, search]);
+  }, [statusFilter, typeFilter, search, staffFilter]);
 
   const handleOpenCreate = (type: "IMPORT" | "EXPORT") => {
     setCreateType(type);
@@ -290,7 +300,23 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
           ))}
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
+          {canApprove && staffList.length > 0 && (
+            <select
+              value={staffFilter}
+              onChange={(e) => setStaffFilter(e.target.value)}
+              className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-semibold focus:outline-none focus:border-rose-500 cursor-pointer shadow-sm"
+              title="Lọc phiếu xuất nhập theo nhân viên lập phiếu"
+            >
+              <option value="ALL">👥 Tất cả người lập phiếu</option>
+              {staffList.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.fullName} ({s.role})
+                </option>
+              ))}
+            </select>
+          )}
+
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
@@ -409,8 +435,14 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
 
                       <td className="p-4 whitespace-nowrap">
                         <p className="font-bold text-slate-900">{t.requestedByName}</p>
-                        <span className="text-[10px] text-slate-500 font-mono font-semibold">
-                          Vai trò: {t.requestedByRole}
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md mt-0.5 ${
+                          t.requestedByRole === "STAFF"
+                            ? "bg-blue-50 text-blue-700 border border-blue-200"
+                            : t.requestedByRole === "MANAGER"
+                            ? "bg-purple-50 text-purple-700 border border-purple-200"
+                            : "bg-slate-100 text-slate-700 border border-slate-200"
+                        }`}>
+                          {t.requestedByRole === "STAFF" ? "👷 Nhân viên kho" : t.requestedByRole === "MANAGER" ? "👔 Quản lý kho" : "👑 Admin"}
                         </span>
                       </td>
 

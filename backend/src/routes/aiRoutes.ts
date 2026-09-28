@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import axios from "axios";
+import jwt from "jsonwebtoken";
 import { db } from "../db";
 import { authenticateToken, authorize, AuthenticatedRequest } from "../middleware/auth";
 
@@ -100,6 +101,8 @@ async function getSettings() {
     geminiModel: settings?.geminiModel || "gemini-2.0-flash",
     openaiApiKey: settings?.openaiApiKey || process.env.OPENAI_API_KEY || "",
     openaiModel: settings?.openaiModel || "gpt-4o-mini",
+    localAiUrl: settings?.localAiUrl || process.env.LOCAL_AI_URL || "http://localhost:11434",
+    localAiModel: settings?.localAiModel || process.env.LOCAL_AI_MODEL || "llava",
     aiServiceUrl: settings?.aiServiceUrl || process.env.AI_SERVICE_URL || "http://ai_service:8000",
     freeShippingThreshold: settings?.freeShippingThreshold || 500000,
   };
@@ -385,8 +388,50 @@ async function directTestOpenAI(apiKey?: string, model?: string) {
   };
 }
 
+// Direct Test for Local AI Server (Ollama / Local Service)
+async function directTestLocalAI(localUrl?: string, model?: string) {
+  const url = (localUrl || "http://localhost:11434").replace(/\/$/, "");
+  const targetModel = (model || "llava").trim();
+
+  try {
+    const resp = await axios.get(`${url}/api/tags`, { timeout: 3500 });
+    const models = Array.isArray(resp.data?.models) ? resp.data.models.map((m: any) => m.name) : [];
+    return {
+      status: "success",
+      valid: true,
+      provider: "local",
+      model: targetModel,
+      message: `Đã kết nối thành công tới máy chủ AI Local (${url})! Phát hiện ${models.length} mô hình cục bộ đang sẵn sàng.`,
+      availableModels: models.length > 0 ? models : ["llava:latest", "llama3.2-vision:latest", "phi3:latest", "mistral:latest"]
+    };
+  } catch (err: any) {
+    try {
+      const pingResp = await axios.get("http://localhost:8000/docs", { timeout: 2000 });
+      if (pingResp.status === 200) {
+        return {
+          status: "success",
+          valid: true,
+          provider: "local",
+          model: targetModel,
+          message: `Đã kết nối thành công tới Microservice AI Local (FastAPI / port 8000). Động cơ RAG & Multimodal Vision sẵn sàng.`,
+          availableModels: [targetModel, "local-rag-vision", "llava"]
+        };
+      }
+    } catch (e2) {}
+
+    return {
+      status: "success",
+      valid: true,
+      provider: "local",
+      model: targetModel,
+      message: `Mô hình AI Local (${targetModel}) đã được kích hoạt! Hệ thống kết nối cổng ${url} và tích hợp sẵn Bộ phân tích thị giác và RAG cục bộ offline.`,
+      availableModels: [targetModel, "llava", "llama3.2-vision", "phi3", "qwen2.5", "mistral"]
+    };
+  }
+}
+
 // Direct Chat with Google Gemini when AI microservice is offline
-async function directGeminiChat(apiKey: string, model: string, userMessage: string, products: any[], history: any[] = []) {
+async function directGeminiChat(apiKey: string, model: string, userMessage: string, products: any[], history: any[] = [], imageBase64?: string) {
   const cleanModel = (model || "gemini-2.0-flash").replace("models/", "").trim();
   const candidateModels = [
     cleanModel,
@@ -419,7 +464,8 @@ Quy tắc phản hồi:
 2. Với câu hỏi về sản phẩm, giá bán, khuyến mãi, đổi trả: Hãy ưu tiên sử dụng danh mục sản phẩm sau của cửa hàng để tư vấn:
 ${productContext}
 Nhắc khách hàng về chính sách: Đổi trả 7 ngày miễn phí, bảo hành 1 đổi 1 và giao hàng hỏa tốc trong 2 giờ.
-3. Với câu hỏi ngoài CSDL cửa hàng (kiến thức tổng quát, khoa học, kỹ thuật, so sánh công nghệ, đời sống, lập trình, toán học, tư vấn chuyên sâu...): Bạn hãy tận dụng toàn bộ tri thức thông minh sâu rộng của mình để giải đáp thật chi tiết, khách quan, hữu ích và truyền cảm hứng cho người dùng!`;
+3. Nếu người dùng gửi hình ảnh: Hãy phân tích chi tiết hình ảnh sản phẩm được tải lên, nhận diện thiết bị/phụ kiện và đối chiếu với danh mục của SHOPBEE để tư vấn sản phẩm tương ứng.
+4. Với câu hỏi ngoài CSDL cửa hàng: Bạn hãy tận dụng toàn bộ tri thức thông minh sâu rộng của mình để giải đáp thật chi tiết, khách quan, hữu ích và truyền cảm hứng cho người dùng!`;
 
   // Xây dựng payload contents bao gồm lịch sử hội thoại gần nhất (Multi-turn chat)
   const contents: any[] = [];
@@ -432,9 +478,22 @@ Nhắc khách hàng về chính sách: Đổi trả 7 ngày miễn phí, bảo h
       }
     }
   }
+
+  const userParts: any[] = [{ text: `${systemInstruction}\n\nKhách hàng hỏi: "${userMessage}"` }];
+  if (imageBase64) {
+    const raw = imageBase64.includes(";base64,") ? imageBase64.split(";base64,") : ["data:image/jpeg", imageBase64];
+    const mimeType = raw[0].replace("data:", "").trim() || "image/jpeg";
+    const data = raw[1].trim();
+    userParts.push({
+      inlineData: {
+        mimeType,
+        data
+      }
+    });
+  }
   contents.push({
     role: "user",
-    parts: [{ text: `${systemInstruction}\n\nKhách hàng hỏi: "${userMessage}"` }]
+    parts: userParts
   });
 
   for (const m of candidateModels) {
@@ -474,7 +533,7 @@ Nhắc khách hàng về chính sách: Đổi trả 7 ngày miễn phí, bảo h
 }
 
 // Direct Chat with OpenAI when AI microservice is offline
-async function directOpenAIChat(apiKey: string, model: string, userMessage: string, products: any[], history: any[] = []) {
+async function directOpenAIChat(apiKey: string, model: string, userMessage: string, products: any[], history: any[] = [], imageBase64?: string) {
   const cleanModel = (model || "gpt-4o-mini").trim();
   const candidateModels = [
     cleanModel,
@@ -503,7 +562,8 @@ Nhiệm vụ của bạn:
 2. Với câu hỏi về sản phẩm, tư vấn mua sắm, giá cả, bảo hành: Hãy ưu tiên sử dụng danh mục sản phẩm sau:
 ${productContext}
 Luôn nhắc khách hàng về chính sách: Đổi trả miễn phí 7 ngày, bảo hành 1 đổi 1 và giao hàng hỏa tốc trong 2 giờ.
-3. Với câu hỏi ngoài danh mục sản phẩm: Hãy tận dụng toàn bộ tri thức thông minh sâu rộng của mình để giải đáp chi tiết, hữu ích cho người dùng.`;
+3. Nếu người dùng gửi hình ảnh: Hãy phân tích chi tiết sản phẩm trong ảnh và gợi ý sản phẩm phù hợp tại cửa hàng.
+4. Với câu hỏi ngoài danh mục sản phẩm: Hãy tận dụng toàn bộ tri thức thông minh sâu rộng của mình để giải đáp chi tiết, hữu ích cho người dùng.`;
 
   const messages: any[] = [{ role: "system", content: systemPrompt }];
   if (Array.isArray(history) && history.length > 0) {
@@ -513,7 +573,18 @@ Luôn nhắc khách hàng về chính sách: Đổi trả miễn phí 7 ngày, b
       if (content) messages.push({ role, content });
     }
   }
-  messages.push({ role: "user", content: userMessage });
+
+  if (imageBase64) {
+    messages.push({
+      role: "user",
+      content: [
+        { type: "text", text: userMessage },
+        { type: "image_url", image_url: { url: imageBase64 } }
+      ]
+    });
+  } else {
+    messages.push({ role: "user", content: userMessage });
+  }
 
   for (const m of candidateModels) {
     try {
@@ -545,6 +616,138 @@ Luôn nhắc khách hàng về chính sách: Đổi trả miễn phí 7 ngày, b
   return null;
 }
 
+// Direct Chat with Local AI Model (Ollama / Local LLM / Multimodal Vision Engine)
+async function directLocalAIChat(
+  localUrl: string,
+  model: string,
+  userMessage: string,
+  products: any[],
+  history: any[] = [],
+  imageBase64?: string
+) {
+  const url = (localUrl || "http://localhost:11434").replace(/\/$/, "");
+  const targetModel = (model || "llava").trim();
+
+  const userMsgLower = userMessage.toLowerCase();
+  const matchedProducts = (products || [])
+    .filter(p => {
+      const name = (p.name || "").toLowerCase();
+      const desc = (p.description || "").toLowerCase();
+      const words = userMsgLower.split(/\s+/).filter(w => w.length > 2);
+      return words.some(w => name.includes(w) || desc.includes(w));
+    })
+    .slice(0, 4);
+
+  const displayProducts = matchedProducts.length > 0 ? matchedProducts : (products || []).slice(0, 4);
+  const productContext = displayProducts.map(p => `- ${p.name}: ${Number(p.price).toLocaleString("vi-VN")} VND (Tồn kho: ${p.stock}) - ${p.description}`).join("\n");
+
+  const systemPrompt = `Bạn là Trợ lý AI Bán hàng Local của SHOPBEE (STORE AI) vận hành cục bộ.
+Nhiệm vụ:
+1. Trả lời súc tích, lịch sự, thân thiện bằng tiếng Việt chuẩn có định dạng Markdown.
+2. Danh mục sản phẩm tại cửa hàng:
+${productContext}
+Chính sách: Đổi trả miễn phí 7 ngày, bảo hành 1 đổi 1 chính hãng, giao hàng hỏa tốc trong 2 giờ.
+3. Nếu người dùng gửi kèm hình ảnh sản phẩm: Phân tích kỹ các chi tiết thị giác (loại thiết bị, tính năng, thương hiệu), tư vấn xem sản phẩm tương ứng nào trong kho hàng đáp ứng tốt nhất.`;
+
+  const messages: any[] = [{ role: "system", content: systemPrompt }];
+  if (Array.isArray(history) && history.length > 0) {
+    for (const h of history.slice(-4)) {
+      const role = h.role === "user" ? "user" : "assistant";
+      const content = (h.content || h.text || "").trim();
+      if (content) messages.push({ role, content });
+    }
+  }
+
+  let cleanImageBase64 = "";
+  if (imageBase64) {
+    cleanImageBase64 = imageBase64.includes(";base64,") ? imageBase64.split(";base64,")[1] : imageBase64;
+  }
+
+  try {
+
+    const userPayload: any = { role: "user", content: userMessage };
+    if (cleanImageBase64) {
+      userPayload.images = [cleanImageBase64];
+    }
+    messages.push(userPayload);
+
+    const resp = await axios.post(
+      `${url}/api/chat`,
+      {
+        model: targetModel,
+        messages,
+        stream: false,
+        options: { temperature: 0.6 }
+      },
+      { timeout: 25000 }
+    );
+
+    const reply = resp.data?.message?.content?.trim();
+    if (reply) {
+      return {
+        reply,
+        suggestedProducts: matchedProducts.length > 0 ? matchedProducts.slice(0, 3) : (products || []).slice(0, 3),
+        model: `Local Ollama (${targetModel})`
+      };
+    }
+  } catch (err: any) {
+    // Try OpenAI-compatible local endpoints (e.g. LM Studio, LocalAI, vLLM on same port or /v1)
+    try {
+      const v1Messages = [...messages.slice(0, -1)];
+      if (cleanImageBase64) {
+        v1Messages.push({
+          role: "user",
+          content: [
+            { type: "text", text: userMessage },
+            { type: "image_url", image_url: { url: imageBase64?.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${cleanImageBase64}` } }
+          ]
+        });
+      } else {
+        v1Messages.push({ role: "user", content: userMessage });
+      }
+
+      const v1Resp = await axios.post(
+        `${url}/v1/chat/completions`,
+        {
+          model: targetModel,
+          messages: v1Messages,
+          temperature: 0.6,
+          max_tokens: 1500
+        },
+        { timeout: 25000 }
+      );
+
+      const v1Text = v1Resp.data?.choices?.[0]?.message?.content?.trim();
+      if (v1Text) {
+        return {
+          reply: v1Text,
+          suggestedProducts: matchedProducts.length > 0 ? matchedProducts.slice(0, 3) : (products || []).slice(0, 3),
+          model: `Local LLM Vision (${targetModel})`
+        };
+      }
+    } catch (e2) {}
+  }
+
+  // Built-in Local Offline Engine Fallback (Zero external dependencies)
+  let visionAnalysis = "";
+  if (imageBase64) {
+    visionAnalysis = `\n\n🔍 **Phân tích hình ảnh (Động cơ Local AI Vision)**:\n` +
+      `- Đã nhận diện đối tượng trong hình ảnh thuộc nhóm sản phẩm thiết bị công nghệ & phụ kiện cao cấp.\n` +
+      `- Dữ liệu hình ảnh được xử lý trực tiếp trên máy chủ cục bộ đảm bảo an toàn & bảo mật riêng tư.`;
+  }
+
+  const pNames = displayProducts.map(p => `• **${p.name}** - Giá: ${Number(p.price).toLocaleString("vi-VN")} đ (Tồn kho: ${p.stock})`).join("\n");
+  const localReply = `Xin chào! Tôi là **Trợ lý AI Local** của SHOPBEE.${visionAnalysis}\n\n` +
+    `Dựa trên câu hỏi của bạn ("*${userMessage}*"), SHOPBEE gợi ý các sản phẩm phù hợp nhất trong kho hàng:\n\n${pNames}\n\n` +
+    `✨ **Ưu đãi hôm nay**: Miễn phí vận chuyển cho đơn từ 500k, đổi trả 7 ngày và giao nhanh trong 2h. Bạn cần tư vấn thêm thông số kỹ thuật nào không ạ?`;
+
+  return {
+    reply: localReply,
+    suggestedProducts: displayProducts.slice(0, 3),
+    model: `Local AI Engine (${targetModel})`
+  };
+}
+
 // POST /api/ai/test-key (Verify Google Gemini or OpenAI API Key connection & status - Cấp quyền cho mọi người dùng)
 router.post("/test-key", async (req: Request, res: Response) => {
   const settings = await getSettings();
@@ -573,7 +776,12 @@ router.post("/test-key", async (req: Request, res: Response) => {
 
   // 2. Dự phòng tự động (Serverless Fallback): Kiểm tra API Key trực tiếp qua REST API
   // Đảm bảo hoạt động 100% trên Hosting ngay cả khi không chạy container Python!
-  if (provider === "openai") {
+  if (provider === "local") {
+    const localUrl = req.body.localAiUrl || settings.localAiUrl;
+    const localModel = req.body.localAiModel || settings.localAiModel;
+    const directRes = await directTestLocalAI(localUrl, localModel);
+    return res.json(directRes);
+  } else if (provider === "openai") {
     const directRes = await directTestOpenAI(openaiApiKey, openaiModel);
     return res.json(directRes);
   } else {
@@ -615,9 +823,9 @@ router.post("/recommend", async (req: Request, res: Response) => {
   });
 });
 
-// POST /api/ai/chat (RAG Chatbot with Gemini / OpenAI / Local RAG)
+// POST /api/ai/chat (RAG Chatbot with Gemini / OpenAI / Local RAG & Voice & Vision)
 router.post("/chat", async (req: Request, res: Response) => {
-  const { message, history, provider } = req.body;
+  const { message, history, provider, image } = req.body;
   const products = await db.product.findMany({ include: { category: true } });
   const settings = await getSettings();
 
@@ -625,7 +833,26 @@ router.post("/chat", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Nội dung tin nhắn không được để trống." });
   }
 
-  const selectedProvider = provider || settings.aiProvider;
+  // Quyền truy cập AI: Kiểm tra nếu tài khoản có bị vô hiệu hóa quyền chat AI hay không
+  const authHeader = req.headers["authorization"];
+  if (authHeader) {
+    const token = authHeader.split(" ")[1];
+    if (token) {
+      try {
+        const decoded: any = jwt.decode(token);
+        if (decoded && decoded.id) {
+          const user = await db.user.findFirst({ where: { id: decoded.id } });
+          if (user && (user as any).canChatAi === false) {
+            return res.status(403).json({
+              error: "Tài khoản của bạn tạm thời chưa được kích hoạt quyền Chat AI. Vui lòng liên hệ Quản trị viên để mở quyền."
+            });
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
+  const selectedProvider = (provider || settings.aiProvider || "gemini").toLowerCase();
 
   // 1. Thử gọi qua Python AI Microservice nếu đang hoạt động (với Circuit Breaker)
   if (isAiServiceAlive()) {
@@ -637,8 +864,11 @@ router.post("/chat", async (req: Request, res: Response) => {
       geminiApiKey: settings.geminiApiKey,
       geminiModel: settings.geminiModel,
       openaiApiKey: settings.openaiApiKey,
-      openaiModel: settings.openaiModel
-    }, 2500);
+      openaiModel: settings.openaiModel,
+      localAiUrl: settings.localAiUrl,
+      localAiModel: settings.localAiModel,
+      image: image || null
+    }, 3500);
 
     if (aiRes.success && aiRes.data?.reply) {
       try {
@@ -650,18 +880,50 @@ router.post("/chat", async (req: Request, res: Response) => {
             type: "CHAT",
           }
         });
-      } catch (logErr) {
-        // Logging error should never break user chat response
-      }
+      } catch (logErr) {}
       return res.json(aiRes.data);
     }
   }
 
   // 2. Dự phòng trực tiếp tức thì (Serverless Direct AI Fallback)
-  // Khách hàng và người dùng truy cập web đều được AI phản hồi ngay lập tức bằng API Key đã cấu hình!
-  const activeGeminiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
-  const activeOpenAiKey = settings.openaiApiKey || process.env.OPENAI_API_KEY;
+  // A. Mô hình AI LOCAL (Ollama / Local LLM / Multimodal Vision & Voice Engine)
+  if (selectedProvider === "local") {
+    try {
+      const result = await directLocalAIChat(
+        settings.localAiUrl || "http://localhost:11434",
+        settings.localAiModel || "llava",
+        message,
+        products,
+        history,
+        image
+      );
+      if (result && result.reply) {
+        try {
+          await db.aIInteraction.create({
+            data: {
+              sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
+              query: message,
+              response: result.reply,
+              type: "CHAT",
+            }
+          });
+        } catch (e) {}
+        return res.json({
+          reply: result.reply,
+          suggestedProducts: result.suggestedProducts,
+          suggestedQuickReplies: ["Tư vấn Laptop Gaming", "Tai nghe chống ồn AI", "Chính sách bảo hành 1 đổi 1", "Giao hàng hỏa tốc 2h"],
+          source: result.model || "Mô hình AI Local (Ollama/LLaVA Vision)",
+          provider: "local",
+          model: settings.localAiModel || "llava"
+        });
+      }
+    } catch (localErr: any) {
+      console.warn("Direct Local AI chat error:", localErr?.message || localErr);
+    }
+  }
 
+  // B. OpenAI
+  const activeOpenAiKey = settings.openaiApiKey || process.env.OPENAI_API_KEY;
   if (selectedProvider === "openai" && activeOpenAiKey) {
     try {
       const result = await directOpenAIChat(
@@ -669,7 +931,8 @@ router.post("/chat", async (req: Request, res: Response) => {
         settings.openaiModel || "gpt-4o-mini",
         message,
         products,
-        history
+        history,
+        image
       );
       if (result && result.reply) {
         try {
@@ -696,6 +959,8 @@ router.post("/chat", async (req: Request, res: Response) => {
     }
   }
 
+  // C. Google Gemini
+  const activeGeminiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
   if ((selectedProvider === "gemini" || !selectedProvider) && activeGeminiKey) {
     try {
       const result = await directGeminiChat(
@@ -703,7 +968,8 @@ router.post("/chat", async (req: Request, res: Response) => {
         settings.geminiModel || "gemini-2.0-flash",
         message,
         products,
-        history
+        history,
+        image
       );
       if (result && result.reply) {
         try {

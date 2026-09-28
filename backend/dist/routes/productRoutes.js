@@ -97,8 +97,8 @@ router.get("/:idOrSlug", async (req, res) => {
         return res.status(500).json({ error: "Lỗi truy vấn: " + err.message });
     }
 });
-// POST /api/products (Admin & Staff)
-router.post("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "STAFF"]), async (req, res) => {
+// POST /api/products (Admin Only)
+router.post("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN"]), async (req, res) => {
     try {
         const { name, description, price, originalPrice, stock, categoryId, thumbnail, images, isFeatured, isNew } = req.body;
         if (!name || price === undefined || stock === undefined || !categoryId) {
@@ -148,8 +148,8 @@ router.post("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "STAF
         return res.status(500).json({ error: "Lỗi thêm sản phẩm: " + err.message });
     }
 });
-// PUT /api/products/:id (Admin & Staff)
-router.put("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "STAFF"]), async (req, res) => {
+// PUT /api/products/:id (Admin Only)
+router.put("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN"]), async (req, res) => {
     try {
         const existing = await db_1.db.product.findUnique({ where: { id: req.params.id } });
         if (!existing) {
@@ -197,8 +197,8 @@ router.put("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "ST
         return res.status(500).json({ error: "Lỗi cập nhật sản phẩm: " + err.message });
     }
 });
-// DELETE /api/products/:id (Admin & Staff)
-router.delete("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "STAFF"]), async (req, res) => {
+// DELETE /api/products/:id (Admin Only)
+router.delete("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN"]), async (req, res) => {
     try {
         const existing = await db_1.db.product.findUnique({ where: { id: req.params.id } });
         if (!existing) {

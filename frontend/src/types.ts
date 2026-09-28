@@ -7,6 +7,7 @@ export interface User {
   avatar?: string;
   role: "ADMIN" | "MANAGER" | "STAFF" | "CUSTOMER";
   isActive: boolean;
+  canChatAi?: boolean;
   createdAt?: string;
 }
 
@@ -160,11 +161,13 @@ export interface SystemSettings {
   hotline: string;
   supportEmail: string;
   freeShippingThreshold: number;
-  aiProvider?: "gemini" | "openai";
+  aiProvider?: "gemini" | "openai" | "local";
   geminiApiKey: string;
   geminiModel: string;
   openaiApiKey?: string;
   openaiModel?: string;
+  localAiUrl?: string;
+  localAiModel?: string;
   aiServiceUrl: string;
   vnpayTmnCode: string;
   momoPartnerCode?: string;

@@ -30,7 +30,30 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const { user, logout } = useAuth();
   const isManager = user?.role === "MANAGER";
 
-  const navSections = [
+  const navSections = isManager ? [
+    {
+      title: "TỔNG QUAN",
+      items: [
+        { id: "admin_dashboard", label: "Dashboard Kho", icon: <LayoutDashboard className="w-4 h-4" /> }
+      ]
+    },
+    {
+      title: "QUẢN LÝ KHO & KIỂM SOÁT STAFF",
+      items: [
+        { id: "admin_stock_tickets", label: "Duyệt Xuất / Nhập Kho", icon: <ArrowDownToLine className="w-4 h-4 text-rose-500" /> },
+        { id: "admin_inventory", label: "Tồn Kho & Cảnh Báo", icon: <Boxes className="w-4 h-4 text-blue-500" /> },
+        { id: "admin_inventory_alerts", label: "Cảnh Báo Cạn Kho AI", icon: <AlertTriangle className="w-4 h-4 text-amber-500" /> },
+        { id: "admin_products", label: "Tra Cứu Tồn Kho SP", icon: <Package className="w-4 h-4 text-slate-500" /> },
+        { id: "admin_orders", label: "Đơn Hàng Xuất Kho", icon: <ShoppingBag className="w-4 h-4 text-emerald-500" /> }
+      ]
+    },
+    {
+      title: "TRÍ TUỆ NHÂN TẠO",
+      items: [
+        { id: "admin_forecast", label: "AI Dự Báo Nhu Cầu", icon: <TrendingUp className="w-4 h-4 text-emerald-400" /> }
+      ]
+    }
+  ] : [
     {
       title: "TỔNG QUAN",
       items: [
@@ -38,14 +61,14 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       ]
     },
     {
-      title: "QUẢN LÝ KHO & BÁN HÀNG",
+      title: "QUẢN LÝ SẢN PHẨM & KHO",
       items: [
-        { id: "admin_stock_tickets", label: "Duyệt Xuất/Nhập Kho", icon: <ArrowDownToLine className="w-4 h-4 text-rose-400" /> },
-        { id: "admin_products", label: "Sản phẩm kho", icon: <Package className="w-4 h-4" /> },
-        { id: "admin_categories", label: "Danh mục", icon: <Tag className="w-4 h-4" /> },
-        { id: "admin_orders", label: "Đơn hàng", icon: <ShoppingBag className="w-4 h-4" /> },
-        { id: "admin_customers", label: "Khách hàng", icon: <Users className="w-4 h-4" /> },
-        { id: "admin_inventory", label: "Tồn kho & Cảnh báo", icon: <Boxes className="w-4 h-4" /> }
+        { id: "admin_stock_tickets", label: "Duyệt Xuất/Nhập Kho", icon: <ArrowDownToLine className="w-4 h-4 text-rose-500" /> },
+        { id: "admin_products", label: "Quản Lý Sản Phẩm", icon: <Package className="w-4 h-4 text-rose-600" /> },
+        { id: "admin_categories", label: "Danh Mục", icon: <Tag className="w-4 h-4 text-indigo-500" /> },
+        { id: "admin_orders", label: "Đơn Hàng", icon: <ShoppingBag className="w-4 h-4 text-emerald-500" /> },
+        { id: "admin_customers", label: "Khách Hàng & Phân Quyền", icon: <Users className="w-4 h-4 text-purple-500" /> },
+        { id: "admin_inventory", label: "Tồn Kho & Cảnh Báo", icon: <Boxes className="w-4 h-4 text-blue-500" /> }
       ]
     },
     {
@@ -53,13 +76,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       items: [
         { id: "admin_studio", label: "Architecture Studio", icon: <Cpu className="w-4 h-4 text-rose-400" /> },
         { id: "admin_forecast", label: "AI Dự Báo Doanh Thu", icon: <TrendingUp className="w-4 h-4 text-emerald-400" /> },
-        { id: "admin_inventory_alerts", label: "Cảnh báo cạn kho AI", icon: <AlertTriangle className="w-4 h-4 text-amber-400" /> }
+        { id: "admin_inventory_alerts", label: "Cảnh Báo Cạn Kho AI", icon: <AlertTriangle className="w-4 h-4 text-amber-400" /> }
       ]
     },
     {
-      title: "CÀI ĐẶT",
+      title: "CÀI ĐẶT HỆ THỐNG",
       items: [
-        { id: "admin_settings", label: "Cấu hình hệ thống", icon: <Settings className="w-4 h-4" /> }
+        { id: "admin_settings", label: "Cấu Hình Hệ Thống", icon: <Settings className="w-4 h-4" /> }
       ]
     }
   ];

@@ -13,6 +13,7 @@ export interface User {
   avatar?: string;
   role: "ADMIN" | "MANAGER" | "STAFF" | "CUSTOMER";
   isActive: boolean;
+  canChatAi?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -114,11 +115,13 @@ export interface SystemSettings {
   hotline: string;
   supportEmail: string;
   freeShippingThreshold: number;
-  aiProvider?: "gemini" | "openai";
+  aiProvider?: "gemini" | "openai" | "local";
   geminiApiKey: string;
   geminiModel: string;
   openaiApiKey?: string;
   openaiModel?: string;
+  localAiUrl?: string;
+  localAiModel?: string;
   aiServiceUrl: string;
   vnpayTmnCode: string;
   momoPartnerCode?: string;
@@ -137,6 +140,7 @@ export const INITIAL_USERS: User[] = [
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
     role: "ADMIN",
     isActive: true,
+    canChatAi: true,
     createdAt: "2026-08-01T08:00:00.000Z",
     updatedAt: "2026-08-20T09:00:00.000Z"
   },
@@ -150,6 +154,7 @@ export const INITIAL_USERS: User[] = [
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
     role: "MANAGER",
     isActive: true,
+    canChatAi: true,
     createdAt: "2026-08-01T08:30:00.000Z",
     updatedAt: "2026-08-20T09:00:00.000Z"
   },
@@ -163,6 +168,7 @@ export const INITIAL_USERS: User[] = [
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     role: "STAFF",
     isActive: true,
+    canChatAi: true,
     createdAt: "2026-08-02T08:00:00.000Z",
     updatedAt: "2026-08-20T09:00:00.000Z"
   },
@@ -176,6 +182,7 @@ export const INITIAL_USERS: User[] = [
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
     role: "STAFF",
     isActive: true,
+    canChatAi: true,
     createdAt: "2026-08-02T08:30:00.000Z",
     updatedAt: "2026-08-20T09:00:00.000Z"
   },
@@ -189,6 +196,7 @@ export const INITIAL_USERS: User[] = [
     avatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
     role: "CUSTOMER",
     isActive: true,
+    canChatAi: true,
     createdAt: "2026-08-05T09:00:00.000Z",
     updatedAt: "2026-08-20T09:00:00.000Z"
   },
@@ -202,6 +210,7 @@ export const INITIAL_USERS: User[] = [
     avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
     role: "CUSTOMER",
     isActive: true,
+    canChatAi: true,
     createdAt: "2026-08-06T10:00:00.000Z",
     updatedAt: "2026-08-20T09:00:00.000Z"
   },
@@ -215,6 +224,7 @@ export const INITIAL_USERS: User[] = [
     avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
     role: "CUSTOMER",
     isActive: true,
+    canChatAi: true,
     createdAt: "2026-08-08T11:00:00.000Z",
     updatedAt: "2026-08-20T09:00:00.000Z"
   },
@@ -228,6 +238,7 @@ export const INITIAL_USERS: User[] = [
     avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
     role: "CUSTOMER",
     isActive: true,
+    canChatAi: true,
     createdAt: "2026-08-10T14:00:00.000Z",
     updatedAt: "2026-08-20T09:00:00.000Z"
   },
@@ -241,6 +252,7 @@ export const INITIAL_USERS: User[] = [
     avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
     role: "CUSTOMER",
     isActive: true,
+    canChatAi: true,
     createdAt: "2026-08-12T16:00:00.000Z",
     updatedAt: "2026-08-20T09:00:00.000Z"
   }
@@ -1355,6 +1367,8 @@ export const INITIAL_SETTINGS: SystemSettings = {
   geminiModel: "gemini-3.5-flash",
   openaiApiKey: "",
   openaiModel: "gpt-5.4-mini",
+  localAiUrl: "http://localhost:11434",
+  localAiModel: "llava",
   aiServiceUrl: process.env.AI_SERVICE_URL || "http://ai_service:8000",
   vnpayTmnCode: "SANDBOX_STORE_AI",
   momoPartnerCode: "MOMO",

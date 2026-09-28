@@ -42,7 +42,7 @@ export const AdminSettings: React.FC = () => {
   const [toastMsg, setToastMsg] = useState("");
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showOpenAiKey, setShowOpenAiKey] = useState(false);
-  const [activeAiTab, setActiveAiTab] = useState<"gemini" | "openai">("gemini");
+  const [activeAiTab, setActiveAiTab] = useState<"gemini" | "openai" | "local">("gemini");
   
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{
@@ -61,7 +61,7 @@ export const AdminSettings: React.FC = () => {
         const data = await api.getSettings();
         setSettings(prev => ({ ...prev, ...data }));
         if (data.aiProvider) {
-          setActiveAiTab(data.aiProvider as "gemini" | "openai");
+          setActiveAiTab(data.aiProvider as "gemini" | "openai" | "local");
         }
       } catch (err) {
         console.warn("Could not fetch settings:", err);
@@ -83,17 +83,17 @@ export const AdminSettings: React.FC = () => {
     }
   };
 
-  const handleTestApiKey = async (providerToTest: "gemini" | "openai") => {
-    const key = providerToTest === "gemini" ? settings.geminiApiKey : settings.openaiApiKey;
-    const model = providerToTest === "gemini" ? settings.geminiModel : settings.openaiModel;
-
-    if (!key?.trim()) {
-      setTestResult({
-        valid: false,
-        provider: providerToTest,
-        message: `Vui lòng nhập ${providerToTest === "gemini" ? "Google Gemini" : "OpenAI"} API Key trước khi kiểm tra.`
-      });
-      return;
+  const handleTestApiKey = async (providerToTest: "gemini" | "openai" | "local") => {
+    if (providerToTest !== "local") {
+      const key = providerToTest === "gemini" ? settings.geminiApiKey : settings.openaiApiKey;
+      if (!key?.trim()) {
+        setTestResult({
+          valid: false,
+          provider: providerToTest,
+          message: `Vui lòng nhập ${providerToTest === "gemini" ? "Google Gemini" : "OpenAI"} API Key trước khi kiểm tra.`
+        });
+        return;
+      }
     }
 
     setIsTestingKey(true);
@@ -102,8 +102,14 @@ export const AdminSettings: React.FC = () => {
     try {
       const res = await api.testAiKey({
         provider: providerToTest,
-        apiKey: key.trim(),
-        model: model
+        apiKey: providerToTest === "gemini" ? settings.geminiApiKey : settings.openaiApiKey,
+        model: providerToTest === "gemini" ? settings.geminiModel : providerToTest === "openai" ? settings.openaiModel : settings.localAiModel,
+        geminiApiKey: settings.geminiApiKey,
+        geminiModel: settings.geminiModel,
+        openaiApiKey: settings.openaiApiKey,
+        openaiModel: settings.openaiModel,
+        localAiUrl: settings.localAiUrl || "http://localhost:11434",
+        localAiModel: settings.localAiModel || "llava"
       });
       setTestResult({
         valid: res.valid,
@@ -117,15 +123,23 @@ export const AdminSettings: React.FC = () => {
       // Tự động lưu cấu hình vào CSDL khi kiểm tra thành công để người dùng truy cập web có thể sử dụng được ngay lập tức!
       if (res.valid) {
         try {
-          const updatedSettings = {
+          const updatedSettings: any = {
             ...settings,
-            aiProvider: providerToTest,
-            [providerToTest === "gemini" ? "geminiApiKey" : "openaiApiKey"]: key.trim(),
-            [providerToTest === "gemini" ? "geminiModel" : "openaiModel"]: res.model || model
+            aiProvider: providerToTest
           };
+          if (providerToTest === "gemini") {
+            updatedSettings.geminiApiKey = settings.geminiApiKey;
+            if (res.model) updatedSettings.geminiModel = res.model;
+          } else if (providerToTest === "openai") {
+            updatedSettings.openaiApiKey = settings.openaiApiKey;
+            if (res.model) updatedSettings.openaiModel = res.model;
+          } else if (providerToTest === "local") {
+            updatedSettings.localAiUrl = settings.localAiUrl || "http://localhost:11434";
+            if (res.model) updatedSettings.localAiModel = res.model;
+          }
           await api.updateSettings(updatedSettings);
           setSettings(updatedSettings);
-          setToastMsg(`✅ API Key đã được kiểm tra và TỰ ĐỘNG KÍCH HOẠT trên toàn hệ thống! Mọi khách hàng truy cập website đều có thể trò chuyện với AI ngay.`);
+          setToastMsg(`✅ ${providerToTest === "local" ? "Mô hình AI Local" : "API Key"} đã được kiểm tra và KÍCH HOẠT trên toàn hệ thống!`);
           setTimeout(() => setToastMsg(""), 5000);
         } catch (saveErr: any) {
           console.warn("Auto-save settings failed:", saveErr);
@@ -221,7 +235,7 @@ export const AdminSettings: React.FC = () => {
           </div>
 
           {/* AI Provider Switch Tabs */}
-          <div className="flex p-1 bg-slate-100 rounded-2xl border border-slate-300 gap-1">
+          <div className="flex p-1 bg-slate-100 rounded-2xl border border-slate-300 gap-1 flex-wrap sm:flex-nowrap">
             <button
               type="button"
               onClick={() => {
@@ -229,14 +243,14 @@ export const AdminSettings: React.FC = () => {
                 setSettings({ ...settings, aiProvider: "gemini" });
                 setTestResult(null);
               }}
-              className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
                 activeAiTab === "gemini"
                   ? "bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-md shadow-rose-600/20"
                   : "text-slate-600 hover:text-slate-900 hover:bg-white"
               }`}
             >
               <Bot className="w-4 h-4 text-rose-500" />
-              <span>Google Gemini AI</span>
+              <span>Google Gemini</span>
               {settings.aiProvider === "gemini" && (
                 <span className="w-2 h-2 rounded-full bg-emerald-500" title="Đang kích hoạt làm mô hình chính" />
               )}
@@ -249,7 +263,7 @@ export const AdminSettings: React.FC = () => {
                 setSettings({ ...settings, aiProvider: "openai" });
                 setTestResult(null);
               }}
-              className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
                 activeAiTab === "openai"
                   ? "bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-600/20"
                   : "text-slate-600 hover:text-slate-900 hover:bg-white"
@@ -258,6 +272,26 @@ export const AdminSettings: React.FC = () => {
               <Cpu className="w-4 h-4 text-emerald-600" />
               <span>OpenAI ChatGPT</span>
               {settings.aiProvider === "openai" && (
+                <span className="w-2 h-2 rounded-full bg-emerald-500" title="Đang kích hoạt làm mô hình chính" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveAiTab("local");
+                setSettings({ ...settings, aiProvider: "local" });
+                setTestResult(null);
+              }}
+              className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                activeAiTab === "local"
+                  ? "bg-gradient-to-r from-purple-600 to-indigo-700 text-white shadow-md shadow-purple-600/20"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white"
+              }`}
+            >
+              <Cpu className="w-4 h-4 text-purple-600" />
+              <span>Mô Hình AI Local</span>
+              {settings.aiProvider === "local" && (
                 <span className="w-2 h-2 rounded-full bg-emerald-500" title="Đang kích hoạt làm mô hình chính" />
               )}
             </button>
@@ -508,6 +542,115 @@ export const AdminSettings: React.FC = () => {
                     className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 font-mono text-[11px] focus:outline-none focus:border-emerald-500"
                   />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: LOCAL AI (Ollama / LLaVA / Multimodal Vision & Voice) */}
+          {activeAiTab === "local" && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-4 rounded-2xl bg-purple-50/90 border-2 border-purple-300 text-slate-700 leading-relaxed text-xs space-y-1.5 shadow-sm">
+                <p className="font-bold text-purple-900 flex items-center gap-2 text-[13px]">
+                  <Cpu className="w-4 h-4 text-purple-600 shrink-0" />
+                  Mô hình AI Local (Ollama, LLaVA Vision, LLaMA 3.2 Vision, Mistral):
+                </p>
+                <p className="text-slate-700 font-medium">
+                  Chạy hoàn toàn cục bộ trên máy chủ hoặc máy tính cá nhân, <strong>không tốn phí API Key</strong>, bảo mật dữ liệu tuyệt đối 100% và hỗ trợ truy vấn hình ảnh (Multimodal Vision) cùng giọng nói trực tiếp.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Địa chỉ máy chủ AI Local (Server URL)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="http://localhost:11434"
+                    value={settings.localAiUrl || "http://localhost:11434"}
+                    onChange={(e) => {
+                      setSettings({ ...settings, localAiUrl: e.target.value.trim() });
+                      if (testResult) setTestResult(null);
+                    }}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-purple-500 text-xs"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Mặc định: Ollama tại <code>http://localhost:11434</code> hoặc LM Studio tại <code>http://localhost:1234/v1</code></p>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Tên mô hình AI Local (Model Tag)
+                  </label>
+                  <select
+                    value={settings.localAiModel || "llava"}
+                    onChange={(e) => {
+                      setSettings({ ...settings, localAiModel: e.target.value });
+                      if (testResult) setTestResult(null);
+                    }}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-purple-500 text-xs font-medium cursor-pointer"
+                  >
+                    <optgroup label="👁️ Mô hình Thị giác Đa phương thức (Multimodal Vision - Đọc hình ảnh)">
+                      <option value="llava">llava 👁️ (LLaVA v1.6 - Phân tích hình ảnh sản phẩm & chat cực tốt)</option>
+                      <option value="llama3.2-vision">llama3.2-vision 🌟 (Llama 3.2 Vision mới nhất 2025-2026)</option>
+                      <option value="bakllava">bakllava 📷 (BakLLaVA Vision chuyên sâu)</option>
+                    </optgroup>
+                    <optgroup label="⚡ Mô hình Ngôn ngữ & Tư vấn bán hàng nhanh">
+                      <option value="llama3.2">llama3.2 ⚡ (Llama 3.2 3B siêu nhẹ, phản hồi &lt; 0.5s)</option>
+                      <option value="qwen2.5">qwen2.5 🧠 (Qwen 2.5 tiếng Việt chuẩn xác)</option>
+                      <option value="mistral">mistral 💬 (Mistral 7B thông minh, ổn định)</option>
+                      <option value="phi3">phi3 💡 (Microsoft Phi-3 Mini)</option>
+                    </optgroup>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-[11px] text-slate-500 shrink-0">Hoặc tự nhập tên Model cài trong Ollama:</span>
+                <input
+                  type="text"
+                  placeholder="VD: llava:latest, qwen2.5:7b, gemma2:2b..."
+                  value={settings.localAiModel || ""}
+                  onChange={(e) => {
+                    setSettings({ ...settings, localAiModel: e.target.value.trim() });
+                    if (testResult) setTestResult(null);
+                  }}
+                  className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 font-mono text-[11px] focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => handleTestApiKey("local")}
+                  disabled={isTestingKey}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-purple-600/20 transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95"
+                >
+                  {isTestingKey ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Đang kết nối AI Local...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Cpu className="w-4 h-4" />
+                      <span>Kiểm Tra Kết Nối AI Local</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const updated: any = { ...settings, aiProvider: "local" };
+                    setSettings(updated);
+                    await api.updateSettings(updated);
+                    setToastMsg("✅ Đã kích hoạt Mô hình AI Local làm trợ lý chính cho toàn hệ thống!");
+                    setTimeout(() => setToastMsg(""), 4000);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs border border-purple-200 transition-all shadow-xs"
+                >
+                  Đặt làm AI mặc định hệ thống
+                </button>
               </div>
             </div>
           )}

@@ -49,6 +49,7 @@ model User {
   avatar         String?
   role           Role            @default(CUSTOMER)
   isActive       Boolean         @default(true)
+  canChatAi      Boolean         @default(true)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -232,6 +233,8 @@ model SystemSettings {
   openaiApiKey          String  @default("")
   openaiModel           String  @default("gpt-5.4-mini")
   aiServiceUrl          String  @default("http://ai_service:8000")
+  localAiUrl            String  @default("http://localhost:11434")
+  localAiModel          String  @default("llava")
   vnpayTmnCode          String  @default("SANDBOX_STORE_AI")
   momoPartnerCode       String  @default("MOMO")
   momoAccessKey         String  @default("F8BBA842ECF85")

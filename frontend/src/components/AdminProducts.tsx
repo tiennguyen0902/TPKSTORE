@@ -11,10 +11,13 @@ import {
   Package,
   Upload,
   Image as ImageIcon,
-  Check
+  Check,
+  Lock,
+  ShieldAlert
 } from "lucide-react";
 import { Product, Category } from "../types";
 import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import { Pagination } from "./Pagination";
 
 // Danh mục hình ảnh sản phẩm mẫu sắc nét sẵn sàng chọn nhanh
@@ -33,6 +36,9 @@ const PRODUCT_IMAGE_PRESETS = [
 ];
 
 export const AdminProducts: React.FC = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
@@ -89,6 +95,10 @@ export const AdminProducts: React.FC = () => {
   }, [search, selectedCat]);
 
   const handleOpenAdd = () => {
+    if (!isAdmin) {
+      alert("Quyền hạn bị từ chối: Quản lý sản phẩm (Thêm mới, sửa, xóa) chỉ dành riêng cho tài khoản Quản trị viên (ADMIN).");
+      return;
+    }
     setEditingProduct(null);
     setName("");
     setPrice("");
@@ -102,6 +112,10 @@ export const AdminProducts: React.FC = () => {
   };
 
   const handleOpenEdit = (p: Product) => {
+    if (!isAdmin) {
+      alert("Quyền hạn bị từ chối: Quản lý sản phẩm (Thêm mới, sửa, xóa) chỉ dành riêng cho tài khoản Quản trị viên (ADMIN).");
+      return;
+    }
     setEditingProduct(p);
     setName(p.name);
     setCategoryId(p.categoryId);
@@ -134,6 +148,10 @@ export const AdminProducts: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!isAdmin) {
+      alert("Quyền hạn bị từ chối: Quản lý sản phẩm chỉ dành riêng cho tài khoản Quản trị viên (ADMIN).");
+      return;
+    }
     if (!window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này?")) return;
     try {
       await api.deleteProduct(id);
@@ -147,6 +165,10 @@ export const AdminProducts: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      alert("Quyền hạn bị từ chối: Quản lý sản phẩm chỉ dành riêng cho tài khoản Quản trị viên (ADMIN).");
+      return;
+    }
     if (!thumbnail) {
       alert("Vui lòng chọn hoặc tải lên hình ảnh cho sản phẩm!");
       return;
@@ -208,14 +230,40 @@ export const AdminProducts: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition-all hover:scale-105"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Thêm Sản Phẩm Mới</span>
-        </button>
+        {isAdmin ? (
+          <button
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition-all hover:scale-105"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Thêm Sản Phẩm Mới</span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 text-slate-500 text-xs font-semibold border border-slate-200">
+            <Lock className="w-3.5 h-3.5 text-slate-400" />
+            <span>Quản lý sản phẩm chỉ cho ADMIN</span>
+          </div>
+        )}
       </div>
+
+      {!isAdmin && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
+            <div>
+              <p className="font-bold text-amber-900">
+                Chế độ tra cứu tồn kho ({user?.role === "MANAGER" ? "Quản lý kho" : "Nhân viên"})
+              </p>
+              <p className="text-[11px] text-amber-700 font-normal">
+                Quyền thêm mới, sửa đổi thông số giá cả và xóa sản phẩm được phân cấp chỉ cho Quản trị viên (ADMIN) kiểm soát.
+              </p>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300 shrink-0">
+            ADMIN ONLY
+          </span>
+        </div>
+      )}
 
       {toastMsg && (
         <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-in fade-in">
@@ -317,22 +365,28 @@ export const AdminProducts: React.FC = () => {
                       </div>
                     </td>
                     <td className="p-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleOpenEdit(prod)}
-                          title="Chỉnh sửa"
-                          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors border border-slate-200"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(prod.id)}
-                          title="Xóa"
-                          className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors border border-rose-200"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      {isAdmin ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleOpenEdit(prod)}
+                            title="Chỉnh sửa sản phẩm (Admin)"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors border border-slate-200"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(prod.id)}
+                            title="Xóa sản phẩm (Admin)"
+                            className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors border border-rose-200"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 italic flex items-center justify-end gap-1">
+                          <Lock className="w-3 h-3 text-slate-400" /> Chỉ xem
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))

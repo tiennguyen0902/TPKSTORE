@@ -7,7 +7,7 @@ const router = Router();
 // GET /api/inventory/tickets - Danh sách phiếu xuất/nhập kho (Admin, Manager, Staff)
 router.get("/tickets", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { status, type, search, mine } = req.query;
+    const { status, type, search, mine, staff } = req.query;
     const where: any = {};
 
     if (status && status !== "ALL") {
@@ -15,6 +15,9 @@ router.get("/tickets", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"
     }
     if (type && type !== "ALL") {
       where.type = type;
+    }
+    if (staff && staff !== "ALL") {
+      where.requestedByUserId = String(staff);
     }
     if (search) {
       where.search = String(search);

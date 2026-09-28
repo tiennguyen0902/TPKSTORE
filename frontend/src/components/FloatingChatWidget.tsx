@@ -8,7 +8,17 @@ import {
   RotateCcw, 
   AlertCircle,
   ExternalLink,
-  Globe
+  Globe,
+  Mic,
+  MicOff,
+  Image as ImageIcon,
+  Volume2,
+  VolumeX,
+  Cpu,
+  Layers,
+  Lock,
+  CheckCircle2,
+  Paperclip
 } from "lucide-react";
 import { api } from "../services/api";
 import { Product } from "../types";
@@ -19,6 +29,7 @@ interface ChatMessage {
   id: string;
   sender: "user" | "ai";
   text: string;
+  image?: string;
   suggestedProducts?: Product[];
   suggestedQuickReplies?: string[];
   disclaimer?: string;
@@ -35,21 +46,28 @@ export const FloatingChatWidget: React.FC<{
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<"local" | "gemini" | "openai">("local");
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+
   const { addToCart } = useCart();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "msg_welcome",
       sender: "ai",
-      text: "Xin chào! 👋 Tôi là **Trợ lý AI Bán hàng & Trí tuệ Đa năng của SHOPBEE**.\n\nTôi có thể:\n1. 🛍️ **Tư vấn sản phẩm**: Tìm theo ngân sách (VD: *'laptop dưới 25 triệu'*, *'tai nghe chống ồn'*), tra cứu chính sách bảo hành & giao hàng 2h.\n2. 🌐 **Giải đáp mọi câu hỏi ngoài CSDL**: Kiến thức khoa học, công nghệ, so sánh kỹ thuật, đời sống nhờ trí tuệ **Google Gemini AI**!\n\nBạn cần hỗ trợ gì hôm nay ạ?",
+      text: "Xin chào! 👋 Tôi là **Trợ lý AI Đa phương thức của SHOPBEE**.\n\nTôi hỗ trợ:\n1. 🤖 **Mô hình AI Local (Ollama/LLaVA)**: Hoạt động cục bộ bảo mật, trả lời tốc độ cao.\n2. 🎙️ **Truy vấn bằng Giọng nói**: Bấm biểu tượng Micro để đặt câu hỏi bằng tiếng Việt.\n3. 📷 **Nhận diện bằng Hình ảnh**: Tải ảnh thiết bị/phụ kiện để tôi tìm sản phẩm tương ứng trong kho hàng.\n4. 🛍️ **Tư vấn sản phẩm & Tri thức mở rộng**: Hỗ trợ mọi phân khúc giá, cấu hình, chính sách bảo hành 1 đổi 1 và giao nhanh 2 giờ.\n\nBạn cần hỗ trợ gì hôm nay?",
       suggestedQuickReplies: [
-        "Tư vấn Laptop Gaming",
-        "Tai nghe chống ồn AI",
-        "AI Agent hoạt động thế nào?",
-        "Chính sách bảo hành 1 đổi 1"
+        "Tư vấn Laptop Gaming dưới 25tr",
+        "Tìm phụ kiện tai nghe chống ồn",
+        "Chính sách bảo hành 1 đổi 1",
+        "Kiểm tra mô hình AI Local"
       ],
-      source: "SHOPBEE AI Engine",
+      source: "SHOPBEE Local AI Vision",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     }
   ]);
@@ -64,19 +82,198 @@ export const FloatingChatWidget: React.FC<{
     }
   }, [messages, isOpen]);
 
+  // Clean up speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {}
+      }
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  // Check if speech synthesis is currently speaking
+  useEffect(() => {
+    const checkSpeaking = setInterval(() => {
+      if (window.speechSynthesis && !window.speechSynthesis.speaking && speakingMsgId) {
+        setSpeakingMsgId(null);
+      }
+    }, 500);
+    return () => clearInterval(checkSpeaking);
+  }, [speakingMsgId]);
+
+  // Voice Recognition (Speech-to-Text)
+  const toggleVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Trình duyệt chưa hỗ trợ Web Speech API. Vui lòng sử dụng Google Chrome, Microsoft Edge hoặc Safari để dùng tính năng giọng nói.");
+      return;
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "vi-VN";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results?.[0]?.[0]?.transcript;
+        if (transcript) {
+          setInputMessage(prev => (prev ? `${prev} ${transcript}` : transcript));
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error("Failed to start speech recognition:", err);
+      setIsListening(false);
+    }
+  };
+
+  // Text-to-Speech (Speak AI Response)
+  const toggleSpeakMessage = (msgId: string, text: string) => {
+    if (!window.speechSynthesis) {
+      alert("Trình duyệt không hỗ trợ Text-to-Speech.");
+      return;
+    }
+
+    if (speakingMsgId === msgId) {
+      window.speechSynthesis.cancel();
+      setSpeakingMsgId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    // Clean markdown stars, brackets, emojis for cleaner reading
+    const cleanText = text
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/[*_#`~]/g, "")
+      .replace(/https?:\/\/\S+/g, "")
+      .replace(/\n+/g, ". ");
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = "vi-VN";
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    utterance.onend = () => {
+      setSpeakingMsgId(null);
+    };
+
+    utterance.onerror = () => {
+      setSpeakingMsgId(null);
+    };
+
+    setSpeakingMsgId(msgId);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Image Upload Handling
+  const handleImageFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("Vui lòng chọn tệp định dạng hình ảnh (PNG, JPG, WEBP).");
+      return;
+    }
+
+    // Limit to 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Dung lượng hình ảnh quá lớn (vui lòng chọn ảnh dưới 5MB).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      setSelectedImage(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageFile(file);
+    }
+    if (e.target) e.target.value = "";
+  };
+
+  // Drag and Drop Image
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      handleImageFile(file);
+    }
+  };
+
+  // Clipboard Paste Image
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          const file = items[i].getAsFile();
+          if (file) {
+            handleImageFile(file);
+            break;
+          }
+        }
+      }
+    }
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputMessage).trim();
-    if (!text || isLoading) return;
+    if ((!text && !selectedImage) || isLoading) return;
+
+    // Check user AI permission if logged in
+    if (user && (user as any).canChatAi === false) {
+      alert("Tài khoản của bạn hiện tại chưa được cấp quyền sử dụng AI. Vui lòng liên hệ Quản trị viên để được cấp quyền.");
+      return;
+    }
+
+    const defaultText = text || (selectedImage ? "Hãy phân tích hình ảnh này và tìm sản phẩm tương tự trong cửa hàng." : "");
+    const imagePayload = selectedImage;
 
     const userMsg: ChatMessage = {
       id: `msg_u_${Date.now()}`,
       sender: "user",
-      text,
+      text: defaultText,
+      image: imagePayload || undefined,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInputMessage("");
+    setSelectedImage(null);
     setIsLoading(true);
 
     try {
@@ -85,26 +282,35 @@ export const FloatingChatWidget: React.FC<{
         content: m.text
       }));
 
-      const res = await api.chatWithAi(text, history);
+      const res = await api.chatWithAi(defaultText, history, selectedProvider, imagePayload || undefined);
+
+      if (res.error) {
+        throw new Error(res.error);
+      }
 
       const aiMsg: ChatMessage = {
         id: `msg_a_${Date.now()}`,
         sender: "ai",
-        text: res.reply || "Tôi đã nhận được thông tin từ bạn.",
+        text: res.reply || "Tôi đã ghi nhận thông tin từ bạn.",
         suggestedProducts: res.suggestedProducts || [],
         suggestedQuickReplies: res.suggestedQuickReplies || [],
         disclaimer: res.disclaimer,
-        source: res.source,
+        source: res.source || (selectedProvider === "local" ? "Mô hình Local AI" : selectedProvider === "openai" ? "OpenAI ChatGPT" : "Google Gemini AI"),
         isExternalQuery: res.isExternalQuery,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       };
 
       setMessages(prev => [...prev, aiMsg]);
     } catch (err: any) {
+      const isPermissionErr = err.message?.includes("quyền") || err.message?.includes("403");
       const errorMsg: ChatMessage = {
         id: `msg_err_${Date.now()}`,
         sender: "ai",
-        text: "Dạ xin lỗi bạn, hệ thống AI tạm thời đang bận kết nối. Bạn có thể tham khảo trực tiếp các danh mục sản phẩm trên website hoặc thử lại sau nhé!",
+        text: isPermissionErr 
+          ? "🔒 **Tài khoản chưa được cấp quyền AI**: Quản trị viên chưa kích hoạt tính năng chat AI cho tài khoản này. Vui lòng báo Admin cấp quyền trong mục Quản lý Khách hàng!"
+          : (selectedProvider === "local" 
+              ? "⚡ **Kết nối Local AI**: Đang sử dụng cơ chế phản hồi cục bộ dự phòng thông minh. Bạn có thể kiểm tra Ollama đang chạy trên máy (port 11434) hoặc chuyển sang Google Gemini/OpenAI trong thanh chọn bên trên nhé!"
+              : "Dạ xin lỗi bạn, hệ thống AI tạm thời đang bận kết nối. Bạn có thể thử đổi sang mô hình Local AI hoặc kiểm tra lại sau nhé!"),
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       };
       setMessages(prev => [...prev, errorMsg]);
@@ -117,59 +323,132 @@ export const FloatingChatWidget: React.FC<{
     handleSendMessage(reply);
   };
 
+  // User permission check
+  const isChatRestricted = Boolean(user && (user as any).canChatAi === false);
+
   return (
     <div className="fixed bottom-6 right-6 z-50">
       {/* Floating Toggle Button */}
       {!isOpen && (
         <button
           id="floating-chat-button"
-          title="Chat"
+          title="Chat AI & Voice & Vision"
           onClick={() => setIsOpen(true)}
           className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-rose-600 via-rose-600 to-rose-800 text-white shadow-2xl shadow-rose-500/50 hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-rose-400/40"
         >
-          <Bot className="w-7 h-7 animate-pulse-slow" />
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-pink-500 border-2 border-[#0b0f19] rounded-full animate-ping" />
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-pink-500 border-2 border-[#0b0f19] rounded-full" />
-          <span className="absolute right-16 px-3 py-1.5 rounded-xl bg-slate-900/90 text-white text-xs font-semibold whitespace-nowrap shadow-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            ✨ Chat với AI Tư Vấn & Tri thức mở rộng
+          <Bot className="w-7 h-7" />
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-[#0b0f19] rounded-full animate-ping" />
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-[#0b0f19] rounded-full" />
+          <span className="absolute right-16 px-3 py-1.5 rounded-xl bg-slate-900/90 text-white text-xs font-semibold whitespace-nowrap shadow-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center gap-1.5">
+            <Mic className="w-3.5 h-3.5 text-rose-400" />
+            <span>Chat AI Voice & Hình Ảnh Local</span>
           </span>
         </button>
       )}
 
       {/* Expandable Chat Dialog */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-96 max-w-[calc(100vw-2rem)] h-[560px] max-h-[80vh] flex flex-col bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
+        <div 
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          onPaste={handlePaste}
+          className="fixed bottom-24 right-6 z-50 w-[420px] max-w-[calc(100vw-2rem)] h-[620px] max-h-[85vh] flex flex-col bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 duration-200"
+        >
           {/* Header */}
-          <div className="p-4 bg-gradient-to-r from-rose-600 to-rose-700 flex items-center justify-between shadow-md">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-inner">
-                <Bot className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-bold text-white text-sm">SHOPBEE AI Smart</h3>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="p-3.5 bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-inner">
+                  <Bot className="w-5 h-5" />
                 </div>
-                <p className="text-[11px] text-rose-100 font-medium">CSDL Cửa Hàng & Trí Tuệ Mở Rộng</p>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="font-bold text-white text-sm">SHOPBEE AI Multimodal</h3>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  </div>
+                  <p className="text-[10px] text-rose-100 font-medium">Giọng nói • Thị giác Vision • Local AI</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    setMessages([messages[0]]);
+                    setSelectedImage(null);
+                    if (window.speechSynthesis) window.speechSynthesis.cancel();
+                    setSpeakingMsgId(null);
+                  }}
+                  title="Làm mới đoạn hội thoại"
+                  className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    if (window.speechSynthesis) window.speechSynthesis.cancel();
+                    setSpeakingMsgId(null);
+                  }}
+                  className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setMessages([messages[0]])}
-                title="Làm mới đoạn hội thoại"
-                className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+            {/* Provider Switcher Selector */}
+            <div className="mt-2.5 pt-2 border-t border-rose-500/40 flex items-center justify-between text-[11px]">
+              <span className="text-rose-100 font-semibold flex items-center gap-1">
+                <Cpu className="w-3.5 h-3.5 text-rose-200" /> Mô hình:
+              </span>
+              <div className="flex items-center gap-1 bg-black/20 p-0.5 rounded-lg border border-white/15">
+                <button
+                  onClick={() => setSelectedProvider("local")}
+                  className={`px-2 py-0.5 rounded font-bold transition-all text-[10px] ${
+                    selectedProvider === "local" 
+                      ? "bg-white text-rose-700 shadow-sm" 
+                      : "text-rose-100 hover:text-white"
+                  }`}
+                  title="Mô hình AI chạy offline trên máy (Ollama/LLaVA - không tốn phí API)"
+                >
+                  🤖 Local AI
+                </button>
+                <button
+                  onClick={() => setSelectedProvider("gemini")}
+                  className={`px-2 py-0.5 rounded font-bold transition-all text-[10px] ${
+                    selectedProvider === "gemini" 
+                      ? "bg-white text-rose-700 shadow-sm" 
+                      : "text-rose-100 hover:text-white"
+                  }`}
+                  title="Google Gemini 2.0 Flash Cloud"
+                >
+                  ✨ Gemini
+                </button>
+                <button
+                  onClick={() => setSelectedProvider("openai")}
+                  className={`px-2 py-0.5 rounded font-bold transition-all text-[10px] ${
+                    selectedProvider === "openai" 
+                      ? "bg-white text-rose-700 shadow-sm" 
+                      : "text-rose-100 hover:text-white"
+                  }`}
+                  title="OpenAI ChatGPT"
+                >
+                  ⚡ OpenAI
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* User Restricted Notice Banner */}
+          {isChatRestricted && (
+            <div className="p-3 bg-amber-50 border-b border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+              <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+              <div className="flex-1">
+                <p className="font-bold">Quyền Chat AI chưa được kích hoạt</p>
+                <p className="text-[10px] text-amber-700">Tài khoản của bạn cần được Quản trị viên cấp quyền trong Cài đặt Quản lý.</p>
+              </div>
+            </div>
+          )}
 
           {/* Messages Area */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4 text-xs bg-slate-50/50">
@@ -179,14 +458,14 @@ export const FloatingChatWidget: React.FC<{
                 className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl p-3.5 leading-relaxed ${
+                  className={`max-w-[88%] rounded-2xl p-3.5 leading-relaxed ${
                     msg.sender === "user"
                       ? "bg-rose-600 text-white rounded-br-none shadow-md shadow-rose-600/20"
                       : "bg-white text-slate-800 border border-slate-200 rounded-bl-none shadow-sm"
                   }`}
                 >
-                  {/* AI Source & Tri thức mở rộng Badge */}
-                  {msg.sender === "ai" && msg.source && (
+                  {/* AI Source & Action Tools */}
+                  {msg.sender === "ai" && (
                     <div className="mb-2 flex items-center justify-between gap-1 pb-1.5 border-b border-slate-100 text-[10px]">
                       <span className={`flex items-center gap-1 font-bold ${
                         msg.isExternalQuery ? "text-pink-600" : "text-rose-600"
@@ -194,18 +473,53 @@ export const FloatingChatWidget: React.FC<{
                         {msg.isExternalQuery ? (
                           <>
                             <Globe className="w-3 h-3 text-pink-600 shrink-0" />
-                            <span>Tri thức mở rộng (Google Gemini)</span>
+                            <span>Tri thức mở rộng</span>
                           </>
                         ) : (
                           <>
                             <Sparkles className="w-3 h-3 text-rose-600 shrink-0" />
-                            <span>{msg.source}</span>
+                            <span>{msg.source || "SHOPBEE AI"}</span>
                           </>
                         )}
                       </span>
+
+                      {/* Text-to-Speech Button */}
+                      <button
+                        onClick={() => toggleSpeakMessage(msg.id, msg.text)}
+                        title={speakingMsgId === msg.id ? "Dừng đọc" : "Đọc câu trả lời bằng giọng nói"}
+                        className={`p-1 rounded-md transition-all flex items-center gap-1 ${
+                          speakingMsgId === msg.id 
+                            ? "bg-rose-100 text-rose-600 animate-pulse font-bold" 
+                            : "hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+                        }`}
+                      >
+                        {speakingMsgId === msg.id ? (
+                          <>
+                            <VolumeX className="w-3.5 h-3.5 text-rose-600" />
+                            <span className="text-[9px]">Dừng</span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="w-3.5 h-3.5" />
+                            <span className="text-[9px]">Nghe</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   )}
 
+                  {/* Attached Image Preview if Message contains an image */}
+                  {msg.image && (
+                    <div className="mb-2 rounded-xl overflow-hidden border border-white/20 max-w-[200px] shadow-sm">
+                      <img 
+                        src={msg.image} 
+                        alt="Hình ảnh gửi kèm" 
+                        className="w-full h-auto max-h-48 object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
+
+                  {/* Message Text with Markdown formatting */}
                   <div className="break-words space-y-1 leading-relaxed text-[12px]">
                     {msg.text.split("\n").map((line, lIdx) => {
                       const parts = line.split(/(\*\*[^*]+\*\*)/g);
@@ -283,7 +597,8 @@ export const FloatingChatWidget: React.FC<{
                       <button
                         key={idx}
                         onClick={() => handleQuickReply(q)}
-                        className="px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition-all shadow-sm"
+                        disabled={isChatRestricted}
+                        className="px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition-all shadow-sm disabled:opacity-40"
                       >
                         {q}
                       </button>
@@ -294,39 +609,139 @@ export const FloatingChatWidget: React.FC<{
             ))}
 
             {isLoading && (
-              <div className="flex items-center gap-2 p-3 bg-white rounded-2xl rounded-bl-none border border-slate-200 w-24 shadow-sm">
+              <div className="flex items-center gap-2 p-3 bg-white rounded-2xl rounded-bl-none border border-slate-200 w-28 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-rose-600 animate-bounce" />
                 <span className="w-2 h-2 rounded-full bg-rose-600 animate-bounce [animation-delay:0.2s]" />
                 <span className="w-2 h-2 rounded-full bg-rose-600 animate-bounce [animation-delay:0.4s]" />
+                <span className="text-[10px] text-slate-400 font-semibold ml-1">AI trả lời...</span>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Voice Listening Active Wave Indicator */}
+          {isListening && (
+            <div className="px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white flex items-center justify-between animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                </span>
+                <span className="text-xs font-bold">Đang lắng nghe giọng nói tiếng Việt... Hãy nói câu hỏi của bạn!</span>
+              </div>
+              <button 
+                onClick={toggleVoiceInput}
+                className="text-[10px] bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded font-bold"
+              >
+                Dừng lại
+              </button>
+            </div>
+          )}
+
+          {/* Image Selected Preview Strip */}
+          {selectedImage && (
+            <div className="px-3 py-2 bg-slate-100 border-t border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-slate-300 shadow-sm bg-white">
+                  <img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Đã đính kèm ảnh
+                  </p>
+                  <p className="text-[10px] text-slate-500">Mô hình Multimodal sẽ phân tích ảnh này</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-200 transition-colors"
+                title="Hủy bỏ ảnh"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* Input Footer */}
           <div className="p-3 bg-white border-t border-slate-200">
+            {/* Hidden File Input for Image Upload */}
+            <input 
+              ref={fileInputRef}
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={handleImageInputChange}
+            />
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendMessage();
               }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1.5"
             >
+              {/* Image Upload Button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isChatRestricted || isLoading}
+                title="Tải ảnh lên hoặc dán từ clipboard (Ctrl+V) để hỏi AI"
+                className={`p-2.5 rounded-xl border transition-all ${
+                  selectedImage 
+                    ? "bg-rose-50 border-rose-300 text-rose-600 shadow-inner" 
+                    : "bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-600"
+                } disabled:opacity-40`}
+              >
+                <ImageIcon className="w-4 h-4" />
+              </button>
+
+              {/* Voice Recognition Mic Button */}
+              <button
+                type="button"
+                onClick={toggleVoiceInput}
+                disabled={isChatRestricted || isLoading}
+                title={isListening ? "Đang thu âm... Bấm để dừng" : "Hỏi bằng giọng nói tiếng Việt"}
+                className={`p-2.5 rounded-xl border transition-all ${
+                  isListening 
+                    ? "bg-red-500 border-red-600 text-white animate-pulse shadow-md shadow-red-500/30" 
+                    : "bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-600"
+                } disabled:opacity-40`}
+              >
+                {isListening ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4" />}
+              </button>
+
+              {/* Text Input */}
               <input
                 type="text"
-                placeholder="Nhập câu hỏi (VD: tìm tai nghe dưới 1tr)..."
+                disabled={isChatRestricted || isLoading}
+                placeholder={
+                  isChatRestricted 
+                    ? "Tài khoản chưa được cấp quyền Chat AI..." 
+                    : isListening 
+                    ? "Đang lắng nghe giọng nói..." 
+                    : selectedImage 
+                    ? "Nhập câu hỏi về hình ảnh hoặc nhấn Gửi..." 
+                    : "Hỏi AI (VD: laptop dưới 20tr, tai nghe)..."
+                }
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                className="flex-1 bg-slate-100 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-rose-500 transition-all"
+                className="flex-1 bg-slate-100 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-rose-500 transition-all disabled:opacity-50"
               />
+
+              {/* Send Button */}
               <button
                 type="submit"
-                disabled={!inputMessage.trim() || isLoading}
-                className="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white shadow-md shadow-rose-600/30 transition-all"
+                disabled={(!inputMessage.trim() && !selectedImage) || isLoading || isChatRestricted}
+                className="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white shadow-md shadow-rose-600/30 transition-all shrink-0"
               >
                 <Send className="w-4 h-4" />
               </button>
             </form>
+
+            <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-400 px-1">
+              <span>Hỗ trợ kéo thả ảnh & dán ảnh trực tiếp (Ctrl+V)</span>
+              <span>Web Speech & Vision AI</span>
+            </div>
           </div>
         </div>
       )}

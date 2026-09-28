@@ -36,6 +36,7 @@ router.get("/", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: Au
         avatar: true,
         role: true,
         isActive: true,
+        canChatAi: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -106,6 +107,45 @@ router.put("/:id/toggle-active", authenticateToken, authorize(["ADMIN"]), async 
     });
   } catch (err: any) {
     return res.status(500).json({ error: "Lỗi cập nhật: " + err.message });
+  }
+});
+
+// PUT /api/users/:id/toggle-chat-ai (Admin toggle AI Chat permission)
+router.put("/:id/toggle-chat-ai", authenticateToken, authorize(["ADMIN"]), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const user = await db.user.findUnique({ where: { id: req.params.id } });
+    if (!user) {
+      return res.status(404).json({ error: "Không tìm thấy người dùng." });
+    }
+
+    const currentPerm = (user as any).canChatAi !== false;
+    const updatedUser = await db.user.update({
+      where: { id: req.params.id },
+      data: { canChatAi: !currentPerm }
+    });
+
+    return res.json({
+      message: (updatedUser as any).canChatAi ? "Đã kích hoạt quyền Chat AI cho người dùng." : "Đã tạm dừng quyền Chat AI của người dùng.",
+      canChatAi: (updatedUser as any).canChatAi
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi cập nhật quyền Chat AI: " + err.message });
+  }
+});
+
+// POST /api/users/grant-all-chat-ai (Admin grant AI Chat permission to ALL users on system)
+router.post("/grant-all-chat-ai", authenticateToken, authorize(["ADMIN"]), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const result = await db.user.updateMany({
+      data: { canChatAi: true }
+    });
+
+    return res.json({
+      message: `Đã cấp quyền Chat AI thành công cho tất cả tài khoản người dùng trên hệ thống!`,
+      count: (result as any)?.count || 0
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi kích hoạt quyền Chat AI toàn hệ thống: " + err.message });
   }
 });
 

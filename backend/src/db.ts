@@ -377,6 +377,15 @@ function createModelProxy(modelName: string) {
             }
             return null;
           }
+          if (method === "updateMany") {
+            let count = 0;
+            fallback.users = fallback.users.map(u => {
+              count++;
+              return { ...u, ...options.data, updatedAt: new Date() };
+            });
+            fallback.saveToFile();
+            return { count };
+          }
         }
 
         if (modelName === "refreshToken") {

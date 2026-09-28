@@ -146,11 +146,11 @@ async function main() {
   for (const user of users) {
     await prisma.user.upsert({
       where: { id: user.id },
-      update: {},
-      create: user
+      update: { canChatAi: true },
+      create: { ...user, canChatAi: true }
     });
   }
-  console.log(`   ✅ Đã tạo ${users.length} tài khoản`);
+  console.log(`   ✅ Đã tạo ${users.length} tài khoản với quyền Chat AI được kích hoạt`);
 
   // 3. Seed Categories
   console.log("📂 Tạo danh mục sản phẩm...");

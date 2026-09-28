@@ -1,6 +1,10 @@
 import { User, Product, Category, CartData, Order, InventoryAlert, ForecastData, SystemSettings, StockTicket } from "../types";
 
-const API_BASE = import.meta.env.VITE_API_BASE || (typeof window !== "undefined" && window.location.hostname === "localhost" && window.location.port === "5173" ? "http://localhost:5000/api" : "/api");
+const API_BASE = 
+  import.meta.env.VITE_API_BASE || 
+  (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") && (window.location.port === "5173" || window.location.port === "3000")
+    ? "http://localhost:5000/api" 
+    : "/api");
 
 function buildUrl(path: string): URL {
   const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:5000";
@@ -12,6 +16,18 @@ function getAuthHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+async function handleResponse(res: Response, defaultError: string = "Thao tác thất bại") {
+  const text = await res.text();
+  let json: any = {};
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`Máy chủ Backend không phản hồi đúng định dạng JSON (${res.status} ${res.statusText}). Vui lòng đảm bảo Backend API (cổng 5000) đang chạy.`);
+  }
+  if (!res.ok) throw new Error(json.error || defaultError);
+  return json;
+}
+
 export const api = {
   // Auth
   async login(email: string, password: string) {
@@ -20,9 +36,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Đăng nhập thất bại");
-    return data;
+    return handleResponse(res, "Đăng nhập thất bại");
   },
 
   async register(data: { email: string; password: string; fullName: string; phone?: string }) {
@@ -351,13 +365,15 @@ export const api = {
 
   // AI Services
   async testAiKey(params: {
-    provider?: "gemini" | "openai";
+    provider?: "gemini" | "openai" | "local";
     apiKey?: string;
     model?: string;
     geminiApiKey?: string;
     geminiModel?: string;
     openaiApiKey?: string;
     openaiModel?: string;
+    localAiUrl?: string;
+    localAiModel?: string;
   }): Promise<{
     status: string;
     valid: boolean;
@@ -365,6 +381,7 @@ export const api = {
     model?: string;
     message: string;
     sampleResponse?: string;
+    availableModels?: string[];
   }> {
     const res = await fetch(`${API_BASE}/ai/test-key`, {
       method: "POST",
@@ -382,6 +399,10 @@ export const api = {
     return this.testAiKey({ provider: "openai", openaiApiKey, openaiModel });
   },
 
+  async testLocalAi(localAiUrl?: string, localAiModel?: string) {
+    return this.testAiKey({ provider: "local", localAiUrl, localAiModel });
+  },
+
   async getAiRecommendations(targetProductId?: string, limit: number = 4) {
     const res = await fetch(`${API_BASE}/ai/recommend`, {
       method: "POST",
@@ -391,11 +412,16 @@ export const api = {
     return res.json();
   },
 
-  async chatWithAi(message: string, history: any[] = [], provider?: "gemini" | "openai") {
+  async chatWithAi(
+    message: string, 
+    history: any[] = [], 
+    provider?: "gemini" | "openai" | "local",
+    image?: string
+  ) {
     const res = await fetch(`${API_BASE}/ai/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history, provider })
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      body: JSON.stringify({ message, history, provider, image })
     });
     return res.json();
   },
@@ -471,6 +497,26 @@ export const api = {
     return json;
   },
 
+  async toggleUserChatAi(userId: string) {
+    const res = await fetch(`${API_BASE}/users/${userId}/toggle-chat-ai`, {
+      method: "PUT",
+      headers: { ...getAuthHeader() }
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Thao tác thất bại");
+    return json;
+  },
+
+  async grantAllChatAi() {
+    const res = await fetch(`${API_BASE}/users/grant-all-chat-ai`, {
+      method: "POST",
+      headers: { ...getAuthHeader() }
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Thao tác thất bại");
+    return json;
+  },
+
   async getSettings(): Promise<SystemSettings> {
     const res = await fetch(`${API_BASE}/settings`);
     return res.json();
@@ -489,12 +535,13 @@ export const api = {
   },
 
   // Stock Inbound / Outbound Tickets Management (Warehouse Manager & Staff)
-  async getStockTickets(status?: string, type?: string, search?: string, mine?: boolean): Promise<{ total: number; tickets: StockTicket[] }> {
+  async getStockTickets(status?: string, type?: string, search?: string, mine?: boolean, staff?: string): Promise<{ total: number; tickets: StockTicket[] }> {
     const url = buildUrl("/inventory/tickets");
     if (status && status !== "ALL") url.searchParams.append("status", status);
     if (type && type !== "ALL") url.searchParams.append("type", type);
     if (search) url.searchParams.append("search", search);
     if (mine) url.searchParams.append("mine", "true");
+    if (staff && staff !== "ALL") url.searchParams.append("staff", staff);
     const res = await fetch(url.toString(), {
       headers: { ...getAuthHeader() }
     });

@@ -33,6 +33,8 @@ router.put("/", authenticateToken, authorize(["ADMIN"]), async (req: Authenticat
       geminiModel, 
       openaiApiKey,
       openaiModel,
+      localAiUrl,
+      localAiModel,
       aiServiceUrl, 
       vnpayTmnCode,
       momoPartnerCode,
@@ -50,6 +52,8 @@ router.put("/", authenticateToken, authorize(["ADMIN"]), async (req: Authenticat
     if (geminiModel) updateData.geminiModel = geminiModel;
     if (openaiApiKey !== undefined) updateData.openaiApiKey = openaiApiKey;
     if (openaiModel) updateData.openaiModel = openaiModel;
+    if (localAiUrl) updateData.localAiUrl = localAiUrl;
+    if (localAiModel) updateData.localAiModel = localAiModel;
     if (aiServiceUrl) updateData.aiServiceUrl = aiServiceUrl;
     if (vnpayTmnCode) updateData.vnpayTmnCode = vnpayTmnCode;
     if (momoPartnerCode !== undefined) updateData.momoPartnerCode = momoPartnerCode;

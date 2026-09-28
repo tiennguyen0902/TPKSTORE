@@ -22,7 +22,8 @@ async function generateTokens(user) {
         id: user.id,
         email: user.email,
         role: user.role,
-        fullName: user.fullName
+        fullName: user.fullName,
+        canChatAi: user.canChatAi !== false
     };
     const accessToken = jsonwebtoken_1.default.sign(payload, JWT_ACCESS_SECRET, { expiresIn: "15m" });
     const rawRefreshToken = crypto_1.default.randomBytes(40).toString("hex");

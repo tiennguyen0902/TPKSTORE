@@ -36,6 +36,7 @@ router.post("/register", async (req, res) => {
                 avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
                 role: "CUSTOMER",
                 isActive: true,
+                canChatAi: true,
             }
         });
         const tokens = await (0, auth_1.generateTokens)(newUser);
@@ -46,6 +47,7 @@ router.post("/register", async (req, res) => {
                 email: newUser.email,
                 fullName: newUser.fullName,
                 role: newUser.role,
+                canChatAi: newUser.canChatAi !== false,
                 phone: newUser.phone,
                 address: newUser.address,
                 avatar: newUser.avatar
@@ -85,6 +87,7 @@ router.post("/login", async (req, res) => {
                 email: user.email,
                 fullName: user.fullName,
                 role: user.role,
+                canChatAi: user.canChatAi !== false,
                 phone: user.phone,
                 address: user.address,
                 avatar: user.avatar
@@ -141,6 +144,7 @@ router.get("/me", auth_1.authenticateToken, (req, res) => {
             email: user.email,
             fullName: user.fullName,
             role: user.role,
+            canChatAi: user.canChatAi !== false,
             phone: user.phone,
             address: user.address,
             avatar: user.avatar,
@@ -173,6 +177,7 @@ router.put("/profile", auth_1.authenticateToken, async (req, res) => {
                 email: updatedUser.email,
                 fullName: updatedUser.fullName,
                 role: updatedUser.role,
+                canChatAi: updatedUser.canChatAi !== false,
                 phone: updatedUser.phone,
                 address: updatedUser.address,
                 avatar: updatedUser.avatar

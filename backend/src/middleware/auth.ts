@@ -21,7 +21,8 @@ export async function generateTokens(user: User) {
     id: user.id,
     email: user.email,
     role: user.role,
-    fullName: user.fullName
+    fullName: user.fullName,
+    canChatAi: (user as any).canChatAi !== false
   };
 
   const accessToken = jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: "15m" });

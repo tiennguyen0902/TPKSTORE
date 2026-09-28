@@ -23,7 +23,7 @@ router.get("/", async (req, res) => {
 // PUT /api/settings (Admin)
 router.put("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN"]), async (req, res) => {
     try {
-        const { storeName, hotline, supportEmail, freeShippingThreshold, aiProvider, geminiApiKey, geminiModel, openaiApiKey, openaiModel, aiServiceUrl, vnpayTmnCode, momoPartnerCode, momoAccessKey, momoSecretKey } = req.body;
+        const { storeName, hotline, supportEmail, freeShippingThreshold, aiProvider, geminiApiKey, geminiModel, openaiApiKey, openaiModel, localAiUrl, localAiModel, aiServiceUrl, vnpayTmnCode, momoPartnerCode, momoAccessKey, momoSecretKey } = req.body;
         const updateData = {};
         if (storeName)
             updateData.storeName = storeName;
@@ -43,6 +43,10 @@ router.put("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN"]), asyn
             updateData.openaiApiKey = openaiApiKey;
         if (openaiModel)
             updateData.openaiModel = openaiModel;
+        if (localAiUrl)
+            updateData.localAiUrl = localAiUrl;
+        if (localAiModel)
+            updateData.localAiModel = localAiModel;
         if (aiServiceUrl)
             updateData.aiServiceUrl = aiServiceUrl;
         if (vnpayTmnCode)

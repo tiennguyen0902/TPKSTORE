@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Users, Search, ShieldCheck, Lock, Unlock, CheckCircle2 } from "lucide-react";
+import { Users, Search, ShieldCheck, Lock, Unlock, CheckCircle2, Sparkles, Bot } from "lucide-react";
 import { User } from "../types";
 import { api } from "../services/api";
 import { Pagination } from "./Pagination";
@@ -54,6 +54,31 @@ export const AdminCustomers: React.FC = () => {
     }
   };
 
+  const handleToggleChatAi = async (userId: string) => {
+    try {
+      const res = await api.toggleUserChatAi(userId);
+      setToastMsg(res.message || "Đã cập nhật quyền Chat AI thành công!");
+      fetchUsers();
+      setTimeout(() => setToastMsg(""), 3000);
+    } catch (err: any) {
+      alert(err.message || "Lỗi cập nhật quyền Chat AI");
+    }
+  };
+
+  const handleGrantAllChatAi = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn cấp quyền Chat AI cho TOÀN BỘ tài khoản người dùng trên hệ thống?")) {
+      return;
+    }
+    try {
+      const res = await api.grantAllChatAi();
+      setToastMsg(`✅ ${res.message}`);
+      fetchUsers();
+      setTimeout(() => setToastMsg(""), 4000);
+    } catch (err: any) {
+      alert(err.message || "Lỗi cấp quyền Chat AI");
+    }
+  };
+
   // Tính toán phân trang tự động
   const totalItems = users.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -78,6 +103,13 @@ export const AdminCustomers: React.FC = () => {
             )}
           </p>
         </div>
+        <button
+          onClick={handleGrantAllChatAi}
+          className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 via-rose-600 to-pink-600 hover:opacity-95 text-white text-xs font-bold shadow-md shadow-rose-600/25 flex items-center gap-2 transition-all active:scale-95 shrink-0"
+        >
+          <Sparkles className="w-4 h-4 text-amber-200 animate-pulse" />
+          <span>Kích Hoạt Chat AI Toàn Hệ Thống</span>
+        </button>
       </div>
 
       {toastMsg && (
@@ -125,17 +157,18 @@ export const AdminCustomers: React.FC = () => {
                 <th className="p-4">Địa Chỉ</th>
                 <th className="p-4">Vai Trò (RBAC)</th>
                 <th className="p-4">Trạng Thái</th>
+                <th className="p-4 text-center">Quyền Chat AI</th>
                 <th className="p-4 text-right">Khóa / Mở Khóa</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400">Đang tải danh sách người dùng...</td>
+                  <td colSpan={8} className="p-8 text-center text-slate-400">Đang tải danh sách người dùng...</td>
                 </tr>
               ) : paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400">Không tìm thấy người dùng nào</td>
+                  <td colSpan={8} className="p-8 text-center text-slate-400">Không tìm thấy người dùng nào</td>
                 </tr>
               ) : (
                 paginatedUsers.map((u) => (
@@ -181,6 +214,20 @@ export const AdminCustomers: React.FC = () => {
                       }`}>
                         {u.isActive ? "Đang hoạt động" : "Bị khóa"}
                       </span>
+                    </td>
+                    <td className="p-4 whitespace-nowrap text-center">
+                      <button
+                        onClick={() => handleToggleChatAi(u.id)}
+                        title="Nhấn để bật/tắt quyền Chat AI cho tài khoản này"
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${
+                          u.canChatAi !== false
+                            ? "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 shadow-xs"
+                            : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
+                        }`}
+                      >
+                        <Sparkles className={`w-3.5 h-3.5 ${u.canChatAi !== false ? "text-purple-600" : "text-slate-400"}`} />
+                        <span>{u.canChatAi !== false ? "Được phép chat AI" : "Bị chặn chat AI"}</span>
+                      </button>
                     </td>
                     <td className="p-4 text-right whitespace-nowrap">
                       <button
