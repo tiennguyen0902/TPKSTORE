@@ -365,13 +365,11 @@ export const api = {
 
   // AI Services
   async testAiKey(params: {
-    provider?: "gemini" | "openai" | "local";
+    provider?: "gemini" | "local";
     apiKey?: string;
     model?: string;
     geminiApiKey?: string;
     geminiModel?: string;
-    openaiApiKey?: string;
-    openaiModel?: string;
     localAiUrl?: string;
     localAiModel?: string;
   }): Promise<{
@@ -395,10 +393,6 @@ export const api = {
     return this.testAiKey({ provider: "gemini", geminiApiKey, geminiModel });
   },
 
-  async testOpenAiKey(openaiApiKey?: string, openaiModel?: string) {
-    return this.testAiKey({ provider: "openai", openaiApiKey, openaiModel });
-  },
-
   async testLocalAi(localAiUrl?: string, localAiModel?: string) {
     return this.testAiKey({ provider: "local", localAiUrl, localAiModel });
   },
@@ -415,7 +409,7 @@ export const api = {
   async chatWithAi(
     message: string,
     history: any[] = [],
-    provider?: "gemini" | "openai" | "local",
+    provider?: "gemini" | "local",
     image?: string,
     isVoice?: boolean,
     imageBase64?: string,

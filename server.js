@@ -30,7 +30,7 @@ const DEFAULTS = {
   JWT_ACCESS_SECRET: "store_ai_access_secret_super_secure_key_2026",
   JWT_REFRESH_SECRET: "store_ai_refresh_secret_super_secure_key_2026",
   AI_SERVICE_URL: "http://localhost:8000",
-  GEMINI_MODEL: "gemini-2.5-flash",
+  GEMINI_MODEL: "gemini-3.5-flash",
   VNPAY_TMN_CODE: "SANDBOX_STORE_AI",
   VNPAY_HASH_SECRET: "SANDBOX_HASH_SECRET_KEY"
 };

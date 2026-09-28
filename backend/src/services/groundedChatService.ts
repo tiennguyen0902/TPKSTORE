@@ -9,8 +9,6 @@ export interface GroundedChatParams {
   allCategories?: any[];
   apiKey?: string;
   model?: string;
-  openaiApiKey?: string;
-  openaiModel?: string;
   provider?: string;
   isVoice?: boolean;
   isImage?: boolean;
@@ -40,9 +38,7 @@ export class GroundedChatService {
       structuredQuery,
       retrievedProducts,
       apiKey,
-      model = "gemini-3.8-flash",
-      openaiApiKey,
-      openaiModel = "gpt-4o-mini",
+      model = "gemini-3.5-flash",
       provider = "gemini"
     } = params;
 
@@ -131,7 +127,7 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
               "Liên hệ nhân viên hỗ trợ"
             ]);
 
-    // 3. Call LLM (Gemini or OpenAI)
+    // 3. Call LLM (Gemini 3.x+)
     const normalizedProvider = (provider || "gemini").toLowerCase().trim();
     if (normalizedProvider === "gemini" && apiKey) {
       const geminiResult = await this.callGemini(apiKey, model, systemPrompt, userMessage, history);
@@ -144,23 +140,7 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
           provider: "gemini",
           model: geminiResult.model,
           structuredQuery,
-          disclaimer: "✨ Phản hồi được xử lý thông minh bởi Google Gemini, đối chiếu trực tiếp từ cơ sở dữ liệu thời gian thực của SHOPBEE."
-        };
-      }
-    }
-
-    if (normalizedProvider === "openai" && openaiApiKey) {
-      const openAiResult = await this.callOpenAI(openaiApiKey, openaiModel, systemPrompt, userMessage, history);
-      if (openAiResult) {
-        return {
-          reply: openAiResult.reply,
-          suggestedProducts: retrievedProducts.slice(0, 4),
-          suggestedQuickReplies: quickReplies,
-          source: `OpenAI Grounded (${openAiResult.model})`,
-          provider: "openai",
-          model: openAiResult.model,
-          structuredQuery,
-          disclaimer: "✨ Phản hồi được đối chiếu trực tiếp từ cơ sở dữ liệu thời gian thực của cửa hàng."
+          disclaimer: "✨ Phản hồi được xử lý thông minh bởi Google Gemini (3.x+), đối chiếu trực tiếp từ cơ sở dữ liệu thời gian thực của SHOPBEE."
         };
       }
     }
@@ -189,12 +169,14 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
     history: any[] = []
   ): Promise<{ reply: string; model: string } | null> {
     const candidateModels = [
-      "gemini-3.6-flash",
+      "gemini-3.5-flash",
       "gemini-3.1-flash-lite",
-      "gemini-3.8-flash",
+      "gemini-3.6-flash",
       "gemini-3.7-flash",
-      "gemini-3.5-flash-lite",
-      model && !["gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.0-flash", "gemini-2.5-flash"].includes(model) ? model : null
+      "gemini-3.8-flash",
+      "gemini-3.0-pro",
+      "gemini-3.5-pro",
+      model && /^gemini-3/i.test(model) ? model : null
     ].filter(Boolean) as string[];
     const uniqueModels = candidateModels.filter((v, i, a) => a.indexOf(v) === i);
 
@@ -242,44 +224,7 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
     return null;
   }
 
-  private static async callOpenAI(
-    apiKey: string,
-    model: string,
-    systemInstruction: string,
-    userMessage: string,
-    history: any[] = []
-  ): Promise<{ reply: string; model: string } | null> {
-    const messages: any[] = [{ role: "system", content: systemInstruction }];
-    if (Array.isArray(history) && history.length > 0) {
-      for (const h of history.slice(-4)) {
-        const role = h.role === "user" ? "user" : "assistant";
-        const content = (h.content || h.text || "").trim();
-        if (content) messages.push({ role, content });
-      }
-    }
-    messages.push({ role: "user", content: userMessage });
 
-    try {
-      const resp = await axios.post(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          model: model || "gpt-4o-mini",
-          messages,
-          temperature: 0.3,
-          max_tokens: 1500
-        },
-        {
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          timeout: 20000
-        }
-      );
-      const content = resp.data?.choices?.[0]?.message?.content?.trim();
-      if (content) {
-        return { reply: content, model: resp.data.model || model };
-      }
-    } catch (e: any) {}
-    return null;
-  }
 
   /**
    * Deterministic Grounded Builder if LLM API is unavailable

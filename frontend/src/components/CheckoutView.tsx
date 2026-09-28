@@ -49,21 +49,56 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const [showMomoModal, setShowMomoModal] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string>("");
 
+  // Field validation errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const clearFieldError = (fieldName: string) => {
+    if (fieldErrors[fieldName]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[fieldName];
+        return next;
+      });
+    }
+  };
+
+  const isValidPhone = (val: string) => {
+    return /^(0[3|5|7|8|9])[0-9]{8}$/.test(val.trim());
+  };
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName || !phone || !shippingAddress) {
-      setErrorMsg("Vui lòng điền đầy đủ Họ tên, Số điện thoại và Địa chỉ giao hàng.");
+    setErrorMsg("");
+
+    const errors: Record<string, string> = {};
+    if (!customerName.trim()) {
+      errors.customerName = "Vui lòng nhập họ và tên người nhận hàng.";
+    }
+
+    if (!phone.trim()) {
+      errors.phone = "Vui lòng nhập số điện thoại người nhận hàng.";
+    } else if (!isValidPhone(phone)) {
+      errors.phone = "Số điện thoại không hợp lệ (phải gồm 10 chữ số, VD: 0912345678).";
+    }
+
+    if (!shippingAddress.trim()) {
+      errors.shippingAddress = "Vui lòng nhập địa chỉ giao hàng chi tiết (số nhà, đường, phường/xã...).";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
-    setErrorMsg("");
+    setFieldErrors({});
+
     setIsLoading(true);
 
     try {
       const res = await api.createOrder({
-        customerName,
-        phone,
-        shippingAddress,
-        note,
+        customerName: customerName.trim(),
+        phone: phone.trim(),
+        shippingAddress: shippingAddress.trim(),
+        note: note.trim(),
         paymentMethod,
         items: items.map(i => ({ productId: i.productId, quantity: i.quantity }))
       });
@@ -127,7 +162,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         </div>
       )}
 
-      <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <form noValidate onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Delivery Info & Payment Method */}
         <div className="lg:col-span-7 space-y-6">
           {/* Section 1: Customer Info */}
@@ -139,45 +174,78 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Họ và tên người nhận *</label>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Họ và tên người nhận <span className="text-rose-600">*</span>
+                </label>
                 <div className="relative">
                   <input
                     type="text"
-                    required
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) => { setCustomerName(e.target.value); clearFieldError("customerName"); }}
                     placeholder="Nguyễn Văn A"
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 pl-9 text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
+                    className={`w-full bg-white border rounded-xl px-3 py-2.5 pl-9 text-slate-900 focus:outline-none transition-colors ${
+                      fieldErrors.customerName 
+                        ? "border-rose-500 focus:border-rose-600 focus:ring-4 focus:ring-rose-500/10" 
+                        : "border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
+                    }`}
                   />
                   <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 </div>
+                {fieldErrors.customerName && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{fieldErrors.customerName}</span>
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Số điện thoại liên hệ *</label>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Số điện thoại liên hệ <span className="text-rose-600">*</span>
+                </label>
                 <div className="relative">
                   <input
                     type="tel"
-                    required
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => { setPhone(e.target.value); clearFieldError("phone"); }}
                     placeholder="0912345678"
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 pl-9 text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
+                    className={`w-full bg-white border rounded-xl px-3 py-2.5 pl-9 text-slate-900 focus:outline-none transition-colors ${
+                      fieldErrors.phone 
+                        ? "border-rose-500 focus:border-rose-600 focus:ring-4 focus:ring-rose-500/10" 
+                        : "border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
+                    }`}
                   />
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 </div>
+                {fieldErrors.phone && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{fieldErrors.phone}</span>
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Địa chỉ chi tiết (Số nhà, Tòa nhà, Phường/Xã, Tỉnh/TP) *</label>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Địa chỉ chi tiết (Số nhà, Tòa nhà, Phường/Xã, Tỉnh/TP) <span className="text-rose-600">*</span>
+                </label>
                 <textarea
-                  required
                   rows={2}
                   value={shippingAddress}
-                  onChange={(e) => setShippingAddress(e.target.value)}
+                  onChange={(e) => { setShippingAddress(e.target.value); clearFieldError("shippingAddress"); }}
                   placeholder="Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội"
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 leading-relaxed"
+                  className={`w-full bg-white border rounded-xl px-3 py-2.5 text-slate-900 focus:outline-none leading-relaxed transition-colors ${
+                    fieldErrors.shippingAddress 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-4 focus:ring-rose-500/10" 
+                      : "border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
+                  }`}
                 />
+                {fieldErrors.shippingAddress && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{fieldErrors.shippingAddress}</span>
+                  </p>
+                )}
               </div>
 
               <div>

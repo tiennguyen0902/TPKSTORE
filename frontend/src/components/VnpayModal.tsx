@@ -21,14 +21,39 @@ export const VnpayModal: React.FC<VnpayModalProps> = ({
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
+
+  const clearCardError = (field: string) => {
+    if (cardErrors[field]) {
+      setCardErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
 
   const handleCardSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cardNumber || !cardHolder || !issueDate) {
-      setErrorMsg("Vui lòng nhập đầy đủ thông tin thẻ test.");
+    setErrorMsg("");
+    const errors: Record<string, string> = {};
+
+    if (!cardNumber.trim()) {
+      errors.cardNumber = "Vui lòng nhập số thẻ ATM thử nghiệm.";
+    }
+    if (!cardHolder.trim()) {
+      errors.cardHolder = "Vui lòng nhập tên chủ thẻ.";
+    }
+    if (!issueDate.trim()) {
+      errors.issueDate = "Vui lòng nhập ngày phát hành.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setCardErrors(errors);
       return;
     }
-    setErrorMsg("");
+    setCardErrors({});
+
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
@@ -38,11 +63,19 @@ export const VnpayModal: React.FC<VnpayModalProps> = ({
 
   const handleOtpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otp) {
-      setErrorMsg("Vui lòng nhập mã OTP test (VD: 123456).");
+    setErrorMsg("");
+    const errors: Record<string, string> = {};
+
+    if (!otp.trim()) {
+      errors.otp = "Vui lòng nhập mã OTP thử nghiệm (Ví dụ: 123456).";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setCardErrors(errors);
       return;
     }
-    setErrorMsg("");
+    setCardErrors({});
+
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
@@ -85,7 +118,7 @@ export const VnpayModal: React.FC<VnpayModalProps> = ({
 
         {/* Step 1: Card Info */}
         {step === "card_info" && (
-          <form onSubmit={handleCardSubmit} className="p-6 space-y-4 text-xs">
+          <form noValidate onSubmit={handleCardSubmit} className="p-6 space-y-4 text-xs">
             <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-[11px] text-blue-800 font-medium">
               ℹ️ Đây là môi trường thử nghiệm (Sandbox). Bạn có thể sử dụng thông tin thẻ test NCB đã điền sẵn bên dưới.
             </div>
@@ -108,37 +141,73 @@ export const VnpayModal: React.FC<VnpayModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-slate-700 mb-1">Số thẻ ATM / Thẻ test:</label>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                Số thẻ ATM / Thẻ test: <span className="text-rose-600">*</span>
+              </label>
               <div className="relative">
                 <input
                   type="text"
                   value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 pl-9 text-slate-900 font-mono text-xs focus:outline-none focus:bg-white focus:border-blue-500"
+                  onChange={(e) => { setCardNumber(e.target.value); clearCardError("cardNumber"); }}
+                  className={`w-full bg-slate-50 border rounded-xl px-3 py-2 pl-9 text-slate-900 font-mono text-xs focus:outline-none focus:bg-white transition-colors ${
+                    cardErrors.cardNumber 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-blue-500"
+                  }`}
                 />
                 <CreditCard className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               </div>
+              {cardErrors.cardNumber && (
+                <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{cardErrors.cardNumber}</span>
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Tên chủ thẻ:</label>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Tên chủ thẻ: <span className="text-rose-600">*</span>
+                </label>
                 <input
                   type="text"
                   value={cardHolder}
-                  onChange={(e) => setCardHolder(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 uppercase text-xs focus:outline-none focus:bg-white focus:border-blue-500"
+                  onChange={(e) => { setCardHolder(e.target.value); clearCardError("cardHolder"); }}
+                  className={`w-full bg-slate-50 border rounded-xl px-3 py-2 text-slate-900 uppercase text-xs focus:outline-none focus:bg-white transition-colors ${
+                    cardErrors.cardHolder 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-blue-500"
+                  }`}
                 />
+                {cardErrors.cardHolder && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{cardErrors.cardHolder}</span>
+                  </p>
+                )}
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Ngày phát hành:</label>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Ngày phát hành: <span className="text-rose-600">*</span>
+                </label>
                 <input
                   type="text"
                   value={issueDate}
-                  onChange={(e) => setIssueDate(e.target.value)}
+                  onChange={(e) => { setIssueDate(e.target.value); clearCardError("issueDate"); }}
                   placeholder="MM/YY"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 text-xs focus:outline-none focus:bg-white focus:border-blue-500"
+                  className={`w-full bg-slate-50 border rounded-xl px-3 py-2 text-slate-900 text-xs focus:outline-none focus:bg-white transition-colors ${
+                    cardErrors.issueDate 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-blue-500"
+                  }`}
                 />
+                {cardErrors.issueDate && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{cardErrors.issueDate}</span>
+                  </p>
+                )}
               </div>
             </div>
 
@@ -163,7 +232,7 @@ export const VnpayModal: React.FC<VnpayModalProps> = ({
 
         {/* Step 2: OTP Verification */}
         {step === "otp" && (
-          <form onSubmit={handleOtpSubmit} className="p-6 space-y-4 text-xs">
+          <form noValidate onSubmit={handleOtpSubmit} className="p-6 space-y-4 text-xs">
             <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800 font-medium">
               🔒 Mã OTP đã được gửi đến số điện thoại đăng ký (Mã thử nghiệm mặc định: <strong>123456</strong>).
             </div>
@@ -176,15 +245,27 @@ export const VnpayModal: React.FC<VnpayModalProps> = ({
             )}
 
             <div>
-              <label className="block text-[11px] font-semibold text-slate-700 mb-1">Nhập mã xác thực OTP:</label>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                Nhập mã xác thực OTP: <span className="text-rose-600">*</span>
+              </label>
               <input
                 type="text"
                 placeholder="123456"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
+                onChange={(e) => { setOtp(e.target.value); clearCardError("otp"); }}
                 autoFocus
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-center text-lg font-mono tracking-widest text-slate-900 focus:outline-none focus:bg-white focus:border-emerald-500"
+                className={`w-full bg-slate-50 border rounded-xl px-4 py-2.5 text-center text-lg font-mono tracking-widest text-slate-900 focus:outline-none focus:bg-white transition-colors ${
+                  cardErrors.otp 
+                    ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                    : "border-slate-300 focus:border-emerald-500"
+                }`}
               />
+              {cardErrors.otp && (
+                <p className="mt-1 text-[11px] text-rose-600 flex items-center justify-center gap-1 font-medium">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{cardErrors.otp}</span>
+                </p>
+              )}
             </div>
 
             <div className="pt-2 flex items-center justify-end gap-2">

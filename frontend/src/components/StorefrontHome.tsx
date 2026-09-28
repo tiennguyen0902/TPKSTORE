@@ -153,11 +153,11 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
                 className="relative w-full max-w-sm rounded-3xl bg-white border border-slate-200 p-5 shadow-xl hover:border-rose-300 transition-all cursor-pointer group"
               >
                 {/* Product Image */}
-                <div className="relative w-full pt-[80%] rounded-2xl overflow-hidden bg-slate-50 mb-4">
+                <div className="relative w-full pt-[80%] rounded-2xl overflow-hidden bg-white border border-slate-100 mb-4 flex items-center justify-center">
                   <img
                     src={spotlightProduct.thumbnail}
                     alt={spotlightProduct.name}
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="absolute inset-0 w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300"
                   />
                   <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-red-600 text-white text-[11px] font-extrabold shadow-md">
                     HOT -25%

@@ -29,8 +29,6 @@ export const AdminSettings: React.FC = () => {
     aiProvider: "gemini",
     geminiApiKey: "",
     geminiModel: "gemini-3.5-flash",
-    openaiApiKey: "",
-    openaiModel: "gpt-4o-mini",
     aiServiceUrl: "http://localhost:8000",
     vnpayTmnCode: "SANDBOX_STORE_AI",
     momoPartnerCode: "MOMO",
@@ -39,10 +37,13 @@ export const AdminSettings: React.FC = () => {
   });
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
   const [showGeminiKey, setShowGeminiKey] = useState(false);
-  const [showOpenAiKey, setShowOpenAiKey] = useState(false);
-  const [activeAiTab, setActiveAiTab] = useState<"gemini" | "openai" | "local">("gemini");
+  const [activeAiTab, setActiveAiTab] = useState<"gemini" | "local">("gemini");
   
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{
@@ -61,7 +62,7 @@ export const AdminSettings: React.FC = () => {
         const data = await api.getSettings();
         setSettings(prev => ({ ...prev, ...data }));
         if (data.aiProvider) {
-          setActiveAiTab(data.aiProvider as "gemini" | "openai" | "local");
+          setActiveAiTab(data.aiProvider === "local" ? "local" : "gemini");
         }
       } catch (err) {
         console.warn("Could not fetch settings:", err);
@@ -72,25 +73,107 @@ export const AdminSettings: React.FC = () => {
     fetchSettings();
   }, []);
 
+  const updateField = (field: keyof SystemSettings, value: any) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+    if (formErrors[field]) {
+      setFormErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+    if (errorMessage) setErrorMessage("");
+  };
+
+  const validateSettings = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    // 1. Tên cửa hàng
+    if (!settings.storeName || !settings.storeName.trim()) {
+      errors.storeName = "Vui lòng nhập tên cửa hàng / thương hiệu.";
+    } else if (settings.storeName.trim().length < 3) {
+      errors.storeName = "Tên cửa hàng phải có ít nhất 3 ký tự.";
+    }
+
+    // 2. Hotline
+    if (!settings.hotline || !settings.hotline.trim()) {
+      errors.hotline = "Vui lòng nhập hotline hỗ trợ.";
+    } else {
+      const cleanPhone = settings.hotline.replace(/[\s.-]/g, "");
+      if (!/^\d{8,12}$/.test(cleanPhone)) {
+        errors.hotline = "Hotline không hợp lệ. Vui lòng nhập từ 8 đến 12 chữ số (VD: 1900 6868 hoặc 0912345678).";
+      }
+    }
+
+    // 3. Email hỗ trợ
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!settings.supportEmail || !settings.supportEmail.trim()) {
+      errors.supportEmail = "Vui lòng nhập email hỗ trợ khách hàng.";
+    } else if (!emailRegex.test(settings.supportEmail.trim())) {
+      errors.supportEmail = "Định dạng email không hợp lệ (VD: support@shopbee.vn).";
+    }
+
+    // 4. Ngưỡng miễn phí vận chuyển
+    if (settings.freeShippingThreshold === undefined || settings.freeShippingThreshold === null || isNaN(Number(settings.freeShippingThreshold))) {
+      errors.freeShippingThreshold = "Vui lòng nhập ngưỡng miễn phí vận chuyển.";
+    } else if (Number(settings.freeShippingThreshold) < 0) {
+      errors.freeShippingThreshold = "Ngưỡng miễn phí vận chuyển phải lớn hơn hoặc bằng 0 đ.";
+    }
+
+    // 5. Cổng VNPAY
+    if (!settings.vnpayTmnCode || !settings.vnpayTmnCode.trim()) {
+      errors.vnpayTmnCode = "Vui lòng nhập mã VNPAY TMN Code (VD: SANDBOX_STORE_AI).";
+    }
+
+    // 6. Cổng MoMo
+    if (!settings.momoPartnerCode || !settings.momoPartnerCode.trim()) {
+      errors.momoPartnerCode = "Vui lòng nhập MoMo Partner Code.";
+    }
+    if (!settings.momoAccessKey || !settings.momoAccessKey.trim()) {
+      errors.momoAccessKey = "Vui lòng nhập MoMo Access Key.";
+    }
+    if (!settings.momoSecretKey || !settings.momoSecretKey.trim()) {
+      errors.momoSecretKey = "Vui lòng nhập MoMo Secret Key.";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setToastMsg("");
+    setErrorMessage("");
+
+    const isValid = validateSettings();
+    if (!isValid) {
+      setErrorMessage("Không thể lưu cấu hình! Vui lòng hoàn thành các trường thông tin bắt buộc đang báo đỏ bên dưới.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    setIsSaving(true);
     try {
-      await api.updateSettings(settings);
-      setToastMsg("Đã lưu cấu hình hệ thống thành công!");
-      setTimeout(() => setToastMsg(""), 3000);
+      const res = await api.updateSettings(settings);
+      setToastMsg(res.message || "Đã lưu cấu hình hệ thống thành công!");
+      setFormErrors({});
+      setTimeout(() => setToastMsg(""), 4000);
     } catch (err: any) {
-      alert(err.message || "Lỗi lưu cài đặt");
+      setErrorMessage(err.message || "Lỗi lưu cấu hình hệ thống. Vui lòng thử lại!");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleTestApiKey = async (providerToTest: "gemini" | "openai" | "local") => {
-    if (providerToTest !== "local") {
-      const key = providerToTest === "gemini" ? settings.geminiApiKey : settings.openaiApiKey;
+  const handleTestApiKey = async (providerToTest: "gemini" | "local") => {
+    if (providerToTest === "gemini") {
+      const key = settings.geminiApiKey;
       if (!key?.trim()) {
         setTestResult({
           valid: false,
-          provider: providerToTest,
-          message: `Vui lòng nhập ${providerToTest === "gemini" ? "Google Gemini" : "OpenAI"} API Key trước khi kiểm tra.`
+          provider: "gemini",
+          message: "Vui lòng nhập Google Gemini API Key trước khi kiểm tra."
         });
         return;
       }
@@ -102,12 +185,10 @@ export const AdminSettings: React.FC = () => {
     try {
       const res = await api.testAiKey({
         provider: providerToTest,
-        apiKey: providerToTest === "gemini" ? settings.geminiApiKey : settings.openaiApiKey,
-        model: providerToTest === "gemini" ? settings.geminiModel : providerToTest === "openai" ? settings.openaiModel : settings.localAiModel,
+        apiKey: providerToTest === "gemini" ? settings.geminiApiKey : undefined,
+        model: providerToTest === "gemini" ? settings.geminiModel : settings.localAiModel,
         geminiApiKey: settings.geminiApiKey,
         geminiModel: settings.geminiModel,
-        openaiApiKey: settings.openaiApiKey,
-        openaiModel: settings.openaiModel,
         localAiUrl: settings.localAiUrl || "http://localhost:11434",
         localAiModel: settings.localAiModel || "llava"
       });
@@ -120,7 +201,6 @@ export const AdminSettings: React.FC = () => {
         availableModels: (res as any).availableModels
       });
 
-      // Tự động lưu cấu hình vào CSDL khi kiểm tra thành công để người dùng truy cập web có thể sử dụng được ngay lập tức!
       if (res.valid) {
         try {
           const updatedSettings: any = {
@@ -130,9 +210,6 @@ export const AdminSettings: React.FC = () => {
           if (providerToTest === "gemini") {
             updatedSettings.geminiApiKey = settings.geminiApiKey;
             if (res.model) updatedSettings.geminiModel = res.model;
-          } else if (providerToTest === "openai") {
-            updatedSettings.openaiApiKey = settings.openaiApiKey;
-            if (res.model) updatedSettings.openaiModel = res.model;
           } else if (providerToTest === "local") {
             updatedSettings.localAiUrl = settings.localAiUrl || "http://localhost:11434";
             if (res.model) updatedSettings.localAiModel = res.model;
@@ -161,9 +238,10 @@ export const AdminSettings: React.FC = () => {
       {/* Header */}
       <div className="border-b border-slate-200 pb-4">
         <h1 className="text-2xl font-black text-slate-900">Cấu Hình Hệ Thống</h1>
-        <p className="text-xs text-slate-500 mt-0.5">Thiết lập kết nối AI Google Gemini & OpenAI ChatGPT, Cổng thanh toán VNPAY và thông tin cửa hàng</p>
+        <p className="text-xs text-slate-500 mt-0.5">Thiết lập kết nối AI Google Gemini (3.x+), AI Local, Cổng thanh toán VNPAY và thông tin cửa hàng</p>
       </div>
 
+      {/* Success Notification */}
       {toastMsg && (
         <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in shadow-sm">
           <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
@@ -171,7 +249,15 @@ export const AdminSettings: React.FC = () => {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-6 text-xs">
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in shadow-sm">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      <form noValidate onSubmit={handleSave} className="space-y-6 text-xs">
         {/* Section 1: Store Info */}
         <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-xl">
           <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -181,53 +267,105 @@ export const AdminSettings: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Tên cửa hàng / Thương hiệu</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Tên cửa hàng / Thương hiệu <span className="text-rose-600 font-bold">*</span>
+              </label>
               <input
                 type="text"
-                value={settings.storeName}
-                onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500"
+                value={settings.storeName || ""}
+                onChange={(e) => updateField("storeName", e.target.value)}
+                placeholder="VD: SHOPBEE STORE AI"
+                className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none transition-all ${
+                  formErrors.storeName 
+                    ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                    : "border-slate-300 focus:border-rose-500"
+                }`}
               />
+              {formErrors.storeName && (
+                <p className="mt-1.5 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{formErrors.storeName}</span>
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Hotline hỗ trợ</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Hotline hỗ trợ <span className="text-rose-600 font-bold">*</span>
+              </label>
               <input
                 type="text"
-                value={settings.hotline}
-                onChange={(e) => setSettings({ ...settings, hotline: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500"
+                value={settings.hotline || ""}
+                onChange={(e) => updateField("hotline", e.target.value)}
+                placeholder="VD: 1900 6868 hoặc 0912345678"
+                className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none transition-all ${
+                  formErrors.hotline 
+                    ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                    : "border-slate-300 focus:border-rose-500"
+                }`}
               />
+              {formErrors.hotline && (
+                <p className="mt-1.5 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{formErrors.hotline}</span>
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Email hỗ trợ khách hàng</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Email hỗ trợ khách hàng <span className="text-rose-600 font-bold">*</span>
+              </label>
               <input
                 type="email"
-                value={settings.supportEmail}
-                onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500"
+                value={settings.supportEmail || ""}
+                onChange={(e) => updateField("supportEmail", e.target.value)}
+                placeholder="VD: support@shopbee.vn"
+                className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none transition-all ${
+                  formErrors.supportEmail 
+                    ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                    : "border-slate-300 focus:border-rose-500"
+                }`}
               />
+              {formErrors.supportEmail && (
+                <p className="mt-1.5 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{formErrors.supportEmail}</span>
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Ngưỡng Miễn phí vận chuyển (VND)</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Ngưỡng Miễn phí vận chuyển (VND) <span className="text-rose-600 font-bold">*</span>
+              </label>
               <input
                 type="number"
-                value={settings.freeShippingThreshold}
-                onChange={(e) => setSettings({ ...settings, freeShippingThreshold: parseInt(e.target.value) || 0 })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500"
+                value={settings.freeShippingThreshold !== undefined ? settings.freeShippingThreshold : ""}
+                onChange={(e) => updateField("freeShippingThreshold", parseInt(e.target.value) || 0)}
+                placeholder="VD: 500000"
+                className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none transition-all ${
+                  formErrors.freeShippingThreshold 
+                    ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                    : "border-slate-300 focus:border-rose-500"
+                }`}
               />
+              {formErrors.freeShippingThreshold && (
+                <p className="mt-1.5 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{formErrors.freeShippingThreshold}</span>
+                </p>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Section 2: AI Gemini & OpenAI Config */}
+        {/* Section 2: AI Gemini 3.x & Local AI Config */}
         <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-5 shadow-xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <Bot className="w-4 h-4 text-rose-600" />
-              2. CẤU HÌNH AI GOOGLE GEMINI & OPENAI CHATGPT
+              2. CẤU HÌNH AI GOOGLE GEMINI (3.X+) & LOCAL AI
             </h3>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold self-start sm:self-auto">
               <Sparkles className="w-3 h-3 text-rose-600" /> Mới Nhất 2026
@@ -250,28 +388,8 @@ export const AdminSettings: React.FC = () => {
               }`}
             >
               <Bot className="w-4 h-4 text-rose-500" />
-              <span>Google Gemini</span>
+              <span>Google Gemini (3.x+)</span>
               {settings.aiProvider === "gemini" && (
-                <span className="w-2 h-2 rounded-full bg-emerald-500" title="Đang kích hoạt làm mô hình chính" />
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveAiTab("openai");
-                setSettings({ ...settings, aiProvider: "openai" });
-                setTestResult(null);
-              }}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
-                activeAiTab === "openai"
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-600/20"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white"
-              }`}
-            >
-              <Cpu className="w-4 h-4 text-emerald-600" />
-              <span>OpenAI ChatGPT</span>
-              {settings.aiProvider === "openai" && (
                 <span className="w-2 h-2 rounded-full bg-emerald-500" title="Đang kích hoạt làm mô hình chính" />
               )}
             </button>
@@ -303,7 +421,7 @@ export const AdminSettings: React.FC = () => {
               <div className="p-4 rounded-2xl bg-rose-50/90 border-2 border-rose-300 text-slate-700 leading-relaxed text-xs space-y-1.5 shadow-sm">
                 <p className="font-bold text-rose-800 flex items-center gap-2 text-[13px]">
                   <Zap className="w-4 h-4 text-rose-600 fill-rose-100 shrink-0" />
-                  Mô hình Google Gemini (Gemini 3.6 Flash, 3.7 Flash, 3.5 Flash, 2.5 Flash):
+                  Mô hình Google Gemini 3.x+ (Gemini 3.5 Flash, 3.1 Flash-Lite, 3.6 Flash, 3.7 Flash, 3.8 Flash, 3.5 Pro):
                 </p>
                 <p className="text-slate-700 font-medium">
                   Xử lý siêu tốc mọi câu hỏi trong và ngoài CSDL cửa hàng, hỗ trợ ngữ cảnh lớn và phân tích kỹ thuật chuẩn xác.
@@ -371,175 +489,39 @@ export const AdminSettings: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="block font-semibold text-slate-700 text-xs">Mô hình AI Gemini Mới Nhất (Tự động cập nhật 2025 - 2026)</label>
+                <label className="block font-semibold text-slate-700 text-xs">Mô hình AI Google Gemini 3.x+ (Thế Hệ Mới Nhất 2026)</label>
                 <select
-                  value={settings.geminiModel || "gemini-2.0-flash"}
+                  value={settings.geminiModel || "gemini-3.5-flash"}
                   onChange={(e) => {
                     setSettings({ ...settings, geminiModel: e.target.value });
                     if (testResult) setTestResult(null);
                   }}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500 text-xs font-medium"
                 >
-                  <optgroup label="🌟 Thế Hệ Mới Nhất 2025 - 2026 (Khuyên dùng)">
-                    <option value="gemini-2.0-flash">gemini-2.0-flash ⚡ (Khuyên dùng - Flash 2.0 GA Siêu nhanh & Đa phương thức)</option>
-                    <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite 🍃 (Flash 2.0 Lite - Siêu nhẹ, độ trễ thấp & tiết kiệm)</option>
-                    <option value="gemini-2.5-flash">gemini-2.5-flash 💡 (Bản Flash 2.5 Thế hệ mới)</option>
-                    <option value="gemini-2.5-pro">gemini-2.5-pro 🧠 (Bản Pro 2.5 Suy luận chuyên sâu)</option>
+                  <optgroup label="🌟 Mô hình Gemini 3.x Flash (Tối ưu & Tốc độ cao)">
+                    <option value="gemini-3.5-flash">gemini-3.5-flash ⭐ (Khuyên dùng - Flash 3.5 Cực nhanh & Đa phương thức)</option>
+                    <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite 🍃 (Flash 3.1 Lite - Siêu nhẹ, độ trễ thấp & tiết kiệm)</option>
+                    <option value="gemini-3.6-flash">gemini-3.6-flash 🚀 (Flash 3.6 Ổn định & Hiệu năng cao)</option>
+                    <option value="gemini-3.7-flash">gemini-3.7-flash ⚡ (Flash 3.7 Siêu tốc)</option>
+                    <option value="gemini-3.8-flash">gemini-3.8-flash 🌟 (Flash 3.8 Flagship)</option>
                   </optgroup>
-                  <optgroup label="💭 Suy Luận Chuyên Sâu & Lập Trình (Reasoning & Code)">
-                    <option value="gemini-2.0-flash-thinking-exp-01-21">gemini-2.0-flash-thinking-exp 💭 (Tư duy suy luận Thinking)</option>
-                    <option value="gemini-2.0-pro-exp-02-05">gemini-2.0-pro-exp 🔬 (Pro 2.0 Experimental - Trí tuệ toán & code)</option>
-                    <option value="gemini-exp-1206">gemini-exp-1206 🧪 (Bản thử nghiệm chất lượng cao)</option>
-                    <option value="learnlm-1.5-pro-experimental">learnlm-1.5-pro-experimental 📚 (Chuyên sâu sư phạm & kiến thức)</option>
-                  </optgroup>
-                  <optgroup label="⚡ Dòng Gemini 1.5 Ổn Định (Long Context 1M - 2M)">
-                    <option value="gemini-1.5-flash">gemini-1.5-flash ⭐ (Flash 1.5 Ổn định - Context 1 Triệu Token)</option>
-                    <option value="gemini-1.5-flash-latest">gemini-1.5-flash-latest 🔄 (Tự động cập nhật Flash 1.5)</option>
-                    <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b 🚀 (Bản 8B Siêu tốc độ cao)</option>
-                    <option value="gemini-1.5-flash-8b-latest">gemini-1.5-flash-8b-latest ⚡ (Bản 8B mới nhất)</option>
-                    <option value="gemini-1.5-pro-latest">gemini-1.5-pro-latest 🎯 (Pro 1.5 mới nhất - Context 2 Triệu Token)</option>
-                    <option value="gemini-flash-latest">gemini-flash-latest 🔄 (Alias tự động cập nhật Flash)</option>
-                    <option value="gemini-pro-latest">gemini-pro-latest 🧠 (Alias tự động cập nhật Pro)</option>
-                  </optgroup>
-                  <optgroup label="🚀 Thế Hệ Tương Lai 2026 (Future Roadmap)">
-                    <option value="gemini-3.8-flash">gemini-3.8-flash 🌟 (Tương lai 2026 - Flash 3.8 Flagship)</option>
-                    <option value="gemini-3.7-flash">gemini-3.7-flash ⚡ (Tương lai 2026 - Flash 3.7 Siêu tốc)</option>
-                    <option value="gemini-3.6-flash">gemini-3.6-flash 🚀 (Tương lai 2026 - Flash 3.6 Ổn định)</option>
-                    <option value="gemini-3.5-flash">gemini-3.5-flash ⭐ (Tương lai 2026 - Flash 3.5)</option>
-                    <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite 🍃 (Tương lai 2026 - Flash 3.1 Lite)</option>
+                  <optgroup label="🧠 Dòng Gemini 3.x Pro (Suy luận chuyên sâu)">
+                    <option value="gemini-3.0-pro">gemini-3.0-pro 🧠 (Pro 3.0 Suy luận logic & phân tích)</option>
+                    <option value="gemini-3.5-pro">gemini-3.5-pro 🎯 (Pro 3.5 Cao cấp nhất)</option>
                   </optgroup>
                 </select>
 
                 <div className="flex items-center gap-2 pt-1">
-                  <span className="text-[11px] text-slate-500 shrink-0">Hoặc tùy chỉnh Model ID:</span>
+                  <span className="text-[11px] text-slate-500 shrink-0">Hoặc tùy chỉnh Model ID (3.x+):</span>
                   <input
                     type="text"
-                    placeholder="VD: gemini-2.0-flash, gemini-2.5-flash..."
+                    placeholder="VD: gemini-3.5-flash, gemini-3.7-flash..."
                     value={settings.geminiModel || ""}
                     onChange={(e) => {
                       setSettings({ ...settings, geminiModel: e.target.value.trim() });
                       if (testResult) setTestResult(null);
                     }}
                     className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 font-mono text-[11px] focus:outline-none focus:border-rose-500"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: OPENAI CHATGPT */}
-          {activeAiTab === "openai" && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="p-4 rounded-2xl bg-emerald-50/90 border-2 border-emerald-300 text-slate-700 leading-relaxed text-xs space-y-1.5 shadow-sm">
-                <p className="font-bold text-emerald-800 flex items-center gap-2 text-[13px]">
-                  <Zap className="w-4 h-4 text-emerald-600 fill-emerald-100 shrink-0" />
-                  Mô hình OpenAI ChatGPT (GPT-4o, GPT-4o-mini, o3-mini, o1):
-                </p>
-                <p className="text-slate-700 font-medium">
-                  Mô hình mạnh mẽ hàng đầu thế giới từ OpenAI, tư vấn tự nhiên, giàu cảm xúc và giải đáp tri thức toàn diện.
-                </p>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-semibold text-slate-700 flex items-center gap-1.5">
-                    <Key className="w-3.5 h-3.5 text-emerald-400" />
-                    OpenAI API Key (sk-...)
-                  </label>
-                  <a
-                    href="https://platform.openai.com/api-keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium transition-colors"
-                  >
-                    <span>Lấy Key tại OpenAI Platform</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type={showOpenAiKey ? "text" : "password"}
-                      placeholder="sk-proj-..."
-                      value={settings.openaiApiKey || ""}
-                      onChange={(e) => {
-                        setSettings({ ...settings, openaiApiKey: e.target.value });
-                        if (testResult) setTestResult(null);
-                      }}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-slate-900 font-mono focus:outline-none focus:border-emerald-500 text-xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowOpenAiKey(!showOpenAiKey)}
-                      className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-200 transition-colors"
-                      title={showOpenAiKey ? "Ẩn API Key" : "Hiện API Key"}
-                    >
-                      {showOpenAiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleTestApiKey("openai")}
-                    disabled={isTestingKey}
-                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95"
-                  >
-                    {isTestingKey ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Đang kiểm tra...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" />
-                        <span>Kiểm Tra OpenAI</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block font-semibold text-slate-700 text-xs">Mô hình OpenAI ChatGPT Mới Nhất</label>
-                <select
-                  value={settings.openaiModel || "gpt-4o-mini"}
-                  onChange={(e) => {
-                    setSettings({ ...settings, openaiModel: e.target.value });
-                    if (testResult) setTestResult(null);
-                  }}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-emerald-500 text-xs font-medium"
-                >
-                  <optgroup label="⭐ Mô hình Phổ biến & Tối ưu nhất (Khuyên dùng)">
-                    <option value="gpt-4o-mini">gpt-4o-mini ⭐ (Khuyên dùng - Cực nhanh, thông minh, tối ưu chi phí 100%)</option>
-                    <option value="gpt-4o">gpt-4o 👑 (Flagship Omni Đa phương thức cao cấp nhất)</option>
-                    <option value="chatgpt-4o-latest">chatgpt-4o-latest 🔄 (Bản GPT-4o cập nhật liên tục)</option>
-                  </optgroup>
-                  <optgroup label="🔬 Dòng Suy luận Chuyên sâu (Reasoning & STEM)">
-                    <option value="o3-mini">o3-mini 🔬 (Mô hình Suy luận STEM & Coding mới nhất)</option>
-                    <option value="o1">o1 🧩 (Mô hình Suy luận chuyên sâu hàng đầu thế giới)</option>
-                    <option value="o1-mini">o1-mini ⚙️ (Suy luận nhanh cho logic & giải thuật)</option>
-                    <option value="o1-preview">o1-preview 🔍 (Bản xem trước suy luận chuyên sâu)</option>
-                  </optgroup>
-                  <optgroup label="⚡ Dòng GPT-4 & GPT-3.5 Tiêu chuẩn">
-                    <option value="gpt-4-turbo">gpt-4-turbo 🚀 (Bản Turbo 128k context mạnh mẽ)</option>
-                    <option value="gpt-4">gpt-4 🧠 (Bản GPT-4 tiêu chuẩn)</option>
-                    <option value="gpt-3.5-turbo">gpt-3.5-turbo 💬 (Bản ChatGPT-3.5 tiết kiệm truyền thống)</option>
-                    <option value="gpt-5.4-mini">gpt-5.4-mini 🌟 (Tương lai - GPT-5 Next Gen)</option>
-                  </optgroup>
-                </select>
-
-                <div className="flex items-center gap-2 pt-1">
-                  <span className="text-[11px] text-slate-500 shrink-0">Hoặc tùy chỉnh Model ID:</span>
-                  <input
-                    type="text"
-                    placeholder="VD: gpt-4o-mini, o3-mini..."
-                    value={settings.openaiModel || ""}
-                    onChange={(e) => {
-                      setSettings({ ...settings, openaiModel: e.target.value.trim() });
-                      if (testResult) setTestResult(null);
-                    }}
-                    className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-slate-900 font-mono text-[11px] focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -673,7 +655,7 @@ export const AdminSettings: React.FC = () => {
                 <div className="space-y-1.5 flex-1">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-[13px]">
-                      {testResult.valid ? `✅ ${testResult.provider === "openai" ? "OpenAI" : "Google Gemini"} Hoạt Động Hoàn Hảo!` : "❌ Kiểm Tra API Key Thất Bại"}
+                      {testResult.valid ? `✅ ${testResult.provider === "local" ? "Mô hình Local AI" : "Google Gemini"} Hoạt Động Hoàn Hảo!` : "❌ Kiểm Tra API Key Thất Bại"}
                     </span>
                     {testResult.model && (
                       <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-mono text-[10px] font-bold border border-emerald-300">
@@ -700,18 +682,18 @@ export const AdminSettings: React.FC = () => {
                     <div className="mt-2.5 pt-2.5 border-t border-emerald-500/20">
                       <p className="text-[11px] font-semibold text-emerald-800 mb-1.5 flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        <span>Mô hình {testResult.provider === "openai" ? "OpenAI" : "Google"} khả dụng với API Key này (bấm để chọn ngay):</span>
+                        <span>Mô hình {testResult.provider === "local" ? "Local AI" : "Google Gemini"} khả dụng với API Key này (bấm để chọn ngay):</span>
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {testResult.availableModels.map((m) => {
-                          const isSelected = testResult.provider === "openai" ? settings.openaiModel === m : settings.geminiModel === m;
+                          const isSelected = testResult.provider === "local" ? settings.localAiModel === m : settings.geminiModel === m;
                           return (
                             <button
                               key={m}
                               type="button"
                               onClick={() => {
-                                if (testResult.provider === "openai") {
-                                  setSettings({ ...settings, openaiModel: m });
+                                if (testResult.provider === "local") {
+                                  setSettings({ ...settings, localAiModel: m });
                                 } else {
                                   setSettings({ ...settings, geminiModel: m });
                                 }
@@ -743,18 +725,31 @@ export const AdminSettings: React.FC = () => {
         {/* Section 3: VNPAY Config */}
         <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-xl">
           <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-            <CreditCard className="w-4 h-4 text-blue-400" />
+            <CreditCard className="w-4 h-4 text-blue-500" />
             3. CỔNG THANH TOÁN VNPAY SANDBOX
           </h3>
 
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">VNPAY TMN Code</label>
+            <label className="block font-semibold text-slate-700 mb-1">
+              VNPAY TMN Code <span className="text-rose-600 font-bold">*</span>
+            </label>
             <input
               type="text"
-              value={settings.vnpayTmnCode}
-              onChange={(e) => setSettings({ ...settings, vnpayTmnCode: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-rose-500"
+              value={settings.vnpayTmnCode || ""}
+              onChange={(e) => updateField("vnpayTmnCode", e.target.value)}
+              placeholder="VD: SANDBOX_STORE_AI"
+              className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none transition-all ${
+                formErrors.vnpayTmnCode 
+                  ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                  : "border-slate-300 focus:border-rose-500"
+              }`}
             />
+            {formErrors.vnpayTmnCode && (
+              <p className="mt-1.5 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>{formErrors.vnpayTmnCode}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -762,12 +757,12 @@ export const AdminSettings: React.FC = () => {
         <div className="p-6 rounded-3xl bg-white border border-pink-900/40 space-y-4 shadow-xl">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <span className="w-5 h-5 rounded-md bg-[#a50064] text-slate-900 flex items-center justify-center font-black text-[9px]">
+              <span className="w-5 h-5 rounded-md bg-[#a50064] text-white flex items-center justify-center font-black text-[9px] shadow-xs">
                 MM
               </span>
               4. CỔNG THANH TOÁN VÍ MOMO SANDBOX (GATEWAY V2)
             </h3>
-            <span className="px-2 py-0.5 rounded-full bg-pink-500/10 text-pink-300 border border-pink-500/20 text-[10px] font-semibold">
+            <span className="px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200 text-[10px] font-semibold">
               MoMo Developer v2
             </span>
           </div>
@@ -778,43 +773,92 @@ export const AdminSettings: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1 text-xs">Partner Code</label>
+              <label className="block font-semibold text-slate-700 mb-1 text-xs">
+                Partner Code <span className="text-rose-600 font-bold">*</span>
+              </label>
               <input
                 type="text"
-                value={settings.momoPartnerCode || "MOMO"}
-                onChange={(e) => setSettings({ ...settings, momoPartnerCode: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-pink-500 text-xs"
+                value={settings.momoPartnerCode || ""}
+                onChange={(e) => updateField("momoPartnerCode", e.target.value)}
+                placeholder="VD: MOMO"
+                className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none text-xs transition-all ${
+                  formErrors.momoPartnerCode 
+                    ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                    : "border-slate-300 focus:border-pink-500"
+                }`}
               />
+              {formErrors.momoPartnerCode && (
+                <p className="mt-1.5 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{formErrors.momoPartnerCode}</span>
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1 text-xs">Access Key</label>
+              <label className="block font-semibold text-slate-700 mb-1 text-xs">
+                Access Key <span className="text-rose-600 font-bold">*</span>
+              </label>
               <input
                 type="text"
-                value={settings.momoAccessKey || "F8BBA842ECF85"}
-                onChange={(e) => setSettings({ ...settings, momoAccessKey: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-pink-500 text-xs"
+                value={settings.momoAccessKey || ""}
+                onChange={(e) => updateField("momoAccessKey", e.target.value)}
+                placeholder="VD: F8BBA842ECF85"
+                className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none text-xs transition-all ${
+                  formErrors.momoAccessKey 
+                    ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                    : "border-slate-300 focus:border-pink-500"
+                }`}
               />
+              {formErrors.momoAccessKey && (
+                <p className="mt-1.5 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{formErrors.momoAccessKey}</span>
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1 text-xs">Secret Key</label>
+              <label className="block font-semibold text-slate-700 mb-1 text-xs">
+                Secret Key <span className="text-rose-600 font-bold">*</span>
+              </label>
               <input
                 type="password"
-                value={settings.momoSecretKey || "K951B6PE1waDMi640xX08PD3vg6EkVlz"}
-                onChange={(e) => setSettings({ ...settings, momoSecretKey: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-pink-500 text-xs"
+                value={settings.momoSecretKey || ""}
+                onChange={(e) => updateField("momoSecretKey", e.target.value)}
+                placeholder="VD: K951B6PE1waDMi640xX08PD3vg6EkVlz"
+                className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-none text-xs transition-all ${
+                  formErrors.momoSecretKey 
+                    ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                    : "border-slate-300 focus:border-pink-500"
+                }`}
               />
+              {formErrors.momoSecretKey && (
+                <p className="mt-1.5 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{formErrors.momoSecretKey}</span>
+                </p>
+              )}
             </div>
           </div>
         </div>
 
         <button
           type="submit"
-          className="px-6 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-500 text-slate-900 font-bold text-xs shadow-lg shadow-rose-600/30 transition-all flex items-center gap-2 hover:scale-105"
+          disabled={isSaving}
+          className="px-6 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition-all flex items-center gap-2 hover:scale-105 disabled:opacity-50 disabled:pointer-events-none"
         >
-          <Save className="w-4 h-4" />
-          <span>Lưu Cấu Hình Hệ Thống</span>
+          {isSaving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+              <span>Đang lưu cấu hình...</span>
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 text-white" />
+              <span>Lưu Cấu Hình Hệ Thống</span>
+            </>
+          )}
         </button>
       </form>
     </div>

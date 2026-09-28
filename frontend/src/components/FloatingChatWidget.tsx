@@ -46,7 +46,7 @@ export const FloatingChatWidget: React.FC<{
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<"local" | "gemini" | "openai">("local");
+  const [selectedProvider, setSelectedProvider] = useState<"local" | "gemini">("local");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
@@ -295,7 +295,7 @@ export const FloatingChatWidget: React.FC<{
         suggestedProducts: res.suggestedProducts || [],
         suggestedQuickReplies: res.suggestedQuickReplies || [],
         disclaimer: res.disclaimer,
-        source: res.source || (selectedProvider === "local" ? "Mô hình Local AI" : selectedProvider === "openai" ? "OpenAI ChatGPT" : "Google Gemini AI"),
+        source: res.source || (selectedProvider === "local" ? "Mô hình Local AI" : "Google Gemini 3.x AI"),
         isExternalQuery: res.isExternalQuery,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       };
@@ -309,7 +309,7 @@ export const FloatingChatWidget: React.FC<{
         text: isPermissionErr 
           ? "🔒 **Tài khoản chưa được cấp quyền AI**: Quản trị viên chưa kích hoạt tính năng chat AI cho tài khoản này. Vui lòng báo Admin cấp quyền trong mục Quản lý Khách hàng!"
           : (selectedProvider === "local" 
-              ? "⚡ **Kết nối Local AI**: Đang sử dụng cơ chế phản hồi cục bộ dự phòng thông minh. Bạn có thể kiểm tra Ollama đang chạy trên máy (port 11434) hoặc chuyển sang Google Gemini/OpenAI trong thanh chọn bên trên nhé!"
+              ? "⚡ **Kết nối Local AI**: Đang sử dụng cơ chế phản hồi cục bộ dự phòng thông minh. Bạn có thể kiểm tra Ollama đang chạy trên máy (port 11434) hoặc chuyển sang Google Gemini trong thanh chọn bên trên nhé!"
               : "Dạ xin lỗi bạn, hệ thống AI tạm thời đang bận kết nối. Bạn có thể thử đổi sang mô hình Local AI hoặc kiểm tra lại sau nhé!"),
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       };
@@ -420,20 +420,9 @@ export const FloatingChatWidget: React.FC<{
                       ? "bg-white text-rose-700 shadow-sm" 
                       : "text-rose-100 hover:text-white"
                   }`}
-                  title="Google Gemini 2.0 Flash Cloud"
+                  title="Google Gemini Cloud (Thế hệ 3.x+)"
                 >
-                  ✨ Gemini
-                </button>
-                <button
-                  onClick={() => setSelectedProvider("openai")}
-                  className={`px-2 py-0.5 rounded font-bold transition-all text-[10px] ${
-                    selectedProvider === "openai" 
-                      ? "bg-white text-rose-700 shadow-sm" 
-                      : "text-rose-100 hover:text-white"
-                  }`}
-                  title="OpenAI ChatGPT"
-                >
-                  ⚡ OpenAI
+                  ✨ Gemini 3.x
                 </button>
               </div>
             </div>
@@ -674,6 +663,7 @@ export const FloatingChatWidget: React.FC<{
             />
 
             <form
+              noValidate
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendMessage();

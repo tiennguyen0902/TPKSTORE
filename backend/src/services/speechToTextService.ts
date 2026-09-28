@@ -12,7 +12,7 @@ export class SpeechToTextService {
    * Transcribe Vietnamese audio into text using Google Gemini Multimodal Audio
    */
   public static async transcribe(options: TranscribeAudioOptions): Promise<string> {
-    const { audioBase64, mimeType = "audio/webm", apiKey, preferredModel = "gemini-3.8-flash" } = options;
+    const { audioBase64, mimeType = "audio/webm", apiKey, preferredModel = "gemini-3.5-flash" } = options;
 
     if (!audioBase64 || audioBase64.trim().length === 0) {
       throw new Error("Dữ liệu âm thanh trống (Empty audio). Vui lòng thử lại.");
@@ -31,9 +31,12 @@ export class SpeechToTextService {
     }
 
     const candidateModels = [
+      "gemini-3.5-flash",
+      "gemini-3.1-flash-lite",
+      "gemini-3.6-flash",
+      "gemini-3.7-flash",
       "gemini-3.8-flash",
-      preferredModel && preferredModel !== "gemini-3.8-flash" && preferredModel !== "gemini-2.0-flash" && preferredModel !== "gemini-2.5-flash" ? preferredModel : null,
-      "gemini-3.7-flash"
+      preferredModel && /^gemini-3/i.test(preferredModel) ? preferredModel : null
     ].filter(Boolean) as string[];
     const uniqueModels = candidateModels.filter((v, i, a) => a.indexOf(v) === i);
 

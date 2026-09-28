@@ -14,6 +14,7 @@ import {
   Filter,
   PackageCheck,
   Building2,
+  AlertCircle,
   X
 } from "lucide-react";
 import { StockTicket, Product, User } from "../types";
@@ -48,10 +49,23 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
   const [reason, setReason] = useState<string>("");
   const [note, setNote] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [stockErrors, setStockErrors] = useState<Record<string, string>>({});
+  const [formErrorMsg, setFormErrorMsg] = useState<string>("");
 
   // Modal từ chối
   const [rejectTicketId, setRejectTicketId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState<string>("");
+  const [rejectError, setRejectError] = useState<string>("");
+
+  const clearStockError = (field: string) => {
+    if (stockErrors[field]) {
+      setStockErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -97,6 +111,8 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
     setQuantity("10");
     setReason(type === "IMPORT" ? "Nhập thêm hàng hóa từ nhà sản xuất" : "Xuất kho điều chuyển tới cửa hàng");
     setNote("");
+    setStockErrors({});
+    setFormErrorMsg("");
     if (products.length > 0 && !selectedProductId) {
       setSelectedProductId(products[0].id);
     }
@@ -105,23 +121,34 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormErrorMsg("");
+    const errors: Record<string, string> = {};
+
     if (!selectedProductId) {
-      alert("Vui lòng chọn sản phẩm!");
-      return;
+      errors.selectedProductId = "Vui lòng chọn sản phẩm trong kho.";
     }
+
     const qty = parseInt(quantity, 10);
     if (isNaN(qty) || qty <= 0) {
-      alert("Số lượng phải là số dương lớn hơn 0!");
-      return;
+      errors.quantity = "Số lượng yêu cầu phải là số nguyên dương lớn hơn 0.";
     }
 
     const targetProduct = products.find(p => p.id === selectedProductId);
     const currStock = typeof targetProduct?.stock === "number" ? targetProduct.stock : (parseInt(String(targetProduct?.stock)) || 0);
 
-    if (createType === "EXPORT" && currStock < qty) {
-      alert(`Không thể lập phiếu xuất! Số lượng yêu cầu xuất (${qty}) lớn hơn số tồn kho hiện có (${currStock} SP).`);
+    if (createType === "EXPORT" && !errors.quantity && currStock < qty) {
+      errors.quantity = `Không thể lập phiếu xuất! Số lượng yêu cầu xuất (${qty}) vượt quá số tồn kho hiện có (${currStock} SP).`;
+    }
+
+    if (!reason.trim()) {
+      errors.reason = "Vui lòng nhập lý do xuất/nhập kho.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setStockErrors(errors);
       return;
     }
+    setStockErrors({});
 
     setIsSubmitting(true);
     try {
@@ -129,8 +156,8 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
         productId: selectedProductId,
         type: createType,
         quantity: qty,
-        reason,
-        note
+        reason: reason.trim(),
+        note: note.trim()
       });
 
       setShowCreateModal(false);
@@ -138,7 +165,7 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
       fetchData();
       setTimeout(() => setToastMsg(""), 4000);
     } catch (err: any) {
-      alert(err.message || "Lỗi khi lập phiếu kho");
+      setFormErrorMsg(err.message || "Lỗi khi lập phiếu kho");
     } finally {
       setIsSubmitting(false);
     }
@@ -158,10 +185,21 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
     }
   };
 
+  const handleOpenReject = (ticketId: string) => {
+    setRejectTicketId(ticketId);
+    setRejectReason("");
+    setRejectError("");
+  };
+
   const handleConfirmReject = async () => {
     if (!rejectTicketId) return;
+    if (!rejectReason.trim()) {
+      setRejectError("Vui lòng nhập lý do từ chối phiếu để thông báo cho nhân viên.");
+      return;
+    }
+    setRejectError("");
     try {
-      await api.rejectStockTicket(rejectTicketId, rejectReason || "Không đạt tiêu chuẩn kiểm duyệt");
+      await api.rejectStockTicket(rejectTicketId, rejectReason.trim());
       setRejectTicketId(null);
       setRejectReason("");
       setToastMsg("Đã từ chối phiếu thành công!");
@@ -486,10 +524,7 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
                                 <span>Duyệt</span>
                               </button>
                               <button
-                                onClick={() => {
-                                   setRejectTicketId(t.id);
-                                   setRejectReason("");
-                                }}
+                                onClick={() => handleOpenReject(t.id)}
                                 className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 transition-colors"
                               >
                                 <span>Từ chối</span>
@@ -531,7 +566,14 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
+            {formErrorMsg && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{formErrorMsg}</span>
+              </div>
+            )}
+
+            <form noValidate onSubmit={handleCreateSubmit} className="space-y-4 text-xs">
               {/* Chọn loại phiếu */}
               <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
                 <button
@@ -559,12 +601,16 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
               {/* Chọn sản phẩm */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Chọn sản phẩm trong kho *
+                  Chọn sản phẩm trong kho <span className="text-rose-600">*</span>
                 </label>
                 <select
                   value={selectedProductId}
-                  onChange={(e) => setSelectedProductId(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500 cursor-pointer shadow-sm font-medium"
+                  onChange={(e) => { setSelectedProductId(e.target.value); clearStockError("selectedProductId"); }}
+                  className={`w-full bg-white border rounded-xl px-3 py-2 text-slate-900 focus:outline-none cursor-pointer shadow-sm font-medium transition-colors ${
+                    stockErrors.selectedProductId 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-rose-500"
+                  }`}
                 >
                   {products.map(p => (
                     <option key={p.id} value={p.id}>
@@ -572,6 +618,12 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
                     </option>
                   ))}
                 </select>
+                {stockErrors.selectedProductId && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{stockErrors.selectedProductId}</span>
+                  </p>
+                )}
               </div>
 
               {/* Thông tin nhanh sản phẩm đã chọn */}
@@ -594,37 +646,53 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
               {/* Số lượng */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Số lượng yêu cầu {createType === "IMPORT" ? "nhập" : "xuất"} (chiếc) *
+                  Số lượng yêu cầu {createType === "IMPORT" ? "nhập" : "xuất"} (chiếc) <span className="text-rose-600">*</span>
                 </label>
                 <input
                   type="number"
-                  required
                   min={1}
-                  max={createType === "EXPORT" ? selectedProdStock : 99999}
                   value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500 font-bold shadow-sm"
+                  onChange={(e) => { setQuantity(e.target.value); clearStockError("quantity"); }}
+                  className={`w-full bg-white border rounded-xl px-3 py-2 text-slate-900 focus:outline-none font-bold shadow-sm transition-colors ${
+                    stockErrors.quantity 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-rose-500"
+                  }`}
                 />
-                {createType === "EXPORT" && selectedProdStock < parseInt(quantity || "0") && (
+                {stockErrors.quantity ? (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{stockErrors.quantity}</span>
+                  </p>
+                ) : createType === "EXPORT" && selectedProdStock < parseInt(quantity || "0") ? (
                   <p className="text-[10px] text-rose-600 font-bold mt-1">
                     Cảnh báo: Số lượng xuất vượt quá tồn kho khả dụng ({selectedProdStock} SP)!
                   </p>
-                )}
+                ) : null}
               </div>
 
               {/* Lý do */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Lý do xuất / nhập kho *
+                  Lý do xuất / nhập kho <span className="text-rose-600">*</span>
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder={createType === "IMPORT" ? "Ví dụ: Nhập hàng đợt 2 từ nhà phân phối Apple" : "Ví dụ: Xuất kho điều chuyển showroom Cầu Giấy"}
                   value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500 shadow-sm"
+                  onChange={(e) => { setReason(e.target.value); clearStockError("reason"); }}
+                  className={`w-full bg-white border rounded-xl px-3 py-2 text-slate-900 focus:outline-none shadow-sm transition-colors ${
+                    stockErrors.reason 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-rose-500"
+                  }`}
                 />
+                {stockErrors.reason && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{stockErrors.reason}</span>
+                  </p>
+                )}
               </div>
 
               {/* Ghi chú */}
@@ -643,7 +711,7 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold"
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold border border-slate-200 transition-colors"
                 >
                   Hủy
                 </button>
@@ -673,25 +741,37 @@ export const StockTicketsView: React.FC<StockTicketsViewProps> = ({ embeddedRole
             <p className="text-xs text-slate-600 font-medium">
               Vui lòng nhập lý do từ chối phiếu kho này để thông báo rõ ràng cho nhân viên lập phiếu:
             </p>
-            <textarea
-              rows={3}
-              placeholder="Nhập lý do từ chối..."
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-rose-500 shadow-sm"
-            />
+            <div>
+              <textarea
+                rows={3}
+                placeholder="Nhập lý do từ chối..."
+                value={rejectReason}
+                onChange={(e) => { setRejectReason(e.target.value); setRejectError(""); }}
+                className={`w-full bg-white border rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none shadow-sm transition-colors ${
+                  rejectError 
+                    ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                    : "border-slate-300 focus:border-rose-500"
+                }`}
+              />
+              {rejectError && (
+                <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{rejectError}</span>
+                </p>
+              )}
+            </div>
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setRejectTicketId(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold"
+                className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold border border-slate-200 transition-colors"
               >
                 Hủy bỏ
               </button>
               <button
                 type="button"
                 onClick={handleConfirmReject}
-                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/30"
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md shadow-rose-600/30 transition-all"
               >
                 Xác Nhận Từ Chối
               </button>

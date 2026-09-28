@@ -11,7 +11,7 @@ class GroundedChatService {
      * Strict anti-hallucination: Only reasons over retrieved DB data.
      */
     static async generateResponse(params) {
-        const { userMessage, history = [], structuredQuery, retrievedProducts, apiKey, model = "gemini-3.8-flash", openaiApiKey, openaiModel = "gpt-4o-mini", provider = "gemini" } = params;
+        const { userMessage, history = [], structuredQuery, retrievedProducts, apiKey, model = "gemini-3.5-flash", provider = "gemini" } = params;
         const hasResults = retrievedProducts.length > 0;
         const isImageSearch = !!params.isImage && !!params.visualAnalysis;
         const visualInfo = params.visualAnalysis;
@@ -93,7 +93,7 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
                     "Chính sách bảo hành",
                     "Liên hệ nhân viên hỗ trợ"
                 ]);
-        // 3. Call LLM (Gemini or OpenAI)
+        // 3. Call LLM (Gemini 3.x+)
         const normalizedProvider = (provider || "gemini").toLowerCase().trim();
         if (normalizedProvider === "gemini" && apiKey) {
             const geminiResult = await this.callGemini(apiKey, model, systemPrompt, userMessage, history);
@@ -106,22 +106,7 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
                     provider: "gemini",
                     model: geminiResult.model,
                     structuredQuery,
-                    disclaimer: "✨ Phản hồi được xử lý thông minh bởi Google Gemini, đối chiếu trực tiếp từ cơ sở dữ liệu thời gian thực của SHOPBEE."
-                };
-            }
-        }
-        if (normalizedProvider === "openai" && openaiApiKey) {
-            const openAiResult = await this.callOpenAI(openaiApiKey, openaiModel, systemPrompt, userMessage, history);
-            if (openAiResult) {
-                return {
-                    reply: openAiResult.reply,
-                    suggestedProducts: retrievedProducts.slice(0, 4),
-                    suggestedQuickReplies: quickReplies,
-                    source: `OpenAI Grounded (${openAiResult.model})`,
-                    provider: "openai",
-                    model: openAiResult.model,
-                    structuredQuery,
-                    disclaimer: "✨ Phản hồi được đối chiếu trực tiếp từ cơ sở dữ liệu thời gian thực của cửa hàng."
+                    disclaimer: "✨ Phản hồi được xử lý thông minh bởi Google Gemini (3.x+), đối chiếu trực tiếp từ cơ sở dữ liệu thời gian thực của SHOPBEE."
                 };
             }
         }
@@ -142,12 +127,14 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
     }
     static async callGemini(apiKey, model, systemInstruction, userMessage, history = []) {
         const candidateModels = [
-            "gemini-3.6-flash",
+            "gemini-3.5-flash",
             "gemini-3.1-flash-lite",
-            "gemini-3.8-flash",
+            "gemini-3.6-flash",
             "gemini-3.7-flash",
-            "gemini-3.5-flash-lite",
-            model && !["gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.0-flash", "gemini-2.5-flash"].includes(model) ? model : null
+            "gemini-3.8-flash",
+            "gemini-3.0-pro",
+            "gemini-3.5-pro",
+            model && /^gemini-3/i.test(model) ? model : null
         ].filter(Boolean);
         const uniqueModels = candidateModels.filter((v, i, a) => a.indexOf(v) === i);
         console.log(`[GEMINI] Calling Google Gemini API for chat. Candidates: ${uniqueModels.join(", ")}`);
@@ -185,35 +172,6 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
                 continue;
             }
         }
-        return null;
-    }
-    static async callOpenAI(apiKey, model, systemInstruction, userMessage, history = []) {
-        const messages = [{ role: "system", content: systemInstruction }];
-        if (Array.isArray(history) && history.length > 0) {
-            for (const h of history.slice(-4)) {
-                const role = h.role === "user" ? "user" : "assistant";
-                const content = (h.content || h.text || "").trim();
-                if (content)
-                    messages.push({ role, content });
-            }
-        }
-        messages.push({ role: "user", content: userMessage });
-        try {
-            const resp = await axios_1.default.post("https://api.openai.com/v1/chat/completions", {
-                model: model || "gpt-4o-mini",
-                messages,
-                temperature: 0.3,
-                max_tokens: 1500
-            }, {
-                headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-                timeout: 20000
-            });
-            const content = resp.data?.choices?.[0]?.message?.content?.trim();
-            if (content) {
-                return { reply: content, model: resp.data.model || model };
-            }
-        }
-        catch (e) { }
         return null;
     }
     /**

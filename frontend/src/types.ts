@@ -161,7 +161,7 @@ export interface SystemSettings {
   hotline: string;
   supportEmail: string;
   freeShippingThreshold: number;
-  aiProvider?: "gemini" | "openai" | "local";
+  aiProvider?: "gemini" | "local";
   geminiApiKey: string;
   geminiModel: string;
   openaiApiKey?: string;

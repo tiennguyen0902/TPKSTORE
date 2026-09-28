@@ -65,7 +65,19 @@ export const AdminProducts: React.FC = () => {
   const [isNew, setIsNew] = useState(false);
 
   const [toastMsg, setToastMsg] = useState("");
+  const [formErrorMsg, setFormErrorMsg] = useState("");
+  const [productErrors, setProductErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const clearProductError = (field: string) => {
+    if (productErrors[field]) {
+      setProductErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -108,6 +120,8 @@ export const AdminProducts: React.FC = () => {
     setDescription("");
     setIsFeatured(false);
     setIsNew(true);
+    setProductErrors({});
+    setFormErrorMsg("");
     setShowModal(true);
   };
 
@@ -127,6 +141,8 @@ export const AdminProducts: React.FC = () => {
     setDescription(p.description);
     setIsFeatured(p.isFeatured);
     setIsNew(p.isNew);
+    setProductErrors({});
+    setFormErrorMsg("");
     setShowModal(true);
   };
 
@@ -134,13 +150,14 @@ export const AdminProducts: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 8 * 1024 * 1024) {
-        alert("Vui lòng chọn ảnh có dung lượng dưới 8MB!");
+        setProductErrors(prev => ({ ...prev, thumbnail: "Vui lòng chọn ảnh có dung lượng dưới 8MB!" }));
         return;
       }
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === "string") {
           setThumbnail(reader.result);
+          clearProductError("thumbnail");
         }
       };
       reader.readAsDataURL(file);
@@ -169,19 +186,48 @@ export const AdminProducts: React.FC = () => {
       alert("Quyền hạn bị từ chối: Quản lý sản phẩm chỉ dành riêng cho tài khoản Quản trị viên (ADMIN).");
       return;
     }
+
+    setFormErrorMsg("");
+    const errors: Record<string, string> = {};
+
+    if (!name.trim()) {
+      errors.name = "Vui lòng nhập tên sản phẩm.";
+    }
+
+    const currentCategoryId = categoryId || (categories[0]?.id ?? "");
+    if (!currentCategoryId) {
+      errors.categoryId = "Vui lòng chọn danh mục cho sản phẩm.";
+    }
+
+    const parsedPrice = parseFloat(price);
+    if (!price || isNaN(parsedPrice) || parsedPrice <= 0) {
+      errors.price = "Giá bán sản phẩm phải lớn hơn 0 VND.";
+    }
+
+    const parsedStock = parseInt(stock);
+    if (stock === "" || isNaN(parsedStock) || parsedStock < 0) {
+      errors.stock = "Số lượng tồn kho ban đầu phải từ 0 trở lên.";
+    }
+
     if (!thumbnail) {
-      alert("Vui lòng chọn hoặc tải lên hình ảnh cho sản phẩm!");
+      errors.thumbnail = "Vui lòng chọn hoặc tải lên hình ảnh cho sản phẩm.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setProductErrors(errors);
       return;
     }
+    setProductErrors({});
+
     try {
       const payload = {
-        name,
-        categoryId: categoryId || (categories[0]?.id ?? ""),
-        price: parseFloat(price),
+        name: name.trim(),
+        categoryId: currentCategoryId,
+        price: parsedPrice,
         originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
-        stock: parseInt(stock),
+        stock: parsedStock,
         thumbnail,
-        description,
+        description: description.trim(),
         isFeatured,
         isNew
       };
@@ -198,7 +244,7 @@ export const AdminProducts: React.FC = () => {
       fetchData();
       setTimeout(() => setToastMsg(""), 3000);
     } catch (err: any) {
-      alert(err.message || "Lỗi khi lưu sản phẩm");
+      setFormErrorMsg(err.message || "Lỗi khi lưu sản phẩm");
     }
   };
 
@@ -429,58 +475,110 @@ export const AdminProducts: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            {formErrorMsg && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{formErrorMsg}</span>
+              </div>
+            )}
+
+            <form noValidate onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Tên sản phẩm *</label>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Tên sản phẩm <span className="text-rose-600">*</span>
+                </label>
                 <input
                   type="text"
-                  required
                   placeholder="Nhập tên sản phẩm..."
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500 shadow-sm"
+                  onChange={(e) => { setName(e.target.value); clearProductError("name"); }}
+                  className={`w-full bg-white border rounded-xl px-3 py-2 text-slate-900 focus:outline-none shadow-sm transition-colors ${
+                    productErrors.name 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-rose-500"
+                  }`}
                 />
+                {productErrors.name && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{productErrors.name}</span>
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Danh mục *</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Danh mục <span className="text-rose-600">*</span>
+                  </label>
                   <select
                     value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500 cursor-pointer shadow-sm font-medium"
+                    onChange={(e) => { setCategoryId(e.target.value); clearProductError("categoryId"); }}
+                    className={`w-full bg-white border rounded-xl px-3 py-2 text-slate-900 focus:outline-none cursor-pointer shadow-sm font-medium transition-colors ${
+                      productErrors.categoryId 
+                        ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                        : "border-slate-300 focus:border-rose-500"
+                    }`}
                   >
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
+                  {productErrors.categoryId && (
+                    <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{productErrors.categoryId}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Tồn kho ban đầu *</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Tồn kho ban đầu <span className="text-rose-600">*</span>
+                  </label>
                   <input
                     type="number"
-                    required
                     min={0}
                     value={stock}
-                    onChange={(e) => setStock(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500 shadow-sm font-bold"
+                    onChange={(e) => { setStock(e.target.value); clearProductError("stock"); }}
+                    className={`w-full bg-white border rounded-xl px-3 py-2 text-slate-900 focus:outline-none shadow-sm font-bold transition-colors ${
+                      productErrors.stock 
+                        ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                        : "border-slate-300 focus:border-rose-500"
+                    }`}
                   />
+                  {productErrors.stock && (
+                    <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{productErrors.stock}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Giá bán (VND) *</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Giá bán (VND) <span className="text-rose-600">*</span>
+                  </label>
                   <input
                     type="number"
-                    required
                     min={0}
                     placeholder="VD: 500000"
                     value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500 shadow-sm font-bold"
+                    onChange={(e) => { setPrice(e.target.value); clearProductError("price"); }}
+                    className={`w-full bg-white border rounded-xl px-3 py-2 text-slate-900 focus:outline-none shadow-sm font-bold transition-colors ${
+                      productErrors.price 
+                        ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                        : "border-slate-300 focus:border-rose-500"
+                    }`}
                   />
+                  {productErrors.price && (
+                    <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{productErrors.price}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -582,7 +680,7 @@ export const AdminProducts: React.FC = () => {
                         <button
                           key={idx}
                           type="button"
-                          onClick={() => setThumbnail(preset.url)}
+                          onClick={() => { setThumbnail(preset.url); clearProductError("thumbnail"); }}
                           className={`group relative rounded-xl overflow-hidden border transition-all text-left ${
                             isSelected
                               ? "border-rose-500 ring-2 ring-rose-500/50 scale-105"
@@ -607,6 +705,12 @@ export const AdminProducts: React.FC = () => {
                     })}
                   </div>
                 </div>
+                {productErrors.thumbnail && (
+                  <p className="mt-1.5 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{productErrors.thumbnail}</span>
+                  </p>
+                )}
               </div>
 
               <div>

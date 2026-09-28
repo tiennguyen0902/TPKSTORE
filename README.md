@@ -54,7 +54,7 @@ Hệ thống được thiết kế theo mô hình **Kiến trúc Phân tầng 5 
  ┌─────────────────────────────────┐             ┌──────────────────────────────────┐  ┌──────────────────────────────────┐
  │        3. DOMAIN LAYER          │             │       4. REPOSITORY LAYER        │  │     5. INFRASTRUCTURE LAYER      │
  │   • Business Entities & Models  │             │   • PostgreSQL 15 (Prisma ORM)   │  │   • Local AI (Ollama / LLaVA)    │
- │   • 2-Step Inbound/Outbound     │             │   • Fallback JSON Store Engine   │  │   • Cloud AI: Gemini 2.0 & OpenAI│
+ │   • 2-Step Inbound/Outbound     │             │   • Fallback JSON Store Engine   │  │   • Cloud AI: Gemini 3.x Series│
  │   • Atomic Inventory Sync       │             │   • Full-Text Search Engine      │  │   • Python FastAPI AI Service    │
  │   • Cart & Order State Machine  │             │   • Token Rotation Blacklist     │  │   • Redis 7 In-Memory Cache      │
  └─────────────────────────────────┘             └──────────────────────────────────┘  └──────────────────────────────────┘
@@ -105,9 +105,9 @@ TPKSTORE/                               ← Root dự án
 │           ├── 📄 cartRoutes.ts        ← Thao tác giỏ hàng đồng bộ CSDL
 │           ├── 📄 orderRoutes.ts       ← Tạo đơn hàng, lịch sử đơn, cập nhật trạng thái giao hàng
 │           ├── 📄 paymentRoutes.ts     ← Cổng thanh toán VNPAY Sandbox: tạo URL thanh toán & Webhook IPN
-│           ├── 📄 aiRoutes.ts          ← Động cơ AI: Local AI (Ollama), Gemini, OpenAI, Voice & Vision RAG
+│           ├── 📄 aiRoutes.ts          ← Động cơ AI: Local AI (Ollama), Gemini 3.x+, Voice & Vision RAG
 │           ├── 📄 userRoutes.ts        ← Quản trị người dùng: Kích hoạt Chat AI hàng loạt, đổi vai trò
-│           └── 📄 settingsRoutes.ts    ← Cấu hình hệ thống & tham số kết nối Local AI / Cloud AI
+│           └── 📄 settingsRoutes.ts    ← Cấu hình hệ thống & tham số kết nối Local AI / Gemini 3.x+
 │
 ├── 🎨 frontend/                        ← Giao diện Người dùng SPA (React 19 / Vite / TypeScript)
 │   ├── 📄 Dockerfile
@@ -170,7 +170,7 @@ Hệ thống thiết lập hàng rào bảo mật phân quyền nghiêm ngặt t
    - Toàn quyền quản trị hệ thống: Dashboard KPI, doanh thu, tăng trưởng.
    - **Độc quyền** thêm mới, chỉnh sửa giá bán, cập nhật mô tả và xóa sản phẩm.
    - Quản lý danh sách tài khoản, phân vai trò, kích hoạt/hủy kích hoạt quyền Chat AI.
-   - Cấu hình mô hình AI hệ thống (Local AI, Google Gemini, OpenAI).
+   - Cấu hình mô hình AI hệ thống (Local AI, Google Gemini 3.x+).
 2. 👔 **MANAGER (Quản lý kho hàng)**:
    - Kiểm soát toàn bộ hoạt động xuất - nhập kho (Inbound / Outbound).
    - Kiểm tra, đối chiếu và **phê duyệt hoặc từ chối** phiếu xuất/nhập do nhân viên (Staff) tạo ra.
@@ -221,10 +221,9 @@ Quy trình kiểm soát kho hàng 2 lớp (Inbound & Outbound Workflow) đảm b
 
 ### 3.5. Trợ Lý AI Đa Phương Thức & Mô Hình AI Local (Voice & Vision)
 Khung chat nổi thông minh (`FloatingChatWidget`) được nâng cấp toàn diện thành **Trợ lý AI Đa phương thức (Multimodal AI Agent)**:
-* **Hỗ trợ 3 Nhà Cung Cấp Mô Hình**:
+* **Hỗ trợ 2 Nhà Cung Cấp Mô Hình Hiện Đại**:
   * 🤖 **Local AI (Ollama)**: Chạy hoàn toàn cục bộ trên máy tính, bảo mật riêng tư 100%, không phát sinh chi phí gọi API. Tương thích với các mô hình: `llava` (thị giác), `llama3.2-vision`, `phi3`, `qwen2.5`, `mistral`.
-  * ✨ **Google Gemini Cloud**: Tích hợp mô hình thế hệ mới `gemini-2.0-flash` với khả năng suy luận nhanh và phân tích ngữ cảnh sâu.
-  * ⚡ **OpenAI ChatGPT**: Tích hợp các dòng mô hình `gpt-4o-mini`, `gpt-4o`.
+  * ✨ **Google Gemini Cloud (Thế hệ 3.x+)**: Tích hợp các mô hình tối tân `gemini-3.5-flash`, `gemini-3.1-flash-lite`, `gemini-3.6-flash`, `gemini-3.7-flash`, `gemini-3.8-flash`, `gemini-3.5-pro` với khả năng suy luận siêu tốc và phân tích ngữ cảnh sâu.
   * Bộ chuyển đổi nhanh trực tiếp ngay trên thanh tiêu đề của khung chat.
 * **Truy Vấn Bằng Giọng Nói (Voice Query - Speech-to-Text)**:
   * Tích hợp Web Speech API chuẩn tiếng Việt (`vi-VN`).
@@ -269,7 +268,7 @@ Khung chat nổi thông minh (`FloatingChatWidget`) được nâng cấp toàn d
 | **Giao Diện Frontend** | React 19, TypeScript, Vite, TailwindCSS (Dark Mode Glassmorphism), Lucide React, Web Speech API |
 | **Backend Core** | Node.js, Express, TypeScript, Prisma ORM, JWT (Access + Refresh Rotation), Bcrypt |
 | **AI Local & Multimodal** | Ollama Local Engine (`llava`, `llama3.2-vision`, `phi3`), Web Speech Recognition, SpeechSynthesis |
-| **Cloud AI & Microservices** | Python 3.10+, FastAPI, Uvicorn, Google Gemini 2.0 API, OpenAI API, Pydantic |
+| **Cloud AI & Microservices** | Python 3.10+, FastAPI, Uvicorn, Google Gemini 3.x API, Pydantic |
 | **Cơ Sở Dữ Liệu & Bộ Đệm** | PostgreSQL 15, Redis 7 (Token Blacklist & Session Caching), Fallback JSON Engine |
 | **Hạ Tầng & Điều Phối** | Docker, Docker Compose, Nginx Reverse Proxy (SSL/TLS, Gzip, Load Balancing) |
 
@@ -295,7 +294,6 @@ Các biến môi trường cấu hình chính:
 | `LOCAL_AI_URL` | Địa chỉ máy chủ AI Local (Ollama) | `http://localhost:11434` |
 | `LOCAL_AI_MODEL` | Tên mô hình AI Local mặc định | `llava` *(hoặc `llama3.2-vision`, `phi3`)* |
 | `GEMINI_API_KEY` | Khóa Google Gemini API Key | *(Lấy miễn phí tại [Google AI Studio](https://aistudio.google.com/))* |
-| `OPENAI_API_KEY` | Khóa OpenAI API Key (Tùy chọn) | `sk-...` |
 | `AI_SERVICE_URL` | Đường dẫn tới Python AI Microservice | `http://localhost:8000` |
 
 ---

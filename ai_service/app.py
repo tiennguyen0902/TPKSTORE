@@ -40,34 +40,22 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
-DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
+
+def is_gemini_3x(name: str) -> bool:
+    if not name:
+        return False
+    clean = name.lower().replace("models/", "").strip()
+    return clean.startswith("gemini-3")
 
 GEMINI_CANDIDATE_MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
     "gemini-3.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-latest",
-    "gemini-flash-latest",
-    "gemini-pro-latest",
-]
-
-OPENAI_CANDIDATE_MODELS = [
-    DEFAULT_OPENAI_MODEL,
-    "gpt-4o",
-    "o3-mini",
-    "o1",
-    "o1-mini",
-    "o1-preview",
-    "chatgpt-4o-latest",
-    "gpt-4-turbo",
-    "gpt-4",
-    "gpt-3.5-turbo",
-    "gpt-5.4-mini",
+    "gemini-3.1-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
+    "gemini-3.0-pro",
+    "gemini-3.5-pro",
 ]
 
 # ---------------------------------------------------------------------------
@@ -91,21 +79,17 @@ class ChatRequest(BaseModel):
     message: str
     history: Optional[List[ChatMessage]] = []
     products: Optional[List[Dict[str, Any]]] = []
-    provider: Optional[str] = "gemini"        # gemini | openai
+    provider: Optional[str] = "gemini"
     geminiApiKey: Optional[str] = None
     geminiModel: Optional[str] = DEFAULT_GEMINI_MODEL
-    openaiApiKey: Optional[str] = None
-    openaiModel: Optional[str] = DEFAULT_OPENAI_MODEL
 
 
 class TestKeyRequest(BaseModel):
-    provider: Optional[str] = "gemini"        # gemini | openai
+    provider: Optional[str] = "gemini"
     apiKey: Optional[str] = None
     model: Optional[str] = None
     geminiApiKey: Optional[str] = None
     geminiModel: Optional[str] = DEFAULT_GEMINI_MODEL
-    openaiApiKey: Optional[str] = None
-    openaiModel: Optional[str] = DEFAULT_OPENAI_MODEL
 
 
 class InventoryRequest(BaseModel):
@@ -186,28 +170,7 @@ def _build_context_prompt(
     return ctx
 
 
-def _call_openai(
-    api_key: str,
-    model: str,
-    messages: list,
-    timeout: int = 30,
-) -> Optional[str]:
-    """
-    Call OpenAI Chat Completions API. Returns the reply text or None on failure.
-    """
-    try:
-        resp = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model, "messages": messages, "temperature": 0.6, "max_tokens": 4096},
-            timeout=timeout,
-        )
-        if resp.status_code == 200:
-            return resp.json()["choices"][0]["message"]["content"]
-        logger.warning(f"OpenAI model {model} returned {resp.status_code}: {resp.text[:120]}")
-    except Exception as exc:
-        logger.warning(f"Error calling OpenAI model {model}: {exc}")
-    return None
+
 
 
 def _call_gemini(
@@ -251,111 +214,13 @@ def health_check():
         "status": "healthy",
         "service": "STORE AI Microservices",
         "version": "2.2.0",
-        "supportedProviders": ["Google Gemini", "OpenAI ChatGPT"],
+        "supportedProviders": ["Google Gemini (3.x+)", "Local AI Engine"],
     }
 
 
 @app.post("/api/ai/test-key")
 def test_ai_api_key(req: TestKeyRequest):
-    """Kiểm tra tính hợp lệ và khả năng kết nối của Google Gemini hoặc OpenAI API Key."""
-    provider = (req.provider or "gemini").lower().strip()
-
-    # ── 1. TEST OPENAI ────────────────────────────────────────────────────── #
-    if provider == "openai" or (req.openaiApiKey and not req.geminiApiKey and not req.apiKey):
-        api_key = (req.apiKey or req.openaiApiKey or "").strip() or os.getenv("OPENAI_API_KEY", "").strip()
-        if not api_key:
-            return {
-                "status": "error",
-                "valid": False,
-                "provider": "openai",
-                "message": "Chưa có OpenAI API Key. Vui lòng nhập mã OpenAI API Key (sk-...) để kiểm tra.",
-            }
-
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-
-        # Step A: Validate key via /v1/models & get available models
-        available_openai_models: List[str] = []
-        try:
-            r_models = requests.get("https://api.openai.com/v1/models", headers=headers, timeout=8)
-            if r_models.status_code in (401, 403):
-                return {
-                    "status": "error",
-                    "valid": False,
-                    "provider": "openai",
-                    "message": "OpenAI từ chối (401/403): API Key không chính xác hoặc đã bị vô hiệu hóa trên OpenAI Platform.",
-                }
-            elif r_models.status_code == 200:
-                raw_data = r_models.json().get("data", [])
-                available_openai_models = [
-                    m.get("id", "")
-                    for m in raw_data
-                    if m.get("id", "").startswith(("gpt", "o1", "o3", "chatgpt"))
-                ]
-        except Exception as exc:
-            logger.warning(f"Error querying OpenAI models: {exc}")
-
-        # Step B: Test chat completion
-        target_model = req.model or req.openaiModel or DEFAULT_OPENAI_MODEL
-        unique_models = _dedupe_models(target_model, available_openai_models + OPENAI_CANDIDATE_MODELS)
-
-        test_msg = [{"role": "user", "content": "Xin chào! Hãy phản hồi đúng 1 câu ngắn gọn bằng tiếng Việt xác nhận kết nối OpenAI hoạt động tốt."}]
-        for model in unique_models:
-            try:
-                resp = requests.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers=headers,
-                    json={"model": model, "messages": test_msg, "max_tokens": 80, "temperature": 0.2},
-                    timeout=10,
-                )
-                if resp.status_code == 200:
-                    sample_reply = resp.json()["choices"][0]["message"]["content"].strip()
-                    logger.info(f"OpenAI Test Success — model: {model}")
-                    return {
-                        "status": "success",
-                        "valid": True,
-                        "provider": "openai",
-                        "model": model,
-                        "message": f"OpenAI API Key hoạt động hoàn hảo! Đã kết nối thành công ({model}).",
-                        "sampleResponse": sample_reply,
-                        "availableModels": (available_openai_models or OPENAI_CANDIDATE_MODELS)[:15],
-                    }
-                elif resp.status_code == 429:
-                    return {
-                        "status": "warning",
-                        "valid": True,
-                        "provider": "openai",
-                        "model": model,
-                        "message": (
-                            "OpenAI API Key hợp lệ và xác thực thành công! "
-                            "Tuy nhiên tài khoản đã hết số dư tín dụng ($0 balance / Quota exceeded). "
-                            "Vui lòng nạp thêm credit trên https://platform.openai.com/settings/billing."
-                        ),
-                        "availableModels": (available_openai_models or OPENAI_CANDIDATE_MODELS)[:15],
-                    }
-                elif resp.status_code == 404:
-                    continue
-            except Exception as exc:
-                logger.warning(f"Error checking OpenAI model {model}: {exc}")
-
-        if available_openai_models:
-            return {
-                "status": "success",
-                "valid": True,
-                "provider": "openai",
-                "model": available_openai_models[0],
-                "message": f"OpenAI API Key hợp lệ! Đã xác thực thành công danh mục mô hình OpenAI ({available_openai_models[0]}).",
-                "availableModels": available_openai_models[:15],
-            }
-
-        return {
-            "status": "warning",
-            "valid": True,
-            "provider": "openai",
-            "message": "OpenAI API Key hợp lệ! (Lưu ý: Tài khoản cần nạp credits để sử dụng chat hoàn chỉnh).",
-            "availableModels": OPENAI_CANDIDATE_MODELS[:15],
-        }
-
-    # ── 2. TEST GOOGLE GEMINI ─────────────────────────────────────────────── #
+    """Kiểm tra tính hợp lệ và khả năng kết nối của Google Gemini API Key (3.x+)."""
     api_key = (req.apiKey or req.geminiApiKey or "").strip() or os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         return {
@@ -365,7 +230,7 @@ def test_ai_api_key(req: TestKeyRequest):
             "message": "Chưa có Google Gemini API Key. Vui lòng nhập mã API Key để kiểm tra.",
         }
 
-    # Step A: Validate key via ListModels
+    # Step A: Validate key via ListModels (Chỉ lấy model 3.x trở lên)
     available_gemini_models: List[str] = []
     try:
         r_list = requests.get(
@@ -391,15 +256,20 @@ def test_ai_api_key(req: TestKeyRequest):
                 m.get("name", "").replace("models/", "").strip()
                 for m in raw_models
                 if "generateContent" in m.get("supportedGenerationMethods", [])
-                and "gemini-1.5-pro" not in m.get("name", "")
+                and is_gemini_3x(m.get("name", ""))
             ]
     except Exception as exc:
         logger.warning(f"Error querying Gemini models: {exc}")
 
     target_model = req.model or req.geminiModel or DEFAULT_GEMINI_MODEL
+    if not is_gemini_3x(target_model):
+        target_model = DEFAULT_GEMINI_MODEL
+
     raw_candidates = [target_model] + available_gemini_models + GEMINI_CANDIDATE_MODELS
-    unique_models = _dedupe_models(target_model, raw_candidates, strip_prefix="models/")
-    unique_models = [m for m in unique_models if "gemini-1.5-pro" not in m]
+    unique_models = [
+        m for m in _dedupe_models(target_model, raw_candidates, strip_prefix="models/")
+        if is_gemini_3x(m)
+    ]
 
     test_prompt = "Xin chào! Hãy phản hồi ngắn gọn đúng 1 câu bằng tiếng Việt xác nhận kết nối Google Gemini hoạt động tốt."
 
@@ -551,40 +421,14 @@ def rag_chat(req: ChatRequest):
     if is_external_query:
         quick_replies = ["Tư vấn chọn Laptop AI", "Tai nghe chống ồn tốt nhất", "Khuyến mãi hôm nay", "Kiểm tra đơn hàng"]
 
-    # ── 5A. OpenAI ────────────────────────────────────────────────────────── #
-    openai_key = (req.openaiApiKey or "").strip() or os.getenv("OPENAI_API_KEY", "").strip()
-    if (provider == "openai" and openai_key) or (not req.geminiApiKey and openai_key):
-        target_model = req.openaiModel or DEFAULT_OPENAI_MODEL
-        unique_openai_models = _dedupe_models(target_model, OPENAI_CANDIDATE_MODELS)
-
-        messages_payload = [{"role": "system", "content": context_text}]
-        if req.history:
-            for h in req.history[-4:]:
-                role = h.role if h.role in ("user", "assistant") else "user"
-                messages_payload.append({"role": role, "content": h.content})
-        messages_payload.append({"role": "user", "content": query})
-
-        for model in unique_openai_models:
-            reply_text = _call_openai(openai_key, model, messages_payload)
-            if reply_text:
-                logger.info(f"Chat response via OpenAI model: {model}")
-                source_label = f"OpenAI ChatGPT ({model}) - Tri thức mở rộng" if is_external_query else f"OpenAI ChatGPT ({model})"
-                return {
-                    "reply": reply_text,
-                    "suggestedProducts": matched_products,
-                    "suggestedQuickReplies": quick_replies,
-                    "source": source_label,
-                    "provider": "openai",
-                    "model": model,
-                    "isExternalQuery": is_external_query,
-                    "disclaimer": "✨ Câu trả lời được tạo bởi OpenAI ChatGPT. Thông tin sản phẩm có thể thay đổi tùy thời điểm.",
-                }
-
-    # ── 5B. Google Gemini ─────────────────────────────────────────────────── #
+    # ── 5. Google Gemini (3.x+) ────────────────────────────────────────────── #
     gemini_key = (req.geminiApiKey or "").strip() or os.getenv("GEMINI_API_KEY", "").strip()
     if gemini_key:
         target_model = req.geminiModel or DEFAULT_GEMINI_MODEL
-        unique_gemini_models = _dedupe_models(target_model, GEMINI_CANDIDATE_MODELS, strip_prefix="models/")
+        if not is_gemini_3x(target_model):
+            target_model = DEFAULT_GEMINI_MODEL
+        raw_models = [target_model] + GEMINI_CANDIDATE_MODELS
+        unique_gemini_models = [m for m in _dedupe_models(target_model, raw_models, strip_prefix="models/") if is_gemini_3x(m)]
         full_prompt = f"Chỉ dẫn hệ thống:\n{context_text}\n\nCâu hỏi của người dùng: {query}"
 
         for model in unique_gemini_models:
@@ -600,7 +444,7 @@ def rag_chat(req: ChatRequest):
                     "provider": "gemini",
                     "model": target_model,
                     "isExternalQuery": is_external_query,
-                    "disclaimer": "✨ Câu trả lời được tạo bởi Google Gemini AI. Thông tin sản phẩm có thể thay đổi tùy thời điểm.",
+                    "disclaimer": "✨ Câu trả lời được tạo bởi Google Gemini AI (3.x+). Thông tin sản phẩm có thể thay đổi tùy thời điểm.",
                 }
 
     # ── 6. Local Rule-Based RAG Fallback ─────────────────────────────────── #

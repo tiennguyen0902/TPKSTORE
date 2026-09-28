@@ -70,7 +70,7 @@ export class IntentParserService {
     message: string,
     history: any[],
     apiKey: string,
-    model: string = "gemini-3.8-flash"
+    model: string = "gemini-3.5-flash"
   ): Promise<any | null> {
     const recentHistory = (history || []).slice(-4).map(h => ({
       role: h.role === "user" ? "user" : "assistant",
@@ -131,12 +131,14 @@ Respond ONLY with valid JSON. Do not include markdown codeblocks or other text.`
     ];
 
     const candidateModels = [
-      "gemini-3.6-flash",
+      "gemini-3.5-flash",
       "gemini-3.1-flash-lite",
-      "gemini-3.8-flash",
+      "gemini-3.6-flash",
       "gemini-3.7-flash",
-      "gemini-3.5-flash-lite",
-      model && !["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.0-flash", "gemini-2.5-flash"].includes(model) ? model : null
+      "gemini-3.8-flash",
+      "gemini-3.0-pro",
+      "gemini-3.5-pro",
+      model && /^gemini-3/i.test(model) ? model : null
     ].filter(Boolean) as string[];
     const uniqueModels = candidateModels.filter((v, i, a) => a.indexOf(v) === i);
 

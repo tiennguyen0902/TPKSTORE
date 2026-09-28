@@ -6,10 +6,10 @@
   --bg-main: #f8fafc;
   --card-bg: #ffffff;
   --border-color: rgba(226, 232, 240, 0.9);
-  --primary: #e11d48;
-  --primary-hover: #be123c;
-  --accent-cherry: #f43f5e;
-  --accent-glow: rgba(225, 29, 72, 0.12);
+  --primary: #c8103d;
+  --primary-hover: #a2092f;
+  --accent-cherry: #c8103d;
+  --accent-glow: rgba(200, 16, 61, 0.15);
 }
 
 body {
@@ -54,9 +54,9 @@ body {
 
 .glass-card:hover {
   background: #ffffff;
-  border-color: rgba(225, 29, 72, 0.35);
+  border-color: rgba(200, 16, 61, 0.35);
   transform: translateY(-2px);
-  box-shadow: 0 12px 25px -4px rgba(225, 29, 72, 0.12);
+  box-shadow: 0 12px 25px -4px rgba(200, 16, 61, 0.15);
 }
 
 /* Custom Scrollbars for Light Theme */

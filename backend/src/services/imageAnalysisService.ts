@@ -61,7 +61,7 @@ export class ImageAnalysisService {
    * Analyze product image with Gemini Vision Model and extract structured visual attributes & OCR
    */
   public static async analyzeImage(options: AnalyzeImageOptions): Promise<VisualAnalysisResult> {
-    const { imageBase64, mimeType = "image/jpeg", userText = "", apiKey, preferredModel = "gemini-3.8-flash" } = options;
+    const { imageBase64, mimeType = "image/jpeg", userText = "", apiKey, preferredModel = "gemini-3.5-flash" } = options;
 
     const validation = this.validateImage(imageBase64, mimeType);
     if (!validation.valid) {
@@ -102,13 +102,15 @@ Respond ONLY with a valid JSON object matching this schema:
 }`;
 
     const candidateModels = [
-      process.env.GEMINI_VISION_MODEL || "gemini-3.6-flash",
-      "gemini-3.6-flash",
+      process.env.GEMINI_VISION_MODEL && /^gemini-3/i.test(process.env.GEMINI_VISION_MODEL) ? process.env.GEMINI_VISION_MODEL : "gemini-3.5-flash",
+      "gemini-3.5-flash",
       "gemini-3.1-flash-lite",
-      "gemini-3.8-flash",
+      "gemini-3.6-flash",
       "gemini-3.7-flash",
-      "gemini-3.5-flash-lite",
-      preferredModel && !["gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-3.7-flash"].includes(preferredModel) ? preferredModel : null
+      "gemini-3.8-flash",
+      "gemini-3.0-pro",
+      "gemini-3.5-pro",
+      preferredModel && /^gemini-3/i.test(preferredModel) ? preferredModel : null
     ].filter(Boolean) as string[];
     const uniqueModels = candidateModels.filter((v, i, a) => a.indexOf(v) === i);
 

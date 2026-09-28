@@ -3,6 +3,7 @@ import { Star, ShoppingBag, Eye } from "lucide-react";
 import { Product } from "../types";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import { handleImageError } from "../utils/imageFallback";
 
 interface ProductCardProps {
   product: Product;
@@ -28,14 +29,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
   return (
     <div className="group relative flex flex-col rounded-2xl bg-white border border-slate-200 hover:border-rose-300 overflow-hidden transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-rose-950/5">
       {/* Thumbnail Container */}
-      <div className="relative w-full pt-[75%] bg-slate-50 overflow-hidden cursor-pointer" onClick={() => onSelect(product)}>
+      <div className="relative w-full pt-[75%] bg-white overflow-hidden cursor-pointer" onClick={() => onSelect(product)}>
         <img
           src={thumbUrl}
           alt={product.name}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          onError={(e) => handleImageError(e, product.categoryId)}
+          className="absolute inset-0 w-full h-full object-contain p-3.5 group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-40" />
 
         {/* Badges Top Left */}
         <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 z-10">

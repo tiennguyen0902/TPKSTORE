@@ -13,7 +13,8 @@ import {
   Lock,
   ArrowRight,
   Server,
-  Database
+  Database,
+  AlertTriangle
 } from "lucide-react";
 import { api } from "../services/api";
 
@@ -82,6 +83,7 @@ export const ArchitectureStudio: React.FC = () => {
   const [newCompName, setNewCompName] = useState("");
   const [newCompLayer, setNewCompLayer] = useState("Application Layer");
   const [newCompDesc, setNewCompDesc] = useState("");
+  const [compNameError, setCompNameError] = useState("");
 
   const selectedComponent = components.find(c => c.id === selectedComponentId) || components[0];
 
@@ -109,16 +111,20 @@ export const ArchitectureStudio: React.FC = () => {
 
   const handleAddComponent = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCompName) return;
+    if (!newCompName.trim()) {
+      setCompNameError("Vui lòng nhập tên thành phần kiến trúc.");
+      return;
+    }
+    setCompNameError("");
     const newId = `node_${Date.now()}`;
     setComponents(prev => [
       ...prev,
       {
         id: newId,
-        name: newCompName,
+        name: newCompName.trim(),
         type: "service",
         layer: newCompLayer as any,
-        description: newCompDesc || "Thành phần mở rộng hệ thống",
+        description: newCompDesc.trim() || "Thành phần mở rộng hệ thống",
         status: "active"
       }
     ]);
@@ -126,6 +132,7 @@ export const ArchitectureStudio: React.FC = () => {
     setShowAddModal(false);
     setNewCompName("");
     setNewCompDesc("");
+    setCompNameError("");
   };
 
   const handleDeleteComponent = (id: string) => {
@@ -201,10 +208,10 @@ export const ArchitectureStudio: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id as any)}
-            className={`px-4 py-2 rounded-full whitespace-nowrap transition-all ${
+            className={`px-4 py-2 rounded-full whitespace-nowrap transition-all font-semibold ${
               activeSubTab === tab.id
                 ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
-                : "bg-slate-800/80 hover:bg-slate-700 text-slate-700"
+                : "bg-slate-800 hover:bg-slate-700 text-white hover:text-white shadow-sm"
             }`}
           >
             {tab.label}
@@ -216,7 +223,7 @@ export const ArchitectureStudio: React.FC = () => {
       {aiAnalysisResult && (
         <div className="p-6 rounded-3xl bg-gradient-to-r from-rose-950/60 via-[#131c2e] to-rose-800/60 border border-rose-500/40 space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+            <div className="flex items-center gap-2 text-white font-bold text-sm">
               <ShieldCheck className="w-5 h-5 text-emerald-400" />
               <span>Kết Quả Đánh Giá Kiến Trúc Từ AI</span>
             </div>
@@ -228,7 +235,7 @@ export const ArchitectureStudio: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div className="space-y-2">
               <p className="font-bold text-rose-300 uppercase tracking-wider">Điểm mạnh kiến trúc:</p>
-              <ul className="space-y-1.5 text-slate-700">
+              <ul className="space-y-1.5 text-slate-200">
                 {aiAnalysisResult.analysis?.map((item: string, idx: number) => (
                   <li key={idx} className="flex items-start gap-2">
                     <span className="text-emerald-400 font-bold">✓</span>
@@ -240,7 +247,7 @@ export const ArchitectureStudio: React.FC = () => {
 
             <div className="space-y-2">
               <p className="font-bold text-amber-300 uppercase tracking-wider">Khuyến nghị tối ưu hóa:</p>
-              <ul className="space-y-1.5 text-slate-700">
+              <ul className="space-y-1.5 text-slate-200">
                 {aiAnalysisResult.recommendations?.map((rec: string, idx: number) => (
                   <li key={idx} className="flex items-start gap-2">
                     <span className="text-amber-400 font-bold">→</span>
@@ -288,17 +295,21 @@ export const ArchitectureStudio: React.FC = () => {
                             <div
                               key={comp.id}
                               onClick={() => setSelectedComponentId(comp.id)}
-                              className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                              className={`p-3.5 rounded-xl cursor-pointer transition-all ${
                                 isSelected
-                                  ? "bg-rose-950/40 border-rose-500 shadow-md shadow-rose-500/20"
-                                  : "bg-slate-50 border-slate-300 hover:border-slate-600"
+                                  ? "bg-rose-200 border-2 border-rose-600 shadow-md shadow-rose-600/20"
+                                  : "bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50"
                               }`}
                             >
                               <div className="flex items-center justify-between mb-1">
-                                <span className="font-bold text-slate-900 text-xs truncate">{comp.name}</span>
-                                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                                <span className={`text-xs truncate ${isSelected ? "font-extrabold text-black" : "font-bold text-slate-900"}`}>
+                                  {comp.name}
+                                </span>
+                                <span className={`w-2.5 h-2.5 rounded-full ${isSelected ? "bg-emerald-600 ring-2 ring-white shrink-0" : "bg-emerald-400 shrink-0"}`} />
                               </div>
-                              <p className="text-[11px] text-slate-500 line-clamp-1">{comp.description}</p>
+                              <p className={`text-[11px] line-clamp-1 ${isSelected ? "text-black font-semibold" : "text-slate-500"}`}>
+                                {comp.description}
+                              </p>
                             </div>
                           );
                         })}
@@ -366,7 +377,7 @@ export const ArchitectureStudio: React.FC = () => {
             <div className="space-y-3.5 text-xs">
               <div>
                 <label className="block text-slate-500 font-mono text-[11px]">ID:</label>
-                <p className="font-mono text-cyan-400 font-bold">{selectedComponent.id}</p>
+                <p className="font-mono text-cyan-600 font-bold">{selectedComponent.id}</p>
               </div>
 
               <div>
@@ -376,14 +387,14 @@ export const ArchitectureStudio: React.FC = () => {
 
               <div>
                 <label className="block text-slate-500 text-[11px]">Phân loại (Type):</label>
-                <span className="inline-block px-2.5 py-0.5 rounded-md bg-rose-600/30 text-rose-300 font-mono text-xs mt-1 border border-rose-500/30">
+                <span className="inline-block px-3 py-1 rounded-lg bg-rose-700 text-white font-mono font-bold text-xs mt-1 shadow-sm">
                   {selectedComponent.type}
                 </span>
               </div>
 
               <div>
                 <label className="block text-slate-500 text-[11px]">Tầng (Layer):</label>
-                <p className="font-bold text-emerald-400">{selectedComponent.layer}</p>
+                <p className="font-bold text-emerald-600">{selectedComponent.layer}</p>
               </div>
 
               <div>
@@ -409,19 +420,19 @@ export const ArchitectureStudio: React.FC = () => {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-              <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono font-bold">POST /api/auth/login</span>
+              <span className="px-2.5 py-1 rounded-lg bg-blue-600 text-white font-mono font-bold shadow-sm">POST /api/auth/login</span>
               <p className="text-slate-700">Đăng nhập cấp Access Token (15m) & Refresh Token (7d).</p>
             </div>
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">POST /api/orders</span>
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-mono font-bold shadow-sm">POST /api/orders</span>
               <p className="text-slate-700">Tạo đơn hàng Atomic Transaction và trừ tồn kho tức thì.</p>
             </div>
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-              <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono font-bold">POST /api/ai/chat</span>
+              <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-mono font-bold shadow-sm">POST /api/ai/chat</span>
               <p className="text-slate-700">RAG Chatbot truy vấn tri thức và trả kèm Product Cards.</p>
             </div>
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-              <span className="px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 font-mono font-bold">POST /api/ai/forecast</span>
+              <span className="px-2.5 py-1 rounded-lg bg-purple-600 text-white font-mono font-bold shadow-sm">POST /api/ai/forecast</span>
               <p className="text-slate-700">Dự báo chuỗi thời gian Hybrid Prophet-ARIMA 30 ngày.</p>
             </div>
           </div>
@@ -522,17 +533,28 @@ export const ArchitectureStudio: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-md bg-white border border-slate-300 rounded-3xl p-6 space-y-4 shadow-2xl">
             <h3 className="text-base font-bold text-slate-900">Thêm Component Vào Kiến Trúc</h3>
-            <form onSubmit={handleAddComponent} className="space-y-3.5 text-xs">
+            <form noValidate onSubmit={handleAddComponent} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Tên Component</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Tên Component <span className="text-rose-600">*</span>
+                </label>
                 <input
                   type="text"
-                  required
                   placeholder="VD: Redis Queue / Payment Gateway"
                   value={newCompName}
-                  onChange={(e) => setNewCompName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-rose-500 text-xs"
+                  onChange={(e) => { setNewCompName(e.target.value); setCompNameError(""); }}
+                  className={`w-full bg-slate-50 border rounded-xl px-3 py-2 text-slate-900 focus:outline-none text-xs transition-colors ${
+                    compNameError 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-rose-500"
+                  }`}
                 />
+                {compNameError && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{compNameError}</span>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -563,13 +585,13 @@ export const ArchitectureStudio: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-700 hover:bg-slate-700"
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold border border-slate-200 transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold"
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold transition-all shadow-md shadow-rose-600/30"
                 >
                   Thêm Component
                 </button>

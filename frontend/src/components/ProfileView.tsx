@@ -27,6 +27,25 @@ export const ProfileView: React.FC = () => {
   const [passwordMsg, setPasswordMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Field validation errors
+  const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
+  const [addressErrors, setAddressErrors] = useState<Record<string, string>>({});
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
+
+  const clearProfileError = (field: string) => {
+    if (profileErrors[field]) setProfileErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
+  };
+  const clearAddressError = (field: string) => {
+    if (addressErrors[field]) setAddressErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
+  };
+  const clearPasswordError = (field: string) => {
+    if (passwordErrors[field]) setPasswordErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
+  };
+
+  const isValidPhone = (val: string) => {
+    return /^(0[3|5|7|8|9])[0-9]{8}$/.test(val.trim());
+  };
+
   useEffect(() => {
     if (user) {
       setFullName(user.fullName || "");
@@ -41,10 +60,26 @@ export const ProfileView: React.FC = () => {
   // Cập nhật thông tin cá nhân cơ bản
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg("");
+    setProfileMsg("");
+
+    const errors: Record<string, string> = {};
+    if (!fullName.trim()) {
+      errors.fullName = "Vui lòng nhập họ và tên của bạn.";
+    }
+    if (phone.trim() && !isValidPhone(phone)) {
+      errors.phone = "Số điện thoại không hợp lệ (phải gồm 10 chữ số, VD: 0912345678).";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setProfileErrors(errors);
+      return;
+    }
+    setProfileErrors({});
+
     try {
-      setErrorMsg("");
-      await api.updateProfile({ fullName, phone, avatar, address });
-      updateUser({ fullName, phone, avatar, address });
+      await api.updateProfile({ fullName: fullName.trim(), phone: phone.trim(), avatar: avatar.trim(), address });
+      updateUser({ fullName: fullName.trim(), phone: phone.trim(), avatar: avatar.trim(), address });
       setProfileMsg("Cập nhật thông tin cá nhân thành công!");
       setTimeout(() => setProfileMsg(""), 3000);
     } catch (err: any) {
@@ -55,18 +90,39 @@ export const ProfileView: React.FC = () => {
   // Cập nhật Địa chỉ của tôi (Địa chỉ nhận hàng)
   const handleUpdateAddress = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg("");
+    setAddressMsg("");
+
+    const errors: Record<string, string> = {};
+    if (!receiverName.trim()) {
+      errors.receiverName = "Vui lòng nhập họ tên người nhận hàng.";
+    }
+    if (!receiverPhone.trim()) {
+      errors.receiverPhone = "Vui lòng nhập số điện thoại nhận hàng.";
+    } else if (!isValidPhone(receiverPhone)) {
+      errors.receiverPhone = "Số điện thoại không hợp lệ (phải gồm 10 chữ số, VD: 0912345678).";
+    }
+    if (!address.trim()) {
+      errors.address = "Vui lòng nhập địa chỉ nhận hàng chi tiết.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setAddressErrors(errors);
+      return;
+    }
+    setAddressErrors({});
+
     try {
-      setErrorMsg("");
       await api.updateProfile({ 
-        fullName: receiverName || fullName, 
-        phone: receiverPhone || phone, 
-        address, 
+        fullName: receiverName.trim() || fullName, 
+        phone: receiverPhone.trim() || phone, 
+        address: address.trim(), 
         avatar 
       });
       updateUser({ 
-        fullName: receiverName || fullName, 
-        phone: receiverPhone || phone, 
-        address, 
+        fullName: receiverName.trim() || fullName, 
+        phone: receiverPhone.trim() || phone, 
+        address: address.trim(), 
         avatar 
       });
       setAddressMsg("Cập nhật địa chỉ nhận hàng thành công!");
@@ -79,12 +135,31 @@ export const ProfileView: React.FC = () => {
   // Đổi mật khẩu
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      setErrorMsg("Mật khẩu mới và xác nhận mật khẩu không khớp.");
+    setErrorMsg("");
+    setPasswordMsg("");
+
+    const errors: Record<string, string> = {};
+    if (!currentPassword) {
+      errors.currentPassword = "Vui lòng nhập mật khẩu hiện tại.";
+    }
+    if (!newPassword) {
+      errors.newPassword = "Vui lòng nhập mật khẩu mới.";
+    } else if (newPassword.length < 6) {
+      errors.newPassword = "Mật khẩu mới phải có tối thiểu 6 ký tự.";
+    }
+    if (!confirmPassword) {
+      errors.confirmPassword = "Vui lòng xác nhận lại mật khẩu mới.";
+    } else if (newPassword !== confirmPassword) {
+      errors.confirmPassword = "Mật khẩu xác nhận không khớp với mật khẩu mới.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setPasswordErrors(errors);
       return;
     }
+    setPasswordErrors({});
+
     try {
-      setErrorMsg("");
       await api.changePassword(currentPassword, newPassword);
       setPasswordMsg("Đổi mật khẩu thành công!");
       setCurrentPassword("");
@@ -168,16 +243,27 @@ export const ProfileView: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <form noValidate onSubmit={handleUpdateProfile} className="space-y-4">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Họ và tên</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Họ và tên <span className="text-rose-600">*</span>
+                </label>
                 <input
                   type="text"
-                  required
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white focus:border-rose-500 text-xs"
+                  onChange={(e) => { setFullName(e.target.value); clearProfileError("fullName"); }}
+                  className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white text-xs transition-colors ${
+                    profileErrors.fullName 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-rose-500"
+                  }`}
                 />
+                {profileErrors.fullName && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{profileErrors.fullName}</span>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -185,10 +271,20 @@ export const ProfileView: React.FC = () => {
                 <input
                   type="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => { setPhone(e.target.value); clearProfileError("phone"); }}
                   placeholder="0912..."
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white focus:border-rose-500 text-xs"
+                  className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white text-xs transition-colors ${
+                    profileErrors.phone 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-rose-500"
+                  }`}
                 />
+                {profileErrors.phone && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{profileErrors.phone}</span>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -250,46 +346,77 @@ export const ProfileView: React.FC = () => {
             )}
 
             {/* Form cập nhật / thêm địa chỉ */}
-            <form onSubmit={handleUpdateAddress} className="space-y-4 pt-1">
+            <form noValidate onSubmit={handleUpdateAddress} className="space-y-4 pt-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Họ tên người nhận</label>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Họ tên người nhận <span className="text-rose-600">*</span>
+                  </label>
                   <input
                     type="text"
-                    required
                     value={receiverName}
-                    onChange={(e) => setReceiverName(e.target.value)}
+                    onChange={(e) => { setReceiverName(e.target.value); clearAddressError("receiverName"); }}
                     placeholder="Ví dụ: Lê Hoàng Nam"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white focus:border-emerald-500 text-xs"
+                    className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white text-xs transition-colors ${
+                      addressErrors.receiverName 
+                        ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                        : "border-slate-300 focus:border-emerald-500"
+                    }`}
                   />
+                  {addressErrors.receiverName && (
+                    <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{addressErrors.receiverName}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Số điện thoại nhận hàng</label>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Số điện thoại nhận hàng <span className="text-rose-600">*</span>
+                  </label>
                   <input
                     type="tel"
-                    required
                     value={receiverPhone}
-                    onChange={(e) => setReceiverPhone(e.target.value)}
+                    onChange={(e) => { setReceiverPhone(e.target.value); clearAddressError("receiverPhone"); }}
                     placeholder="0912..."
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white focus:border-emerald-500 text-xs"
+                    className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white text-xs transition-colors ${
+                      addressErrors.receiverPhone 
+                        ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                        : "border-slate-300 focus:border-emerald-500"
+                    }`}
                   />
+                  {addressErrors.receiverPhone && (
+                    <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{addressErrors.receiverPhone}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                  Địa chỉ nhận hàng chi tiết (Số nhà, tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành phố)
+                  Địa chỉ nhận hàng chi tiết (Số nhà, tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành phố) <span className="text-rose-600">*</span>
                 </label>
                 <textarea
                   rows={2}
-                  required
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => { setAddress(e.target.value); clearAddressError("address"); }}
                   placeholder="Ví dụ: Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white focus:border-emerald-500 text-xs resize-none"
+                  className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white text-xs resize-none transition-colors ${
+                    addressErrors.address 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-emerald-500"
+                  }`}
                 />
+                {addressErrors.address && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{addressErrors.address}</span>
+                  </p>
+                )}
               </div>
 
               <button
@@ -316,38 +443,71 @@ export const ProfileView: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleChangePassword} className="space-y-4">
+            <form noValidate onSubmit={handleChangePassword} className="space-y-4">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Mật khẩu hiện tại</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Mật khẩu hiện tại <span className="text-rose-600">*</span>
+                </label>
                 <input
                   type="password"
-                  required
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white focus:border-rose-500 text-xs"
+                  onChange={(e) => { setCurrentPassword(e.target.value); clearPasswordError("currentPassword"); }}
+                  className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white text-xs transition-colors ${
+                    passwordErrors.currentPassword 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-rose-500"
+                  }`}
                 />
+                {passwordErrors.currentPassword && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{passwordErrors.currentPassword}</span>
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Mật khẩu mới</label>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Mật khẩu mới <span className="text-rose-600">*</span>
+                  </label>
                   <input
                     type="password"
-                    required
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white focus:border-rose-500 text-xs"
+                    onChange={(e) => { setNewPassword(e.target.value); clearPasswordError("newPassword"); }}
+                    className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white text-xs transition-colors ${
+                      passwordErrors.newPassword 
+                        ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                        : "border-slate-300 focus:border-rose-500"
+                    }`}
                   />
+                  {passwordErrors.newPassword && (
+                    <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{passwordErrors.newPassword}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Xác nhận mật khẩu mới</label>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Xác nhận mật khẩu mới <span className="text-rose-600">*</span>
+                  </label>
                   <input
                     type="password"
-                    required
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white focus:border-rose-500 text-xs"
+                    onChange={(e) => { setConfirmPassword(e.target.value); clearPasswordError("confirmPassword"); }}
+                    className={`w-full bg-slate-50 border rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white text-xs transition-colors ${
+                      passwordErrors.confirmPassword 
+                        ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                        : "border-slate-300 focus:border-rose-500"
+                    }`}
                   />
+                  {passwordErrors.confirmPassword && (
+                    <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{passwordErrors.confirmPassword}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 

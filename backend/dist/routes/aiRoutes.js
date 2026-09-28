@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.isGemini3x = void 0;
 const express_1 = require("express");
 const axios_1 = __importDefault(require("axios"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
@@ -53,34 +54,23 @@ async function callAiService(endpoint, payload, timeoutMs = AI_SERVICE_TIMEOUT_M
         return { success: false, error: err.message };
     }
 }
-// Danh sách toàn bộ mô hình Google Gemini chính thức & thế hệ mới (2025 - 2026)
+// Helper to verify if model is Gemini 3.x+
+const isGemini3x = (name) => {
+    if (!name)
+        return false;
+    const clean = name.toLowerCase().replace("models/", "").trim();
+    return /^gemini-3(\.[0-9]+)?/i.test(clean);
+};
+exports.isGemini3x = isGemini3x;
+// Danh sách toàn bộ mô hình Google Gemini 3.x trở lên chính thức
 const ALL_GEMINI_MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
     "gemini-3.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-latest",
-    "gemini-flash-latest",
-    "gemini-pro-latest"
-];
-// Danh sách toàn bộ mô hình OpenAI ChatGPT chính thức & thế hệ mới
-const ALL_OPENAI_MODELS = [
-    "gpt-4o-mini",
-    "gpt-4o",
-    "o3-mini",
-    "o1",
-    "o1-mini",
-    "o1-preview",
-    "chatgpt-4o-latest",
-    "gpt-4-turbo",
-    "gpt-4",
-    "gpt-3.5-turbo",
-    "gpt-5.4-mini"
+    "gemini-3.1-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
+    "gemini-3.0-pro",
+    "gemini-3.5-pro"
 ];
 // Helper to get settings
 async function getSettings() {
@@ -88,9 +78,9 @@ async function getSettings() {
     return {
         aiProvider: settings?.aiProvider || "gemini",
         geminiApiKey: settings?.geminiApiKey || process.env.GEMINI_API_KEY || "",
-        geminiModel: settings?.geminiModel || "gemini-2.0-flash",
+        geminiModel: settings?.geminiModel || "gemini-3.5-flash",
         openaiApiKey: settings?.openaiApiKey || process.env.OPENAI_API_KEY || "",
-        openaiModel: settings?.openaiModel || "gpt-4o-mini",
+        openaiModel: settings?.openaiModel || "gemini-3.5-flash",
         localAiUrl: settings?.localAiUrl || process.env.LOCAL_AI_URL || "http://localhost:11434",
         localAiModel: settings?.localAiModel || process.env.LOCAL_AI_MODEL || "llava",
         aiServiceUrl: settings?.aiServiceUrl || process.env.AI_SERVICE_URL || "http://ai_service:8000",
@@ -108,8 +98,8 @@ async function directTestGemini(apiKey, model) {
             message: "Chưa có Google Gemini API Key. Vui lòng nhập mã API Key để kiểm tra."
         };
     }
-    const requestedModel = (model || "gemini-2.0-flash").replace("models/", "").trim();
-    // 1. Tự động truy vấn ModelService.ListModels từ Google để xác thực API Key & lấy danh sách model thực tế
+    const requestedModel = (model || "gemini-3.5-flash").replace("models/", "").trim();
+    // 1. Tự động truy vấn ModelService.ListModels từ Google để xác thực API Key & lấy danh sách model thực tế (chỉ giữ 3.x+)
     let availableModels = [];
     try {
         const listResp = await axios_1.default.get(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`, { timeout: 8000 });
@@ -117,7 +107,7 @@ async function directTestGemini(apiKey, model) {
             availableModels = listResp.data.models
                 .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
                 .map((m) => (m.name || "").replace("models/", "").trim())
-                .filter((name) => name && !name.includes("gemini-1.5-pro")); // Loại trừ model cũ đã đóng
+                .filter((name) => name && (0, exports.isGemini3x)(name)); // Chỉ giữ model 3.x trở lên
         }
     }
     catch (err) {
@@ -149,12 +139,12 @@ async function directTestGemini(apiKey, model) {
             };
         }
     }
-    // 2. Danh sách model ưu tiên thử nghiệm (Model người dùng chọn -> Model thực tế Google trả về -> Danh sách chuẩn)
+    // 2. Danh sách model ưu tiên thử nghiệm (Chỉ các model 3.x+)
     const candidateModels = [
-        requestedModel,
+        requestedModel && (0, exports.isGemini3x)(requestedModel) ? requestedModel : "gemini-3.5-flash",
         ...availableModels,
         ...ALL_GEMINI_MODELS
-    ].filter((v, i, a) => v && a.indexOf(v) === i && !v.includes("gemini-1.5-pro"));
+    ].filter((v, i, a) => v && a.indexOf(v) === i && (0, exports.isGemini3x)(v));
     let lastError = "";
     for (const m of candidateModels) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${cleanKey}`;
@@ -231,126 +221,6 @@ async function directTestGemini(apiKey, model) {
         message: `Kiểm tra Google Gemini thất bại: ${lastError || "Không thể kết nối đến máy chủ Google AI Studio."}`
     };
 }
-// Direct Test for OpenAI API Key when AI microservice is offline
-async function directTestOpenAI(apiKey, model) {
-    const cleanKey = (apiKey || process.env.OPENAI_API_KEY || "").trim();
-    if (!cleanKey) {
-        return {
-            status: "error",
-            valid: false,
-            provider: "openai",
-            message: "Chưa có OpenAI API Key. Vui lòng nhập mã OpenAI API Key (sk-...) để kiểm tra."
-        };
-    }
-    const requestedModel = (model || "gpt-4o-mini").trim();
-    // 1. Lấy danh sách model khả dụng từ OpenAI
-    let availableModels = [];
-    try {
-        const listResp = await axios_1.default.get("https://api.openai.com/v1/models", {
-            headers: { Authorization: `Bearer ${cleanKey}` },
-            timeout: 8000
-        });
-        if (listResp.data && Array.isArray(listResp.data.data)) {
-            availableModels = listResp.data.data
-                .map((m) => m.id)
-                .filter((id) => id && (id.startsWith("gpt") || id.startsWith("o1") || id.startsWith("o3") || id.startsWith("chatgpt")));
-        }
-    }
-    catch (err) {
-        const status = err.response?.status;
-        const data = err.response?.data;
-        if (status === 401 || status === 403) {
-            return {
-                status: "error",
-                valid: false,
-                provider: "openai",
-                message: "OpenAI từ chối (401/403): API Key không chính xác hoặc đã bị vô hiệu hóa."
-            };
-        }
-        if (status === 429) {
-            return {
-                status: "warning",
-                valid: true,
-                provider: "openai",
-                model: requestedModel,
-                message: "OpenAI API Key hợp lệ nhưng tài khoản đã hết hạn mức tín dụng ($0 balance / Quota exceeded)."
-            };
-        }
-    }
-    const candidateModels = [
-        requestedModel,
-        ...availableModels,
-        ...ALL_OPENAI_MODELS
-    ].filter((v, i, a) => v && a.indexOf(v) === i);
-    let lastError = "";
-    for (const m of candidateModels) {
-        try {
-            const resp = await axios_1.default.post("https://api.openai.com/v1/chat/completions", {
-                model: m,
-                messages: [{ role: "user", content: "Xin chào! Hãy phản hồi đúng 1 câu ngắn gọn bằng tiếng Việt xác nhận kết nối OpenAI hoạt động tốt." }],
-                max_tokens: 80,
-                temperature: 0.2
-            }, {
-                headers: { Authorization: `Bearer ${cleanKey}`, "Content-Type": "application/json" },
-                timeout: 10000
-            });
-            if (resp.status === 200) {
-                const text = resp.data?.choices?.[0]?.message?.content?.trim() || "Kết nối thành công!";
-                return {
-                    status: "success",
-                    valid: true,
-                    provider: "openai",
-                    model: m,
-                    message: `OpenAI API Key hoạt động hoàn hảo! Đã kết nối thành công (${m}).`,
-                    sampleResponse: text,
-                    availableModels: (availableModels.length > 0 ? availableModels : ALL_OPENAI_MODELS).slice(0, 15)
-                };
-            }
-        }
-        catch (err) {
-            const status = err.response?.status;
-            const data = err.response?.data;
-            const msg = data?.error?.message || err.message || "";
-            if (status === 401 || status === 403) {
-                return {
-                    status: "error",
-                    valid: false,
-                    provider: "openai",
-                    message: "OpenAI từ chối (401/403): API Key không chính xác hoặc đã bị vô hiệu hóa."
-                };
-            }
-            if (status === 429) {
-                return {
-                    status: "warning",
-                    valid: true,
-                    provider: "openai",
-                    model: m,
-                    message: "OpenAI API Key hợp lệ nhưng tài khoản đã hết hạn mức tín dụng ($0 balance / Quota exceeded).",
-                    availableModels: (availableModels.length > 0 ? availableModels : ALL_OPENAI_MODELS).slice(0, 15)
-                };
-            }
-            if (status === 404)
-                continue;
-            lastError = msg;
-        }
-    }
-    if (availableModels.length > 0) {
-        return {
-            status: "success",
-            valid: true,
-            provider: "openai",
-            model: availableModels[0],
-            message: `OpenAI API Key hoạt động chính xác! Đã xác thực thành công danh mục mô hình OpenAI (${availableModels[0]}).`,
-            availableModels: availableModels.slice(0, 15)
-        };
-    }
-    return {
-        status: "error",
-        valid: false,
-        provider: "openai",
-        message: `Kiểm tra OpenAI thất bại: ${lastError || "Không thể kết nối đến máy chủ OpenAI."}`
-    };
-}
 // Direct Test for Local AI Server (Ollama / Local Service)
 async function directTestLocalAI(localUrl, model) {
     const url = (localUrl || "http://localhost:11434").replace(/\/$/, "");
@@ -394,17 +264,18 @@ async function directTestLocalAI(localUrl, model) {
 }
 // Direct Chat with Google Gemini when AI microservice is offline
 async function directGeminiChat(apiKey, model, userMessage, products, history = [], imageBase64) {
-    const cleanModel = (model || "gemini-2.0-flash").replace("models/", "").trim();
+    const cleanModel = (model || "gemini-3.5-flash").replace("models/", "").trim();
     const candidateModels = [
-        cleanModel,
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-2.0-flash-lite",
-        "gemini-2.5-flash",
-        "gemini-1.5-flash-8b",
-        "gemini-1.5-pro-latest",
+        (0, exports.isGemini3x)(cleanModel) ? cleanModel : "gemini-3.5-flash",
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-3.6-flash",
+        "gemini-3.7-flash",
+        "gemini-3.8-flash",
+        "gemini-3.0-pro",
+        "gemini-3.5-pro",
         ...ALL_GEMINI_MODELS
-    ].filter((v, i, a) => v && a.indexOf(v) === i && !v.includes("gemini-1.5-pro"));
+    ].filter((v, i, a) => v && a.indexOf(v) === i && (0, exports.isGemini3x)(v));
     // Lọc sản phẩm liên quan từ CSDL theo từ khóa của khách hàng
     const userMsgLower = userMessage.toLowerCase();
     const matchedProducts = (products || [])
@@ -478,82 +349,6 @@ Nhắc khách hàng về chính sách: Đổi trả 7 ngày miễn phí, bảo h
         }
         catch (e) {
             // Bỏ qua lỗi của model này (404, 400, 429, timeout) để thử model khả dụng tiếp theo
-            continue;
-        }
-    }
-    return null;
-}
-// Direct Chat with OpenAI when AI microservice is offline
-async function directOpenAIChat(apiKey, model, userMessage, products, history = [], imageBase64) {
-    const cleanModel = (model || "gpt-4o-mini").trim();
-    const candidateModels = [
-        cleanModel,
-        "gpt-4o-mini",
-        "gpt-4o",
-        "gpt-3.5-turbo",
-        ...ALL_OPENAI_MODELS
-    ].filter((v, i, a) => v && a.indexOf(v) === i);
-    const userMsgLower = userMessage.toLowerCase();
-    const matchedProducts = (products || [])
-        .filter(p => {
-        const name = (p.name || "").toLowerCase();
-        const desc = (p.description || "").toLowerCase();
-        const words = userMsgLower.split(/\s+/).filter(w => w.length > 2);
-        return words.some(w => name.includes(w) || desc.includes(w));
-    })
-        .slice(0, 4);
-    const displayProducts = matchedProducts.length > 0 ? matchedProducts : (products || []).slice(0, 4);
-    const productContext = displayProducts.map(p => `- ${p.name}: ${Number(p.price).toLocaleString("vi-VN")} VND (Tồn kho: ${p.stock}) - ${p.description}`).join("\n");
-    const systemPrompt = `Bạn là Trợ lý AI Bán hàng & Trí tuệ Đa năng của SHOPBEE (STORE AI) - Nền tảng thương mại điện tử công nghệ cao.
-Nhiệm vụ của bạn:
-1. Tư vấn thân thiện, nhiệt tình, chuyên nghiệp, tự nhiên bằng tiếng Việt có định dạng Markdown đẹp mắt.
-2. Với câu hỏi về sản phẩm, tư vấn mua sắm, giá cả, bảo hành: Hãy ưu tiên sử dụng danh mục sản phẩm sau:
-${productContext}
-Luôn nhắc khách hàng về chính sách: Đổi trả miễn phí 7 ngày, bảo hành 1 đổi 1 và giao hàng hỏa tốc trong 2 giờ.
-3. Nếu người dùng gửi hình ảnh: Hãy phân tích chi tiết sản phẩm trong ảnh và gợi ý sản phẩm phù hợp tại cửa hàng.
-4. Với câu hỏi ngoài danh mục sản phẩm: Hãy tận dụng toàn bộ tri thức thông minh sâu rộng của mình để giải đáp chi tiết, hữu ích cho người dùng.`;
-    const messages = [{ role: "system", content: systemPrompt }];
-    if (Array.isArray(history) && history.length > 0) {
-        for (const h of history.slice(-4)) {
-            const role = h.role === "user" ? "user" : "assistant";
-            const content = (h.content || h.text || "").trim();
-            if (content)
-                messages.push({ role, content });
-        }
-    }
-    if (imageBase64) {
-        messages.push({
-            role: "user",
-            content: [
-                { type: "text", text: userMessage },
-                { type: "image_url", image_url: { url: imageBase64 } }
-            ]
-        });
-    }
-    else {
-        messages.push({ role: "user", content: userMessage });
-    }
-    for (const m of candidateModels) {
-        try {
-            const resp = await axios_1.default.post("https://api.openai.com/v1/chat/completions", {
-                model: m,
-                messages,
-                temperature: 0.6,
-                max_tokens: 2048
-            }, {
-                headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-                timeout: 15000
-            });
-            const text = resp.data?.choices?.[0]?.message?.content?.trim();
-            if (text) {
-                return {
-                    reply: text,
-                    suggestedProducts: matchedProducts.length > 0 ? matchedProducts.slice(0, 3) : (products || []).slice(0, 3),
-                    model: m
-                };
-            }
-        }
-        catch (e) {
             continue;
         }
     }
@@ -665,22 +460,18 @@ Chính sách: Đổi trả miễn phí 7 ngày, bảo hành 1 đổi 1 chính h�
         model: `Local AI Engine (${targetModel})`
     };
 }
-// POST /api/ai/test-key (Verify Google Gemini or OpenAI API Key connection & status - Cấp quyền cho mọi người dùng)
+// POST /api/ai/test-key (Verify Google Gemini or Local AI connection & status)
 router.post("/test-key", async (req, res) => {
     const settings = await getSettings();
     const provider = (req.body.provider || settings.aiProvider || "gemini").toLowerCase();
     const geminiApiKey = req.body.geminiApiKey || req.body.apiKey || settings.geminiApiKey;
-    const geminiModel = req.body.geminiModel || req.body.model || settings.geminiModel;
-    const openaiApiKey = req.body.openaiApiKey || req.body.apiKey || settings.openaiApiKey;
-    const openaiModel = req.body.openaiModel || req.body.model || settings.openaiModel;
+    const geminiModel = req.body.geminiModel || req.body.model || settings.geminiModel || "gemini-3.5-flash";
     // 1. Thử gọi qua Python AI Microservice nếu đang chạy (với Circuit Breaker)
     if (isAiServiceAlive()) {
         const aiRes = await callAiService("/api/ai/test-key", {
             provider,
             geminiApiKey,
             geminiModel,
-            openaiApiKey,
-            openaiModel,
             apiKey: req.body.apiKey,
             model: req.body.model
         }, 2000);
@@ -689,15 +480,10 @@ router.post("/test-key", async (req, res) => {
         }
     }
     // 2. Dự phòng tự động (Serverless Fallback): Kiểm tra API Key trực tiếp qua REST API
-    // Đảm bảo hoạt động 100% trên Hosting ngay cả khi không chạy container Python!
     if (provider === "local") {
         const localUrl = req.body.localAiUrl || settings.localAiUrl;
         const localModel = req.body.localAiModel || settings.localAiModel;
         const directRes = await directTestLocalAI(localUrl, localModel);
-        return res.json(directRes);
-    }
-    else if (provider === "openai") {
-        const directRes = await directTestOpenAI(openaiApiKey, openaiModel);
         return res.json(directRes);
     }
     else {
@@ -819,11 +605,8 @@ const unifiedChatHandler = async (req, res) => {
     let { message, history, provider, isVoice, audioBase64, mimeType, imageBase64, imageMimeType } = req.body;
     const settings = await getSettings();
     const activeGeminiKey = (settings.geminiApiKey || process.env.GEMINI_API_KEY || "").trim();
-    const activeOpenAiKey = (settings.openaiApiKey || process.env.OPENAI_API_KEY || "").trim();
-    const selectedProvider = (provider || settings.aiProvider || "gemini").toLowerCase().trim();
-    const targetModel = selectedProvider === "openai"
-        ? (settings.openaiModel || "gpt-4o-mini")
-        : (settings.geminiModel || "gemini-3.8-flash");
+    const selectedProvider = (provider || settings.aiProvider || "gemini").toLowerCase().trim() === "local" ? "local" : "gemini";
+    const targetModel = settings.geminiModel || "gemini-3.5-flash";
     // 1. If voice audio is sent to /chat, transcribe it first
     if (audioBase64) {
         isVoice = true;
@@ -960,9 +743,7 @@ const unifiedChatHandler = async (req, res) => {
                 structuredQuery,
                 retrievedProducts,
                 apiKey: activeGeminiKey,
-                model: settings.geminiModel || "gemini-3.8-flash",
-                openaiApiKey: activeOpenAiKey,
-                openaiModel: settings.openaiModel || "gpt-4o-mini",
+                model: settings.geminiModel || "gemini-3.5-flash",
                 provider: selectedProvider,
                 isVoice: !!isVoice,
                 isImage: true,
@@ -1022,9 +803,7 @@ const unifiedChatHandler = async (req, res) => {
             structuredQuery,
             retrievedProducts,
             apiKey: activeGeminiKey,
-            model: settings.geminiModel || "gemini-3.8-flash",
-            openaiApiKey: activeOpenAiKey,
-            openaiModel: settings.openaiModel || "gpt-4o-mini",
+            model: settings.geminiModel || "gemini-3.5-flash",
             provider: selectedProvider,
             isVoice: !!isVoice
         });
