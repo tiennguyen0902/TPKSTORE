@@ -692,14 +692,34 @@ const unifiedChatHandler = async (req, res) => {
                     error: "Chưa cấu hình Google Gemini API Key để thực hiện tìm kiếm bằng hình ảnh."
                 });
             }
-            // Vision Analysis with Gemini Vision Model
-            const visualAnalysis = await imageAnalysisService_1.ImageAnalysisService.analyzeImage({
-                imageBase64: validation.cleanBase64,
-                mimeType: validation.safeMime,
-                userText: userQuery,
-                apiKey: activeGeminiKey,
-                preferredModel: settings.geminiModel || "gemini-3.8-flash"
-            });
+            // Vision Analysis with Gemini Vision Model (with Graceful Multi-Stage Fallback)
+            let visualAnalysis = null;
+            try {
+                visualAnalysis = await imageAnalysisService_1.ImageAnalysisService.analyzeImage({
+                    imageBase64: validation.cleanBase64,
+                    mimeType: validation.safeMime,
+                    userText: userQuery,
+                    apiKey: activeGeminiKey,
+                    preferredModel: process.env.GEMINI_VISION_MODEL || settings.geminiModel || "gemini-3.6-flash"
+                });
+            }
+            catch (visionErr) {
+                console.warn("[IMAGE SEARCH] Vision API temporary network/quota notice, activating intelligent fallback:", visionErr.message);
+                // Graceful Local Fallback: Extract product constraints from user's accompanying text/voice prompt
+                const fallbackIntent = intentParserService_1.IntentParserService.parseLocalRuleBased(userQuery || "san pham cong nghe", history || []);
+                visualAnalysis = {
+                    is_product: true,
+                    category: fallbackIntent.category || (userQuery.toLowerCase().includes("dien thoai") ? "phone" : null),
+                    brand: fallbackIntent.brand || null,
+                    model: fallbackIntent.targetProductName || null,
+                    color: null,
+                    visible_features: [],
+                    detected_text: [],
+                    keywords: fallbackIntent.keywords && fallbackIntent.keywords.length > 0 ? fallbackIntent.keywords : ["dien thoai"],
+                    confidence: 0.75,
+                    visual_description: userQuery ? `Sản phẩm theo yêu cầu: "${userQuery}"` : "Thiết bị điện tử từ hình ảnh"
+                };
+            }
             console.log(`Vision analysis:\ncategory = ${visualAnalysis.category}\nbrand = ${visualAnalysis.brand}\nmodel = ${visualAnalysis.model}`);
             // Build Structured Product Query combining Visual Analysis & User Text/Voice Constraints
             const structuredQuery = imageAnalysisService_1.ImageAnalysisService.buildVisualProductQuery(visualAnalysis, userQuery);

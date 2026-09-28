@@ -102,10 +102,13 @@ Respond ONLY with a valid JSON object matching this schema:
 }`;
 
     const candidateModels = [
+      process.env.GEMINI_VISION_MODEL || "gemini-3.6-flash",
+      "gemini-3.6-flash",
+      "gemini-3.1-flash-lite",
       "gemini-3.8-flash",
       "gemini-3.7-flash",
-      "gemini-3.5-flash",
-      preferredModel && !["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash"].includes(preferredModel) ? preferredModel : null
+      "gemini-3.5-flash-lite",
+      preferredModel && !["gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-3.7-flash"].includes(preferredModel) ? preferredModel : null
     ].filter(Boolean) as string[];
     const uniqueModels = candidateModels.filter((v, i, a) => a.indexOf(v) === i);
 
@@ -133,8 +136,7 @@ Respond ONLY with a valid JSON object matching this schema:
           ],
           generationConfig: {
             temperature: 0.1,
-            maxOutputTokens: 1024,
-            responseMimeType: "application/json"
+            maxOutputTokens: 1024
           }
         };
 
@@ -143,8 +145,21 @@ Respond ONLY with a valid JSON object matching this schema:
 
         if (rawText) {
           const cleanJson = rawText.trim().replace(/^```json/i, "").replace(/```$/i, "").trim();
-          const parsed = JSON.parse(cleanJson);
-          return this.sanitizeVisualAnalysis(parsed);
+          let parsed: any = null;
+          try {
+            parsed = JSON.parse(cleanJson);
+          } catch {
+            const firstBrace = rawText.indexOf("{");
+            const lastBrace = rawText.lastIndexOf("}");
+            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+              parsed = JSON.parse(rawText.slice(firstBrace, lastBrace + 1));
+            }
+          }
+
+          if (parsed && typeof parsed === "object") {
+            console.log(`[VISION] Successfully analyzed image with model ${m}`);
+            return this.sanitizeVisualAnalysis(parsed);
+          }
         }
       } catch (err: any) {
         lastError = err?.response?.data?.error?.message || err.message;

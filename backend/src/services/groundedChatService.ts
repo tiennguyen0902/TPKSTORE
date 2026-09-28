@@ -189,9 +189,12 @@ QUY TẮC CỐT LÕI BẮT BUỘC:
     history: any[] = []
   ): Promise<{ reply: string; model: string } | null> {
     const candidateModels = [
+      "gemini-3.6-flash",
+      "gemini-3.1-flash-lite",
       "gemini-3.8-flash",
+      "gemini-3.7-flash",
       "gemini-3.5-flash-lite",
-      model && !["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.0-flash", "gemini-2.5-flash"].includes(model) ? model : null
+      model && !["gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.0-flash", "gemini-2.5-flash"].includes(model) ? model : null
     ].filter(Boolean) as string[];
     const uniqueModels = candidateModels.filter((v, i, a) => a.indexOf(v) === i);
 
