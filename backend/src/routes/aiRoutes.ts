@@ -3,6 +3,11 @@ import axios from "axios";
 import jwt from "jsonwebtoken";
 import { db } from "../db";
 import { authenticateToken, authorize, AuthenticatedRequest } from "../middleware/auth";
+import { ProductSearchService } from "../services/productSearchService";
+import { IntentParserService } from "../services/intentParserService";
+import { GroundedChatService } from "../services/groundedChatService";
+import { SpeechToTextService } from "../services/speechToTextService";
+import { ImageAnalysisService } from "../services/imageAnalysisService";
 
 const router = Router();
 
@@ -50,31 +55,18 @@ async function callAiService(endpoint: string, payload: any, timeoutMs: number =
 
 // Danh sách toàn bộ mô hình Google Gemini chính thức & thế hệ mới (2025 - 2026)
 const ALL_GEMINI_MODELS = [
-  // 1. Google Gemini 2.5 Series
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  // 2. Google Gemini 2.0 Series (GA & Exp)
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-2.0-flash-thinking-exp-01-21",
-  "gemini-2.0-pro-exp-02-05",
-  // 3. Google Gemini 1.5 Series (Stable GA)
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-latest",
-  "gemini-1.5-flash-8b",
-  "gemini-1.5-flash-8b-latest",
-  "gemini-1.5-pro-latest",
-  // 4. Aliases & Experimental
-  "gemini-flash-latest",
-  "gemini-pro-latest",
-  "gemini-exp-1206",
-  "learnlm-1.5-pro-experimental",
-  // 5. Future / 2026 Aliases
   "gemini-3.8-flash",
   "gemini-3.7-flash",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
-  "gemini-3.1-flash-lite",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-latest",
+  "gemini-flash-latest",
+  "gemini-pro-latest"
 ];
 
 // Danh sách toàn bộ mô hình OpenAI ChatGPT chính thức & thế hệ mới
@@ -823,14 +815,129 @@ router.post("/recommend", async (req: Request, res: Response) => {
   });
 });
 
-// POST /api/ai/chat (RAG Chatbot with Gemini / OpenAI / Local RAG & Voice & Vision)
-router.post("/chat", async (req: Request, res: Response) => {
-  const { message, history, provider, image } = req.body;
-  const products = await db.product.findMany({ include: { category: true } });
-  const settings = await getSettings();
+// Helper: Extract contextual products from prior conversation turns
+function extractRecentProductsFromHistory(history: any[], allProducts: any[]): any[] {
+  const result: any[] = [];
+  const seenIds = new Set<string>();
 
-  if (!message || !message.trim()) {
-    return res.status(400).json({ error: "Nội dung tin nhắn không được để trống." });
+  if (!Array.isArray(history)) return result;
+
+  for (const h of history.slice().reverse()) {
+    if (h.suggestedProducts && Array.isArray(h.suggestedProducts)) {
+      for (const p of h.suggestedProducts) {
+        if (p && p.id && !seenIds.has(p.id)) {
+          seenIds.add(p.id);
+          result.push(p);
+        }
+      }
+    }
+    const text = ((h.content || h.text || "") as string).toLowerCase();
+    for (const p of allProducts) {
+      if (!seenIds.has(p.id) && text.includes(p.name.toLowerCase())) {
+        seenIds.add(p.id);
+        result.push(p);
+      }
+    }
+    if (result.length >= 6) break;
+  }
+  return result;
+}
+
+// POST /api/ai/speech-to-text (STT Transcription Endpoint)
+router.post("/speech-to-text", async (req: Request, res: Response) => {
+  try {
+    const { audioBase64, mimeType } = req.body;
+    if (!audioBase64) {
+      return res.status(400).json({ error: "Không tìm thấy dữ liệu âm thanh (audioBase64 is required)." });
+    }
+
+    const settings = await getSettings();
+    const activeGeminiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
+
+    if (!activeGeminiKey) {
+      return res.status(400).json({ error: "Chưa cấu hình Google Gemini API Key để nhận diện giọng nói." });
+    }
+
+    console.log(`[VOICE] User audio received: ${audioBase64.length} chars (mime: ${mimeType || "audio/webm"})`);
+
+    const transcript = await SpeechToTextService.transcribe({
+      audioBase64,
+      mimeType: mimeType || "audio/webm",
+      apiKey: activeGeminiKey,
+      preferredModel: settings.geminiModel || "gemini-3.8-flash"
+    });
+
+    console.log(`[STT] Transcript: "${transcript}"`);
+
+    return res.json({ transcript });
+  } catch (err: any) {
+    console.error("[STT] Transcription error:", err.message);
+    return res.status(500).json({ error: err.message || "Lỗi chuyển đổi giọng nói thành văn bản." });
+  }
+});
+
+// Alias for STT
+router.post("/transcribe", async (req: Request, res: Response) => {
+  try {
+    const { audioBase64, mimeType } = req.body;
+    if (!audioBase64) {
+      return res.status(400).json({ error: "Không tìm thấy dữ liệu âm thanh." });
+    }
+
+    const settings = await getSettings();
+    const activeGeminiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
+
+    if (!activeGeminiKey) {
+      return res.status(400).json({ error: "Chưa cấu hình Google Gemini API Key." });
+    }
+
+    console.log(`[VOICE] User audio received: ${audioBase64.length} chars`);
+
+    const transcript = await SpeechToTextService.transcribe({
+      audioBase64,
+      mimeType: mimeType || "audio/webm",
+      apiKey: activeGeminiKey,
+      preferredModel: settings.geminiModel || "gemini-3.8-flash"
+    });
+
+    console.log(`[STT] Transcript: "${transcript}"`);
+
+    return res.json({ transcript });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || "Lỗi nhận diện âm thanh." });
+  }
+});
+
+// Unified Multimodal Voice, Image & Text Pipeline with Database Grounding
+const unifiedChatHandler = async (req: Request, res: Response) => {
+  let { message, history, provider, isVoice, audioBase64, mimeType, imageBase64, imageMimeType } = req.body;
+  const settings = await getSettings();
+  const activeGeminiKey = (settings.geminiApiKey || process.env.GEMINI_API_KEY || "").trim();
+  const activeOpenAiKey = (settings.openaiApiKey || process.env.OPENAI_API_KEY || "").trim();
+  const selectedProvider = (provider || settings.aiProvider || "gemini").toLowerCase().trim();
+  const targetModel = selectedProvider === "openai" 
+    ? (settings.openaiModel || "gpt-4o-mini") 
+    : (settings.geminiModel || "gemini-3.8-flash");
+
+  // 1. If voice audio is sent to /chat, transcribe it first
+  if (audioBase64) {
+    isVoice = true;
+    console.log(`[VOICE] User audio received (${audioBase64.length} chars)`);
+    try {
+      if (activeGeminiKey) {
+        const transcript = await SpeechToTextService.transcribe({
+          audioBase64,
+          mimeType: mimeType || "audio/webm",
+          apiKey: activeGeminiKey,
+          preferredModel: settings.geminiModel || "gemini-3.8-flash"
+        });
+        console.log(`[STT] Transcript: "${transcript}"`);
+        message = message && message.trim() ? `${message.trim()} ${transcript}` : transcript;
+      }
+    } catch (sttErr: any) {
+      console.warn("[STT] Audio transcription error:", sttErr.message);
+      return res.status(400).json({ error: "Không thể nhận diện giọng nói: " + sttErr.message });
+    }
   }
 
   // Quyền truy cập AI: Kiểm tra nếu tài khoản có bị vô hiệu hóa quyền chat AI hay không
@@ -852,171 +959,240 @@ router.post("/chat", async (req: Request, res: Response) => {
     }
   }
 
-  const selectedProvider = (provider || settings.aiProvider || "gemini").toLowerCase();
-
-  // 1. Thử gọi qua Python AI Microservice nếu đang hoạt động (với Circuit Breaker)
-  if (isAiServiceAlive()) {
-    const aiRes = await callAiService("/api/ai/chat", {
-      message,
-      history: history || [],
-      products,
-      provider: selectedProvider,
-      geminiApiKey: settings.geminiApiKey,
-      geminiModel: settings.geminiModel,
-      openaiApiKey: settings.openaiApiKey,
-      openaiModel: settings.openaiModel,
-      localAiUrl: settings.localAiUrl,
-      localAiModel: settings.localAiModel,
-      image: image || null
-    }, 3500);
-
-    if (aiRes.success && aiRes.data?.reply) {
-      try {
-        await db.aIInteraction.create({
-          data: {
-            sessionId: req.headers["x-session-id"] as string || "anonymous_session",
-            query: message,
-            response: aiRes.data.reply,
-            type: "CHAT",
-          }
-        });
-      } catch (logErr) {}
-      return res.json(aiRes.data);
-    }
+  const cleanImage = imageBase64 || req.body.image;
+  // Ensure at least message or cleanImage is provided
+  if ((!message || !message.trim()) && !cleanImage && !audioBase64) {
+    return res.status(400).json({ error: "Nội dung tin nhắn hoặc hình ảnh không được để trống." });
   }
 
-  // 2. Dự phòng trực tiếp tức thì (Serverless Direct AI Fallback)
-  // A. Mô hình AI LOCAL (Ollama / Local LLM / Multimodal Vision & Voice Engine)
+  const userQuery = (message || "").trim();
+  if (isVoice) {
+    console.log(`[VOICE] Pipeline processing voice input: "${userQuery}"`);
+  }
+
+  // Handle Local AI Provider directly
   if (selectedProvider === "local") {
     try {
-      const result = await directLocalAIChat(
+      const allDbProducts = await db.product.findMany({ include: { category: true } });
+      const localResult = await directLocalAIChat(
         settings.localAiUrl || "http://localhost:11434",
         settings.localAiModel || "llava",
-        message,
-        products,
+        userQuery || "Tư vấn sản phẩm cho tôi",
+        allDbProducts,
         history,
-        image
+        cleanImage
       );
-      if (result && result.reply) {
-        try {
-          await db.aIInteraction.create({
-            data: {
-              sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
-              query: message,
-              response: result.reply,
-              type: "CHAT",
-            }
-          });
-        } catch (e) {}
+      if (localResult && localResult.reply) {
         return res.json({
-          reply: result.reply,
-          suggestedProducts: result.suggestedProducts,
-          suggestedQuickReplies: ["Tư vấn Laptop Gaming", "Tai nghe chống ồn AI", "Chính sách bảo hành 1 đổi 1", "Giao hàng hỏa tốc 2h"],
-          source: result.model || "Mô hình AI Local (Ollama/LLaVA Vision)",
+          reply: localResult.reply,
+          suggestedProducts: localResult.suggestedProducts,
+          suggestedQuickReplies: ["Tư vấn Laptop Gaming", "Tai nghe chống ồn AI", "Chính sách bảo hành 1 đổi 1"],
+          source: localResult.model || "Mô hình Local AI (Ollama)",
           provider: "local",
           model: settings.localAiModel || "llava"
         });
       }
     } catch (localErr: any) {
-      console.warn("Direct Local AI chat error:", localErr?.message || localErr);
+      console.warn("[LOCAL AI] Error in local AI chat, fallback to pipeline:", localErr?.message);
     }
   }
 
-  // B. OpenAI
-  const activeOpenAiKey = settings.openaiApiKey || process.env.OPENAI_API_KEY;
-  if (selectedProvider === "openai" && activeOpenAiKey) {
-    try {
-      const result = await directOpenAIChat(
-        activeOpenAiKey,
-        settings.openaiModel || "gpt-4o-mini",
-        message,
-        products,
-        history,
-        image
-      );
-      if (result && result.reply) {
-        try {
-          await db.aIInteraction.create({
-            data: {
-              sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
-              query: message,
-              response: result.reply,
-              type: "CHAT",
-            }
-          });
-        } catch (e) {}
-        return res.json({
-          reply: result.reply,
-          suggestedProducts: result.suggestedProducts,
-          suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành 1 đổi 1", "Giao hàng hỏa tốc 2h"],
-          source: `OpenAI ChatGPT (${result.model})`,
-          provider: "openai",
-          model: result.model
+  try {
+    const allDbProducts = await db.product.findMany({ include: { category: true } });
+    const contextProducts = extractRecentProductsFromHistory(history || [], allDbProducts);
+
+    // ==========================================
+    // CASE A: IMAGE-BASED MULTIMODAL SEARCH PIPELINE
+    // ==========================================
+    if (imageBase64) {
+      console.log("[IMAGE SEARCH]");
+      console.log("Image received");
+
+      const validation = ImageAnalysisService.validateImage(imageBase64, imageMimeType);
+      if (!validation.valid) {
+        console.warn("[IMAGE SEARCH] Validation failed:", validation.error);
+        return res.status(400).json({ error: validation.error });
+      }
+      console.log("Image validation: OK");
+
+      if (!activeGeminiKey) {
+        return res.status(400).json({
+          error: "Chưa cấu hình Google Gemini API Key để thực hiện tìm kiếm bằng hình ảnh."
         });
       }
-    } catch (directErr: any) {
-      console.warn("Direct OpenAI chat fallback error:", directErr?.message || directErr);
-    }
-  }
 
-  // C. Google Gemini
-  const activeGeminiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
-  if ((selectedProvider === "gemini" || !selectedProvider) && activeGeminiKey) {
-    try {
-      const result = await directGeminiChat(
-        activeGeminiKey,
-        settings.geminiModel || "gemini-2.0-flash",
-        message,
-        products,
-        history,
-        image
-      );
-      if (result && result.reply) {
-        try {
-          await db.aIInteraction.create({
-            data: {
-              sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
-              query: message,
-              response: result.reply,
-              type: "CHAT",
-            }
-          });
-        } catch (e) {}
-        return res.json({
-          reply: result.reply,
-          suggestedProducts: result.suggestedProducts,
-          suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành 1 đổi 1", "Giao hàng hỏa tốc 2h"],
-          source: `Google Gemini (${result.model})`,
-          provider: "gemini",
-          model: result.model
+      // Vision Analysis with Gemini Vision Model (with Graceful Multi-Stage Fallback)
+      let visualAnalysis: any = null;
+      try {
+        visualAnalysis = await ImageAnalysisService.analyzeImage({
+          imageBase64: validation.cleanBase64,
+          mimeType: validation.safeMime,
+          userText: userQuery,
+          apiKey: activeGeminiKey,
+          preferredModel: process.env.GEMINI_VISION_MODEL || settings.geminiModel || "gemini-3.6-flash"
         });
+      } catch (visionErr: any) {
+        console.warn("[IMAGE SEARCH] Vision API temporary network/quota notice, activating intelligent fallback:", visionErr.message);
+        // Graceful Local Fallback: Extract product constraints from user's accompanying text/voice prompt
+        const fallbackIntent = IntentParserService.parseLocalRuleBased(userQuery || "san pham cong nghe", history || []);
+        visualAnalysis = {
+          is_product: true,
+          category: fallbackIntent.category || (userQuery.toLowerCase().includes("dien thoai") ? "phone" : null),
+          brand: fallbackIntent.brand || null,
+          model: fallbackIntent.targetProductName || null,
+          color: null,
+          visible_features: [],
+          detected_text: [],
+          keywords: fallbackIntent.keywords && fallbackIntent.keywords.length > 0 ? fallbackIntent.keywords : ["dien thoai"],
+          confidence: 0.75,
+          visual_description: userQuery ? `Sản phẩm theo yêu cầu: "${userQuery}"` : "Thiết bị điện tử từ hình ảnh"
+        };
       }
-    } catch (directErr: any) {
-      console.warn("Direct Gemini chat fallback error:", directErr?.message || directErr);
+
+      console.log(`Vision analysis:\ncategory = ${visualAnalysis.category}\nbrand = ${visualAnalysis.brand}\nmodel = ${visualAnalysis.model}`);
+
+      // Build Structured Product Query combining Visual Analysis & User Text/Voice Constraints
+      const structuredQuery = ImageAnalysisService.buildVisualProductQuery(visualAnalysis, userQuery);
+      console.log(`Structured query:\nbrand = ${structuredQuery.brand}\nmodel = ${structuredQuery.targetProductName || visualAnalysis.model}`);
+
+      // Database Search & Multi-Stage Matching
+      const searchResult = await ProductSearchService.search(structuredQuery, contextProducts);
+      const retrievedProducts = searchResult.products;
+
+      console.log(`Database:\n${retrievedProducts.length} results`);
+      const exactCount = searchResult.exactCount || 0;
+      const similarCount = searchResult.similarCount || Math.max(0, retrievedProducts.length - exactCount);
+      console.log(`Ranking:\n${exactCount} exact/likely match\n${similarCount} similar`);
+
+      // Database-Grounded AI Response Generation
+      console.log(`[LLM] Generating grounded response for visual search`);
+      const groundedResult = await GroundedChatService.generateResponse({
+        userMessage: userQuery || `Tìm sản phẩm qua hình ảnh: ${visualAnalysis.visual_description}`,
+        history: history || [],
+        structuredQuery,
+        retrievedProducts,
+        apiKey: activeGeminiKey,
+        model: settings.geminiModel || "gemini-3.8-flash",
+        openaiApiKey: activeOpenAiKey,
+        openaiModel: settings.openaiModel || "gpt-4o-mini",
+        provider: selectedProvider,
+        isVoice: !!isVoice,
+        isImage: true,
+        visualAnalysis
+      });
+
+      console.log("Response generated");
+
+      // Safe Interaction Logging
+      try {
+        await db.aIInteraction.create({
+          data: {
+            sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
+            query: userQuery ? `[IMAGE] ${userQuery}` : `[IMAGE] ${visualAnalysis.visual_description}`,
+            response: groundedResult.reply,
+            type: "CHAT"
+          }
+        });
+      } catch (e) {}
+
+      return res.json({
+        reply: groundedResult.reply,
+        suggestedProducts: groundedResult.suggestedProducts,
+        suggestedQuickReplies: groundedResult.suggestedQuickReplies,
+        source: groundedResult.source,
+        provider: groundedResult.provider,
+        model: groundedResult.model,
+        structuredQuery,
+        visualAnalysis,
+        analysis: {
+          category: visualAnalysis.category,
+          brand: visualAnalysis.brand,
+          model: visualAnalysis.model,
+          confidence: visualAnalysis.confidence
+        },
+        transcript: isVoice ? userQuery : undefined,
+        dbCount: retrievedProducts.length,
+        exactCount,
+        similarCount,
+        disclaimer: groundedResult.disclaimer
+      });
     }
+
+    // ==========================================
+    // CASE B: STANDARD TEXT / VOICE PIPELINE
+    // ==========================================
+    // 2. Natural-Language Intent & Constraint Extraction
+    const structuredQuery = await IntentParserService.parse(
+      userQuery,
+      history,
+      activeGeminiKey,
+      settings.geminiModel || "gemini-3.8-flash"
+    );
+
+    console.log(`[INTENT] ${structuredQuery.intent}`);
+    console.log(`[STRUCTURED_QUERY]`, JSON.stringify(structuredQuery));
+
+    // 4. Safe Parameterized Database Search (Real DB Source of Truth)
+    const searchResult = await ProductSearchService.search(structuredQuery, contextProducts);
+    const retrievedProducts = searchResult.products;
+
+    console.log(`[DATABASE] ${retrievedProducts.length} products found matching query`);
+
+    // 5. Database-Grounded AI Response Generation (Gemini / LLM)
+    console.log(`[LLM] Generating response`);
+    const groundedResult = await GroundedChatService.generateResponse({
+      userMessage: userQuery,
+      history: history || [],
+      structuredQuery,
+      retrievedProducts,
+      apiKey: activeGeminiKey,
+      model: settings.geminiModel || "gemini-3.8-flash",
+      openaiApiKey: activeOpenAiKey,
+      openaiModel: settings.openaiModel || "gpt-4o-mini",
+      provider: selectedProvider,
+      isVoice: !!isVoice
+    });
+
+    console.log(`[CHATBOT] Response generated`);
+
+    // 6. Safe Interaction Logging (Does not block user response)
+    try {
+      await db.aIInteraction.create({
+        data: {
+          sessionId: (req.headers["x-session-id"] as string) || "anonymous_session",
+          query: userQuery,
+          response: groundedResult.reply,
+          type: "CHAT"
+        }
+      });
+    } catch (e) {}
+
+    // 7. Return Final Unified Response
+    return res.json({
+      reply: groundedResult.reply,
+      suggestedProducts: groundedResult.suggestedProducts,
+      suggestedQuickReplies: groundedResult.suggestedQuickReplies,
+      source: groundedResult.source,
+      provider: groundedResult.provider,
+      model: groundedResult.model,
+      structuredQuery,
+      transcript: isVoice ? userQuery : undefined,
+      dbCount: retrievedProducts.length,
+      disclaimer: groundedResult.disclaimer
+    });
+
+  } catch (err: any) {
+    console.error("[CHATBOT] Error in chatbot pipeline:", err.message);
+    return res.status(500).json({
+      error: "Đã xảy ra lỗi trong quá trình xử lý: " + err.message,
+      reply: "Dạ xin lỗi bạn, hệ thống AI tạm thời gặp sự cố kết nối. Bạn vui lòng thử lại sau giây lát nhé!"
+    });
   }
+};
 
-  // 3. Fallback cục bộ thông minh nếu chưa cấu hình API Key hoặc cả 2 nhà cung cấp đều bận
-  const normQuery = message.toLowerCase();
-  const matchedProd = (products || []).filter(p => {
-    const name = (p.name || "").toLowerCase();
-    return normQuery.split(/\s+/).some(w => w.length > 2 && name.includes(w));
-  }).slice(0, 3);
-
-  let fallbackReply = "Xin chào bạn! Tôi là Trợ lý AI Bán hàng của SHOPBEE. Hiện tại tôi có thể hỗ trợ bạn tìm kiếm sản phẩm theo ngân sách, gợi ý điện thoại, laptop nổi bật và giải đáp chính sách bảo hành 1 đổi 1, giao hàng nhanh 2h!";
-  if (matchedProd.length > 0) {
-    const names = matchedProd.map(p => `**${p.name}** (${Number(p.price).toLocaleString("vi-VN")} đ)`).join(", ");
-    fallbackReply = `Dạ SHOPBEE xin gợi ý các sản phẩm phù hợp nhất với tìm kiếm của bạn:\n${names}\n\nBạn có muốn biết thêm chi tiết về cấu hình hoặc ưu đãi giao hàng 2h không ạ?`;
-  }
-
-  return res.json({
-    reply: fallbackReply,
-    suggestedProducts: matchedProd.length > 0 ? matchedProd : products.slice(0, 3),
-    suggestedQuickReplies: ["Xem danh mục điện thoại", "Laptop AI nổi bật", "Chính sách bảo hành 1 đổi 1", "Giao hàng hỏa tốc 2h"],
-    source: "SHOPBEE Smart RAG Engine",
-    disclaimer: activeGeminiKey || activeOpenAiKey ? undefined : "💡 Quản trị viên chưa thiết lập API Key hoặc đang kết nối lại."
-  });
-});
+// Route Registrations for Unified Multimodal Chatbot
+router.post("/chat", unifiedChatHandler);
+router.post("/chat/image", unifiedChatHandler);
 
 // POST /api/ai/forecast (AI Revenue & Demand Forecasting)
 router.post("/forecast", async (req: Request, res: Response) => {

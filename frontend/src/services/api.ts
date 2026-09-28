@@ -413,17 +413,57 @@ export const api = {
   },
 
   async chatWithAi(
-    message: string, 
-    history: any[] = [], 
+    message: string,
+    history: any[] = [],
     provider?: "gemini" | "openai" | "local",
-    image?: string
+    image?: string,
+    isVoice?: boolean,
+    imageBase64?: string,
+    imageMimeType?: string
   ) {
+    const imgPayload = image || imageBase64;
     const res = await fetch(`${API_BASE}/ai/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeader() },
-      body: JSON.stringify({ message, history, provider, image })
+      body: JSON.stringify({ 
+        message, 
+        history, 
+        provider, 
+        image: imgPayload, 
+        imageBase64: imgPayload, 
+        imageMimeType, 
+        isVoice 
+      })
     });
     return res.json();
+  },
+
+  async transcribeAudio(audioBlob: Blob): Promise<{ transcript: string }> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64Data = (reader.result as string) || "";
+          const res = await fetch(`${API_BASE}/ai/speech-to-text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              audioBase64: base64Data,
+              mimeType: audioBlob.type || "audio/webm"
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || "Lỗi chuyển đổi giọng nói.");
+          }
+          resolve(data);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error("Lỗi đọc dữ liệu ghi âm."));
+      reader.readAsDataURL(audioBlob);
+    });
   },
 
   async getAiForecast(days: number = 30): Promise<{ status: string; data: ForecastData }> {
