@@ -242,44 +242,76 @@ async function directTestGemini(apiKey?: string, model?: string) {
 
 // Direct Test for Local AI Server (Ollama / Local Service)
 async function directTestLocalAI(localUrl?: string, model?: string) {
-  const url = (localUrl || "http://localhost:11434").replace(/\/$/, "");
-  const targetModel = (model || "llava").trim();
+  const inputUrl = (localUrl || "http://localhost:11434").replace(/\/$/, "");
+  let targetModel = (model || "llava:latest").trim();
+  if (/^gemini/i.test(targetModel)) {
+    targetModel = "llava:latest";
+  }
 
-  try {
-    const resp = await axios.get(`${url}/api/tags`, { timeout: 3500 });
-    const models = Array.isArray(resp.data?.models) ? resp.data.models.map((m: any) => m.name) : [];
-    return {
-      status: "success",
-      valid: true,
-      provider: "local",
-      model: targetModel,
-      message: `Đã kết nối thành công tới máy chủ AI Local (${url})! Phát hiện ${models.length} mô hình cục bộ đang sẵn sàng.`,
-      availableModels: models.length > 0 ? models : ["llava:latest", "llama3.2-vision:latest", "phi3:latest", "mistral:latest"]
-    };
-  } catch (err: any) {
+  // Thử cả URL gốc và host.docker.internal nếu backend đang chạy trong Docker container
+  const candidateUrls = [
+    inputUrl,
+    inputUrl.includes("localhost") ? inputUrl.replace("localhost", "host.docker.internal") : null,
+    inputUrl.includes("127.0.0.1") ? inputUrl.replace("127.0.0.1", "host.docker.internal") : null
+  ].filter(Boolean) as string[];
+
+  let lastErr = "";
+  for (const url of candidateUrls) {
     try {
-      const pingResp = await axios.get("http://localhost:8000/docs", { timeout: 2000 });
-      if (pingResp.status === 200) {
+      const resp = await axios.get(`${url}/api/tags`, { timeout: 3500 });
+      if (resp.status === 200 && resp.data) {
+        const models = Array.isArray(resp.data?.models) ? resp.data.models.map((m: any) => m.name) : [];
+
+        // Tự động khớp model tốt nhất nếu targetModel chưa có tag
+        if (models.length > 0) {
+          if (!models.includes(targetModel)) {
+            const found = models.find((m: string) => m === targetModel || m.startsWith(targetModel + ":") || targetModel.startsWith(m.split(":")[0]));
+            if (found) {
+              targetModel = found;
+            } else {
+              targetModel = models[0];
+            }
+          }
+        }
+
         return {
           status: "success",
           valid: true,
           provider: "local",
           model: targetModel,
-          message: `Đã kết nối thành công tới Microservice AI Local (FastAPI / port 8000). Động cơ RAG & Multimodal Vision sẵn sàng.`,
-          availableModels: [targetModel, "local-rag-vision", "llava"]
+          message: `Đã kết nối thành công tới máy chủ Ollama (${url})! Phát hiện ${models.length} mô hình cục bộ đang sẵn sàng: ${models.join(", ")}.`,
+          sampleResponse: `Mô hình ${targetModel} đã sẵn sàng phục vụ Chatbot và Phân tích thị giác offline.`,
+          availableModels: models.length > 0 ? models : ["llava:latest", "llama3.1:8b"]
         };
       }
-    } catch (e2) {}
-
-    return {
-      status: "success",
-      valid: true,
-      provider: "local",
-      model: targetModel,
-      message: `Mô hình AI Local (${targetModel}) đã được kích hoạt! Hệ thống kết nối cổng ${url} và tích hợp sẵn Bộ phân tích thị giác và RAG cục bộ offline.`,
-      availableModels: [targetModel, "llava", "llama3.2-vision", "phi3", "qwen2.5", "mistral"]
-    };
+    } catch (err: any) {
+      lastErr = err.message || "";
+    }
   }
+
+  // Fallback kiểm tra Python AI microservice nếu có
+  try {
+    const pingResp = await axios.get("http://localhost:8000/docs", { timeout: 2000 });
+    if (pingResp.status === 200) {
+      return {
+        status: "success",
+        valid: true,
+        provider: "local",
+        model: targetModel,
+        message: `Đã kết nối thành công tới Microservice AI Local (FastAPI / port 8000). Động cơ RAG & Multimodal Vision sẵn sàng.`,
+        availableModels: [targetModel, "llava:latest", "llama3.1:8b"]
+      };
+    }
+  } catch (e2) {}
+
+  return {
+    status: "error",
+    valid: false,
+    provider: "local",
+    model: targetModel,
+    message: `Không thể kết nối tới máy chủ Ollama tại ${inputUrl}. Vui lòng đảm bảo ứng dụng Ollama đang chạy trên máy (Lỗi: ${lastErr || "Connection refused"}).`,
+    availableModels: ["llava:latest", "llama3.1:8b"]
+  };
 }
 
 // Direct Chat with Google Gemini when AI microservice is offline
@@ -400,7 +432,10 @@ async function directLocalAIChat(
   imageBase64?: string
 ) {
   const url = (localUrl || "http://localhost:11434").replace(/\/$/, "");
-  const targetModel = (model || "llava").trim();
+  let targetModel = (model || "llava:latest").trim();
+  if (/^gemini/i.test(targetModel)) {
+    targetModel = "llava:latest";
+  }
 
   const userMsgLower = userMessage.toLowerCase();
   const matchedProducts = (products || [])
@@ -525,14 +560,22 @@ Chính sách: Đổi trả miễn phí 7 ngày, bảo hành 1 đổi 1 chính h�
 // POST /api/ai/test-key (Verify Google Gemini or Local AI connection & status)
 router.post("/test-key", async (req: Request, res: Response) => {
   const settings = await getSettings();
-  const provider = (req.body.provider || settings.aiProvider || "gemini").toLowerCase();
+  const provider = (req.body.provider || settings.aiProvider || "gemini").toLowerCase().trim();
   const geminiApiKey = req.body.geminiApiKey || req.body.apiKey || settings.geminiApiKey;
   const geminiModel = req.body.geminiModel || req.body.model || settings.geminiModel || "gemini-3.5-flash";
 
-  // 1. Thử gọi qua Python AI Microservice nếu đang chạy (với Circuit Breaker)
+  // 1. Kiểm tra trực tiếp mô hình Local AI (Ollama)
+  if (provider === "local") {
+    const localUrl = req.body.localAiUrl || settings.localAiUrl || "http://localhost:11434";
+    const localModel = req.body.localAiModel || settings.localAiModel || "llava:latest";
+    const directRes = await directTestLocalAI(localUrl, localModel);
+    return res.json(directRes);
+  }
+
+  // 2. Kiểm tra Google Gemini
   if (isAiServiceAlive()) {
     const aiRes = await callAiService("/api/ai/test-key", {
-      provider,
+      provider: "gemini",
       geminiApiKey,
       geminiModel,
       apiKey: req.body.apiKey,
@@ -544,16 +587,9 @@ router.post("/test-key", async (req: Request, res: Response) => {
     }
   }
 
-  // 2. Dự phòng tự động (Serverless Fallback): Kiểm tra API Key trực tiếp qua REST API
-  if (provider === "local") {
-    const localUrl = req.body.localAiUrl || settings.localAiUrl;
-    const localModel = req.body.localAiModel || settings.localAiModel;
-    const directRes = await directTestLocalAI(localUrl, localModel);
-    return res.json(directRes);
-  } else {
-    const directRes = await directTestGemini(geminiApiKey, geminiModel);
-    return res.json(directRes);
-  }
+  // 3. Dự phòng trực tiếp nếu Microservice offline
+  const directRes = await directTestGemini(geminiApiKey, geminiModel);
+  return res.json(directRes);
 });
 
 // POST /api/ai/recommend (AI Recommendation Engine)

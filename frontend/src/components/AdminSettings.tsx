@@ -60,7 +60,8 @@ export const AdminSettings: React.FC = () => {
       setIsLoading(true);
       try {
         const data = await api.getSettings();
-        setSettings(prev => ({ ...prev, ...data }));
+        const safeLocalModel = (!data.localAiModel || data.localAiModel.startsWith("gemini")) ? "llava:latest" : data.localAiModel;
+        setSettings(prev => ({ ...prev, ...data, localAiModel: safeLocalModel }));
         if (data.aiProvider) {
           setActiveAiTab(data.aiProvider === "local" ? "local" : "gemini");
         }
@@ -186,11 +187,11 @@ export const AdminSettings: React.FC = () => {
       const res = await api.testAiKey({
         provider: providerToTest,
         apiKey: providerToTest === "gemini" ? settings.geminiApiKey : undefined,
-        model: providerToTest === "gemini" ? settings.geminiModel : settings.localAiModel,
-        geminiApiKey: settings.geminiApiKey,
-        geminiModel: settings.geminiModel,
+        model: providerToTest === "gemini" ? settings.geminiModel : (settings.localAiModel || "llava:latest"),
+        geminiApiKey: providerToTest === "gemini" ? settings.geminiApiKey : undefined,
+        geminiModel: providerToTest === "gemini" ? settings.geminiModel : undefined,
         localAiUrl: settings.localAiUrl || "http://localhost:11434",
-        localAiModel: settings.localAiModel || "llava"
+        localAiModel: settings.localAiModel || "llava:latest"
       });
       setTestResult({
         valid: res.valid,
@@ -212,7 +213,9 @@ export const AdminSettings: React.FC = () => {
             if (res.model) updatedSettings.geminiModel = res.model;
           } else if (providerToTest === "local") {
             updatedSettings.localAiUrl = settings.localAiUrl || "http://localhost:11434";
-            if (res.model) updatedSettings.localAiModel = res.model;
+            if (res.model && !res.model.startsWith("gemini")) {
+              updatedSettings.localAiModel = res.model;
+            }
           }
           await api.updateSettings(updatedSettings);
           setSettings(updatedSettings);
@@ -564,19 +567,23 @@ export const AdminSettings: React.FC = () => {
                     Tên mô hình AI Local (Model Tag)
                   </label>
                   <select
-                    value={settings.localAiModel || "llava"}
+                    value={settings.localAiModel && !settings.localAiModel.startsWith("gemini") ? settings.localAiModel : "llava:latest"}
                     onChange={(e) => {
                       setSettings({ ...settings, localAiModel: e.target.value });
                       if (testResult) setTestResult(null);
                     }}
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-purple-500 text-xs font-medium cursor-pointer"
                   >
-                    <optgroup label="👁️ Mô hình Thị giác Đa phương thức (Multimodal Vision - Đọc hình ảnh)">
-                      <option value="llava">llava 👁️ (LLaVA v1.6 - Phân tích hình ảnh sản phẩm & chat cực tốt)</option>
+                    <optgroup label="✅ Mô hình Ollama đã cài trên máy của bạn">
+                      <option value="llava:latest">llava:latest 👁️ (LLaVA Vision - Nhận diện hình ảnh & Chat)</option>
+                      <option value="llama3.1:8b">llama3.1:8b ⚡ (Meta Llama 3.1 8B - Tiếng Việt & Tư vấn thông minh)</option>
+                    </optgroup>
+                    <optgroup label="👁️ Mô hình Thị giác Đa phương thức khác (Multimodal Vision)">
+                      <option value="llava">llava 👁️ (LLaVA v1.6)</option>
                       <option value="llama3.2-vision">llama3.2-vision 🌟 (Llama 3.2 Vision mới nhất 2025-2026)</option>
                       <option value="bakllava">bakllava 📷 (BakLLaVA Vision chuyên sâu)</option>
                     </optgroup>
-                    <optgroup label="⚡ Mô hình Ngôn ngữ & Tư vấn bán hàng nhanh">
+                    <optgroup label="⚡ Mô hình Ngôn ngữ & Tư vấn bán hàng khác">
                       <option value="llama3.2">llama3.2 ⚡ (Llama 3.2 3B siêu nhẹ, phản hồi &lt; 0.5s)</option>
                       <option value="qwen2.5">qwen2.5 🧠 (Qwen 2.5 tiếng Việt chuẩn xác)</option>
                       <option value="mistral">mistral 💬 (Mistral 7B thông minh, ổn định)</option>
@@ -590,8 +597,8 @@ export const AdminSettings: React.FC = () => {
                 <span className="text-[11px] text-slate-500 shrink-0">Hoặc tự nhập tên Model cài trong Ollama:</span>
                 <input
                   type="text"
-                  placeholder="VD: llava:latest, qwen2.5:7b, gemma2:2b..."
-                  value={settings.localAiModel || ""}
+                  placeholder="VD: llava:latest, llama3.1:8b, qwen2.5:7b..."
+                  value={settings.localAiModel && !settings.localAiModel.startsWith("gemini") ? settings.localAiModel : "llava:latest"}
                   onChange={(e) => {
                     setSettings({ ...settings, localAiModel: e.target.value.trim() });
                     if (testResult) setTestResult(null);
