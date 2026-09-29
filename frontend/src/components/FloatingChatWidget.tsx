@@ -456,20 +456,9 @@ export const FloatingChatWidget: React.FC<{
                   {/* AI Source & Action Tools */}
                   {msg.sender === "ai" && (
                     <div className="mb-2 flex items-center justify-between gap-1 pb-1.5 border-b border-slate-100 text-[10px]">
-                      <span className={`flex items-center gap-1 font-bold ${
-                        msg.isExternalQuery ? "text-pink-600" : "text-rose-600"
-                      }`}>
-                        {msg.isExternalQuery ? (
-                          <>
-                            <Globe className="w-3 h-3 text-pink-600 shrink-0" />
-                            <span>Tri thức mở rộng</span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-3 h-3 text-rose-600 shrink-0" />
-                            <span>{msg.source || "SHOPBEE AI"}</span>
-                          </>
-                        )}
+                      <span className="flex items-center gap-1 font-bold text-rose-600">
+                        <Sparkles className="w-3 h-3 text-rose-600 shrink-0" />
+                        <span>{msg.source || "SHOPBEE AI"}</span>
                       </span>
 
                       {/* Text-to-Speech Button */}

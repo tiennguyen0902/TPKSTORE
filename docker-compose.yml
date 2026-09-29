@@ -34,6 +34,10 @@ services:
       dockerfile: Dockerfile
     container_name: store_ai_microservice
     restart: always
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     ports:
       - "8000:8000"
     environment:
@@ -48,6 +52,10 @@ services:
       dockerfile: Dockerfile
     container_name: store_ai_backend
     restart: always
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     ports:
       - "5000:5000"
     environment:

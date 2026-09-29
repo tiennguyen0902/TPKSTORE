@@ -14,6 +14,7 @@ const intentParserService_1 = require("../services/intentParserService");
 const groundedChatService_1 = require("../services/groundedChatService");
 const speechToTextService_1 = require("../services/speechToTextService");
 const imageAnalysisService_1 = require("../services/imageAnalysisService");
+const safetyGuardrailService_1 = require("../services/safetyGuardrailService");
 const router = (0, express_1.Router)();
 const AI_SERVICE_TIMEOUT_MS = 45000;
 // Circuit Breaker State để bảo vệ hệ thống và phản hồi khách hàng siêu tốc (<1s) khi Python Microservice offline
@@ -295,7 +296,8 @@ Quy tắc phản hồi:
 ${productContext}
 Nhắc khách hàng về chính sách: Đổi trả 7 ngày miễn phí, bảo hành 1 đổi 1 và giao hàng hỏa tốc trong 2 giờ.
 3. Nếu người dùng gửi hình ảnh: Hãy phân tích chi tiết hình ảnh sản phẩm được tải lên, nhận diện thiết bị/phụ kiện và đối chiếu với danh mục của SHOPBEE để tư vấn sản phẩm tương ứng.
-4. Với câu hỏi ngoài CSDL cửa hàng: Bạn hãy tận dụng toàn bộ tri thức thông minh sâu rộng của mình để giải đáp thật chi tiết, khách quan, hữu ích và truyền cảm hứng cho người dùng!`;
+4. Với câu hỏi ngoài CSDL cửa hàng: Bạn hãy tận dụng toàn bộ tri thức thông minh sâu rộng của mình để giải đáp thật chi tiết, khách quan, hữu ích và chuẩn xác cho người dùng!
+5. BẢO MẬT & LOẠI TRỪ NỘI DUNG NHẠY CẢM: Tuyệt đối từ chối các nội dung khiêu dâm 18+, bạo lực nguy hiểm, vũ khí, ma túy, cờ bạc lừa đảo, chính trị cực đoan; tuyệt đối không tiết lộ mật khẩu, API key hay thông tin nội bộ hệ thống.`;
     // Xây dựng payload contents bao gồm lịch sử hội thoại gần nhất (Multi-turn chat)
     const contents = [];
     if (Array.isArray(history) && history.length > 0) {
@@ -329,19 +331,21 @@ Nhắc khách hàng về chính sách: Đổi trả 7 ngày miễn phí, bảo h
             const resp = await axios_1.default.post(url, {
                 contents,
                 generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
-                safetySettings: [
-                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                ]
+                safetySettings: safetyGuardrailService_1.GEMINI_SAFETY_SETTINGS
             }, { timeout: 15000 });
             const candidate = resp.data?.candidates?.[0];
+            if (candidate?.finishReason === "SAFETY" || resp.data?.promptFeedback?.blockReason) {
+                return {
+                    reply: "Dạ xin lỗi bạn, câu hỏi này chứa nội dung nằm ngoài phạm vi an toàn cho phép theo chính sách cộng đồng. Tôi luôn sẵn sàng hỗ trợ bạn về kiến thức công nghệ, đời sống và các sản phẩm của SHOPBEE!",
+                    suggestedProducts: [],
+                    model: m
+                };
+            }
             const parts = candidate?.content?.parts;
             const text = Array.isArray(parts) ? parts.map((p) => p.text || "").join("").trim() : "";
             if (text) {
                 return {
-                    reply: text,
+                    reply: safetyGuardrailService_1.SafetyGuardrailService.sanitizeOutput(text),
                     suggestedProducts: matchedProducts.length > 0 ? matchedProducts.slice(0, 3) : (products || []).slice(0, 3),
                     model: m
                 };
@@ -655,6 +659,19 @@ const unifiedChatHandler = async (req, res) => {
     const userQuery = (message || "").trim();
     if (isVoice) {
         console.log(`[VOICE] Pipeline processing voice input: "${userQuery}"`);
+    }
+    // Kiểm duyệt an toàn nội dung đầu vào (Pre-filter Safety Guardrail)
+    const safetyCheck = safetyGuardrailService_1.SafetyGuardrailService.validateInput(userQuery);
+    if (!safetyCheck.isSafe) {
+        return res.json({
+            reply: safetyCheck.refusalMessage,
+            suggestedProducts: [],
+            suggestedQuickReplies: ["Tư vấn Laptop AI", "Điện thoại mới nhất", "Chính sách bảo hành", "Ưu đãi hôm nay"],
+            source: "SHOPBEE AI",
+            provider: selectedProvider,
+            model: targetModel,
+            disclaimer: "ℹ️ Yêu cầu được lọc theo chính sách an toàn thông tin."
+        });
     }
     // Handle Local AI Provider directly
     if (selectedProvider === "local") {

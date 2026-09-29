@@ -73,10 +73,11 @@ Allowed intents:
 - "comparison": comparing 2 or more products
 - "recommendation": asking for recommendations based on budget/use-case
 - "general_product_question": store policies, shipping, warranty, or general greeting
+- "external_knowledge": general knowledge questions, technology explanations, coding, math, science, current affairs, advice, or queries not specifically searching for products in the store
 
 Expected JSON schema:
 {
-  "intent": "product_search" | "product_details" | "price_query" | "stock_query" | "discount_query" | "category_query" | "brand_query" | "comparison" | "recommendation" | "general_product_question",
+  "intent": "product_search" | "product_details" | "price_query" | "stock_query" | "discount_query" | "category_query" | "brand_query" | "comparison" | "recommendation" | "general_product_question" | "external_knowledge",
   "category": string | null,
   "brand": string | null,
   "keywords": string[],
@@ -202,6 +203,20 @@ Respond ONLY with valid JSON. Do not include markdown codeblocks or other text.`
         }
         // 4. Detect Intent
         let intent = "product_search";
+        const isGeneralKnowledge = unaccented.includes("la gi") ||
+            unaccented.includes("nhu the nao") ||
+            unaccented.includes("tai sao") ||
+            unaccented.includes("giai thich") ||
+            unaccented.includes("huong dan") ||
+            unaccented.includes("viet code") ||
+            unaccented.includes("lap trinh") ||
+            unaccented.includes("thoi tiet") ||
+            unaccented.includes("tin tuc") ||
+            unaccented.includes("hom nay") ||
+            unaccented.includes("la ai") ||
+            unaccented.includes("dinh nghia") ||
+            unaccented.includes("nguyen ly") ||
+            unaccented.includes("hoat dong ra sao");
         if (stockInfo !== null && (contextRef || detectedBrand || detectedCategory)) {
             intent = "stock_query";
         }
@@ -226,6 +241,9 @@ Respond ONLY with valid JSON. Do not include markdown codeblocks or other text.`
             unaccented.includes("xin chao") ||
             unaccented.includes("cua hang o dau")) {
             intent = "general_product_question";
+        }
+        else if (isGeneralKnowledge || (!detectedBrand && !detectedCategory && keywords.length === 0 && !priceInfo.minPrice && !priceInfo.maxPrice && !contextRef)) {
+            intent = "external_knowledge";
         }
         return {
             intent,
@@ -255,7 +273,8 @@ Respond ONLY with valid JSON. Do not include markdown codeblocks or other text.`
             "brand_query",
             "comparison",
             "recommendation",
-            "general_product_question"
+            "general_product_question",
+            "external_knowledge"
         ];
         const intent = validIntents.includes(raw.intent) ? raw.intent : "product_search";
         let minPrice = null;

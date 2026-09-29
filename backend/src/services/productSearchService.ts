@@ -13,7 +13,8 @@ export interface StructuredProductQuery {
     | "brand_query"
     | "comparison"
     | "recommendation"
-    | "general_product_question";
+    | "general_product_question"
+    | "external_knowledge";
   category?: string | null;
   brand?: string | null;
   keywords?: string[];

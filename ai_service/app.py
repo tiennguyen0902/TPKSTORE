@@ -6,6 +6,7 @@ Version: 2.2.0
 """
 
 import os
+import re
 import logging
 import requests
 from typing import List, Dict, Any, Optional
@@ -151,7 +152,10 @@ def _build_context_prompt(
 
     ctx += (
         "3. Nếu phù hợp và tự nhiên, bạn có thể gợi ý các thiết bị công nghệ "
-        "hoặc sản phẩm liên quan của SHOPBEE.\n\n"
+        "hoặc sản phẩm liên quan của SHOPBEE.\n"
+        "4. BẢO MẬT & LOẠI TRỪ NỘI DUNG NHẠY CẢM: Tuyệt đối không cung cấp, tạo hoặc hỗ trợ "
+        "các nội dung 18+, khiêu dâm, bạo lực, ma túy, cờ bạc lừa đảo, tấn công mạng, chính trị cực đoan. "
+        "Không bao giờ tiết lộ API Key, Database URL, mật khẩu hoặc dữ liệu khách hàng.\n\n"
     )
 
     if matched_policies:
@@ -189,15 +193,27 @@ def _call_gemini(
             "temperature": 0.6,
             "maxOutputTokens": 8192,
         },
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_LOW_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+        ],
     }
     try:
         resp = requests.post(url, json=payload, timeout=timeout)
         if resp.status_code == 200:
             candidate = resp.json().get("candidates", [{}])[0]
+            if candidate.get("finishReason") == "SAFETY":
+                return "Dạ xin lỗi bạn, câu hỏi này chứa nội dung nằm ngoài phạm vi an toàn cho phép theo chính sách cộng đồng. Tôi luôn sẵn sàng hỗ trợ bạn về kiến thức công nghệ, đời sống và các sản phẩm của SHOPBEE!"
             parts = candidate.get("content", {}).get("parts", [])
             text_parts = [p.get("text", "") for p in parts if "text" in p]
             if text_parts:
-                return "".join(text_parts).strip()
+                raw_text = "".join(text_parts).strip()
+                # Sanitize secret keys
+                raw_text = re.sub(r"AQ\.[A-Za-z0-9_-]{30,}", "[BẢO MẬT API KEY]", raw_text)
+                raw_text = re.sub(r"postgresql://\S+", "[BẢO MẬT DATABASE_URL]", raw_text)
+                return raw_text
         logger.warning(f"Gemini model {model} returned {resp.status_code}: {resp.text[:120]}")
     except Exception as exc:
         logger.warning(f"Error calling Gemini model {model}: {exc}")
@@ -374,6 +390,23 @@ def rag_chat(req: ChatRequest):
     norm_query = remove_accents(query)
     provider = (req.provider or "gemini").lower().strip()
 
+    # ── 0. Pre-filter prohibited / sensitive content ─────────────────────── #
+    prohibited_pattern = re.compile(
+        r"(khiêu\s*dâm|phim\s*sex|đồi\s*trụy|gái\s*gọi|ấu\s*dâm|loạn\s*luân|chế\s*tạo\s*bom|thuốc\s*nổ|tự\s*tử|tự\s*sát|tự\s*hại|ma\s*túy|thuốc\s*lắc|đánh\s*bạc|hack\s*tài\s*khoản|chống\s*phá\s*nhà\s*nước|khủng\s*bố|reveal\s*api\s*key|mật\s*khẩu\s*database)",
+        re.IGNORECASE
+    )
+    if prohibited_pattern.search(query):
+        return {
+            "reply": "Dạ xin lỗi bạn, câu hỏi của bạn chứa nội dung nằm ngoài phạm vi an toàn cho phép theo chính sách cộng đồng. Tôi luôn sẵn sàng giải đáp các thắc mắc về công nghệ, đời sống và sản phẩm của SHOPBEE!",
+            "suggestedProducts": [],
+            "suggestedQuickReplies": ["Tư vấn Laptop AI", "Tai nghe chống ồn", "Chính sách bảo hành"],
+            "source": "SHOPBEE AI",
+            "provider": "gemini",
+            "model": req.geminiModel or DEFAULT_GEMINI_MODEL,
+            "isExternalQuery": False,
+            "disclaimer": "ℹ️ Yêu cầu được lọc theo chính sách an toàn thông tin."
+        }
+
     # ── 1. Parse budget constraints ───────────────────────────────────────── #
     budget = parse_budget(query)
     min_p = budget.get("min_price")
@@ -435,7 +468,7 @@ def rag_chat(req: ChatRequest):
             reply_text = _call_gemini(gemini_key, model, full_prompt)
             if reply_text:
                 logger.info(f"Chat response via Gemini model: {model}")
-                source_label = f"Google Gemini ({target_model}) - Tri thức mở rộng" if is_external_query else f"Google Gemini RAG ({target_model})"
+                source_label = f"Google Gemini ({target_model})"
                 return {
                     "reply": reply_text,
                     "suggestedProducts": matched_products,
