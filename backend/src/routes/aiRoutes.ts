@@ -472,69 +472,75 @@ Chính sách: Đổi trả miễn phí 7 ngày, bảo hành 1 đổi 1 chính h�
     cleanImageBase64 = imageBase64.includes(";base64,") ? imageBase64.split(";base64,")[1] : imageBase64;
   }
 
-  try {
+  const candidateUrls = [
+    url,
+    url.includes("localhost") ? url.replace("localhost", "host.docker.internal") : null,
+    url.includes("127.0.0.1") ? url.replace("127.0.0.1", "host.docker.internal") : null
+  ].filter(Boolean) as string[];
 
-    const userPayload: any = { role: "user", content: userMessage };
-    if (cleanImageBase64) {
-      userPayload.images = [cleanImageBase64];
-    }
-    messages.push(userPayload);
-
-    const resp = await axios.post(
-      `${url}/api/chat`,
-      {
-        model: targetModel,
-        messages,
-        stream: false,
-        options: { temperature: 0.6 }
-      },
-      { timeout: 25000 }
-    );
-
-    const reply = resp.data?.message?.content?.trim();
-    if (reply) {
-      return {
-        reply,
-        suggestedProducts: matchedProducts.length > 0 ? matchedProducts.slice(0, 3) : (products || []).slice(0, 3),
-        model: `Local Ollama (${targetModel})`
-      };
-    }
-  } catch (err: any) {
-    // Try OpenAI-compatible local endpoints (e.g. LM Studio, LocalAI, vLLM on same port or /v1)
+  for (const activeUrl of candidateUrls) {
     try {
-      const v1Messages = [...messages.slice(0, -1)];
+      const userPayload: any = { role: "user", content: userMessage };
       if (cleanImageBase64) {
-        v1Messages.push({
-          role: "user",
-          content: [
-            { type: "text", text: userMessage },
-            { type: "image_url", image_url: { url: imageBase64?.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${cleanImageBase64}` } }
-          ]
-        });
-      } else {
-        v1Messages.push({ role: "user", content: userMessage });
+        userPayload.images = [cleanImageBase64];
       }
+      const chatMessages = [...messages, userPayload];
 
-      const v1Resp = await axios.post(
-        `${url}/v1/chat/completions`,
+      const resp = await axios.post(
+        `${activeUrl}/api/chat`,
         {
           model: targetModel,
-          messages: v1Messages,
-          temperature: 0.6,
-          max_tokens: 1500
+          messages: chatMessages,
+          stream: false,
+          options: { temperature: 0.6 }
         },
-        { timeout: 25000 }
+        { timeout: 35000 }
       );
 
-      const v1Text = v1Resp.data?.choices?.[0]?.message?.content?.trim();
-      if (v1Text) {
+      const reply = resp.data?.message?.content?.trim();
+      if (reply) {
         return {
-          reply: v1Text,
+          reply,
           suggestedProducts: matchedProducts.length > 0 ? matchedProducts.slice(0, 3) : (products || []).slice(0, 3),
-          model: `Local LLM Vision (${targetModel})`
+          model: `Local Ollama (${targetModel})`
         };
       }
-    } catch (e2) {}
+    } catch (err: any) {
+      try {
+        const v1Messages = [...messages];
+        if (cleanImageBase64) {
+          v1Messages.push({
+            role: "user",
+            content: [
+              { type: "text", text: userMessage },
+              { type: "image_url", image_url: { url: imageBase64?.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${cleanImageBase64}` } }
+            ]
+          });
+        } else {
+          v1Messages.push({ role: "user", content: userMessage });
+        }
+
+        const v1Resp = await axios.post(
+          `${activeUrl}/v1/chat/completions`,
+          {
+            model: targetModel,
+            messages: v1Messages,
+            temperature: 0.6,
+            max_tokens: 1500
+          },
+          { timeout: 35000 }
+        );
+
+        const v1Text = v1Resp.data?.choices?.[0]?.message?.content?.trim();
+        if (v1Text) {
+          return {
+            reply: v1Text,
+            suggestedProducts: matchedProducts.length > 0 ? matchedProducts.slice(0, 3) : (products || []).slice(0, 3),
+            model: `Local LLM Vision (${targetModel})`
+          };
+        }
+      } catch (e2) {}
+    }
   }
 
   // Built-in Local Offline Engine Fallback (Zero external dependencies)

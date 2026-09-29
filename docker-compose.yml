@@ -34,6 +34,8 @@ services:
       dockerfile: Dockerfile
     container_name: store_ai_microservice
     restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -52,6 +54,8 @@ services:
       dockerfile: Dockerfile
     container_name: store_ai_backend
     restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     dns:
       - 8.8.8.8
       - 8.8.4.4
