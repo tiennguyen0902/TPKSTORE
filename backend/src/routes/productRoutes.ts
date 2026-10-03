@@ -101,8 +101,8 @@ router.get("/:idOrSlug", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/products (Admin Only)
-router.post("/", authenticateToken, authorize(["ADMIN"]), async (req: Request, res: Response) => {
+// POST /api/products (Admin & Manager)
+router.post("/", authenticateToken, authorize(["ADMIN", "MANAGER"]), async (req: Request, res: Response) => {
   try {
     const { name, description, price, originalPrice, stock, categoryId, thumbnail, images, isFeatured, isNew } = req.body;
 
@@ -158,8 +158,8 @@ router.post("/", authenticateToken, authorize(["ADMIN"]), async (req: Request, r
   }
 });
 
-// PUT /api/products/:id (Admin Only)
-router.put("/:id", authenticateToken, authorize(["ADMIN"]), async (req: Request, res: Response) => {
+// PUT /api/products/:id (Admin & Manager)
+router.put("/:id", authenticateToken, authorize(["ADMIN", "MANAGER"]), async (req: Request, res: Response) => {
   try {
     const existing = await db.product.findUnique({ where: { id: req.params.id } });
     if (!existing) {
@@ -202,8 +202,8 @@ router.put("/:id", authenticateToken, authorize(["ADMIN"]), async (req: Request,
   }
 });
 
-// DELETE /api/products/:id (Admin Only)
-router.delete("/:id", authenticateToken, authorize(["ADMIN"]), async (req: Request, res: Response) => {
+// DELETE /api/products/:id (Admin & Manager)
+router.delete("/:id", authenticateToken, authorize(["ADMIN", "MANAGER"]), async (req: Request, res: Response) => {
   try {
     const existing = await db.product.findUnique({ where: { id: req.params.id } });
     if (!existing) {

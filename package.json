@@ -13,6 +13,7 @@
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:ai": "cd ai_service && python app.py",
+    "test": "node backend/test/core_business_ai.test.js",
     "docker:up": "docker-compose up --build -d",
     "docker:down": "docker-compose down"
   },

@@ -50,6 +50,7 @@ export const FloatingChatWidget: React.FC<{
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
 
   const { addToCart } = useCart();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -276,45 +277,70 @@ export const FloatingChatWidget: React.FC<{
     setSelectedImage(null);
     setIsLoading(true);
 
+    const history = messages.map(m => ({
+      role: m.sender === "user" ? "user" : "assistant",
+      content: m.text
+    }));
+
+    const aiMsgId = `msg_a_${Date.now()}`;
+    let hasReceivedFirstToken = false;
+    setStreamingMsgId(aiMsgId);
+
     try {
-      const history = messages.map(m => ({
-        role: m.sender === "user" ? "user" : "assistant",
-        content: m.text
-      }));
-
-      const res = await api.chatWithAi(defaultText, history, selectedProvider, imagePayload || undefined);
-
-      if (res.error) {
-        throw new Error(res.error);
-      }
-
-      const aiMsg: ChatMessage = {
-        id: `msg_a_${Date.now()}`,
-        sender: "ai",
-        text: res.reply || "Tôi đã ghi nhận thông tin từ bạn.",
-        suggestedProducts: res.suggestedProducts || [],
-        suggestedQuickReplies: res.suggestedQuickReplies || [],
-        disclaimer: res.disclaimer,
-        source: res.source || (selectedProvider === "local" ? "Mô hình Local AI" : "Google Gemini 3.x AI"),
-        isExternalQuery: res.isExternalQuery,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      };
-
-      setMessages(prev => [...prev, aiMsg]);
+      await api.chatWithAiStream(
+        defaultText,
+        history,
+        selectedProvider,
+        imagePayload || undefined,
+        (token) => {
+          if (!hasReceivedFirstToken) {
+            hasReceivedFirstToken = true;
+            setIsLoading(false);
+            const initialAiMsg: ChatMessage = {
+              id: aiMsgId,
+              sender: "ai",
+              text: token,
+              source: selectedProvider === "local" ? "Local Ollama" : "Google Gemini 3.x AI",
+              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            };
+            setMessages(prev => [...prev, initialAiMsg]);
+          } else {
+            setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, text: m.text + token } : m));
+          }
+        },
+        (meta) => {
+          setStreamingMsgId(null);
+          setIsLoading(false);
+          setMessages(prev => prev.map(m => m.id === aiMsgId ? {
+            ...m,
+            suggestedProducts: meta.suggestedProducts || [],
+            suggestedQuickReplies: meta.suggestedQuickReplies || [],
+            source: meta.source || m.source
+          } : m));
+        },
+        (err) => {
+          setStreamingMsgId(null);
+          setIsLoading(false);
+          const isPermissionErr = err.message?.includes("quyền") || err.message?.includes("403");
+          const errorMsg: ChatMessage = {
+            id: `msg_err_${Date.now()}`,
+            sender: "ai",
+            text: isPermissionErr 
+              ? "🔒 **Tài khoản chưa được cấp quyền AI**: Quản trị viên chưa kích hoạt tính năng chat AI cho tài khoản này. Vui lòng báo Admin cấp quyền trong mục Quản lý Khách hàng!"
+              : (selectedProvider === "local" 
+                  ? "⚡ **Kết nối Local AI**: Đang sử dụng cơ chế phản hồi cục bộ dự phòng thông minh. Bạn có thể kiểm tra Ollama đang chạy trên máy (port 11434) hoặc chuyển sang Google Gemini trong thanh chọn bên trên nhé!"
+                  : "Dạ xin lỗi bạn, hệ thống AI tạm thời đang bận kết nối. Bạn có thể thử đổi sang mô hình Local AI hoặc kiểm tra lại sau nhé!"),
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          };
+          if (!hasReceivedFirstToken) {
+            setMessages(prev => [...prev, errorMsg]);
+          } else {
+            setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, text: m.text + "\n\n*(Đã hoàn tất)*" } : m));
+          }
+        }
+      );
     } catch (err: any) {
-      const isPermissionErr = err.message?.includes("quyền") || err.message?.includes("403");
-      const errorMsg: ChatMessage = {
-        id: `msg_err_${Date.now()}`,
-        sender: "ai",
-        text: isPermissionErr 
-          ? "🔒 **Tài khoản chưa được cấp quyền AI**: Quản trị viên chưa kích hoạt tính năng chat AI cho tài khoản này. Vui lòng báo Admin cấp quyền trong mục Quản lý Khách hàng!"
-          : (selectedProvider === "local" 
-              ? "⚡ **Kết nối Local AI**: Đang sử dụng cơ chế phản hồi cục bộ dự phòng thông minh. Bạn có thể kiểm tra Ollama đang chạy trên máy (port 11434) hoặc chuyển sang Google Gemini trong thanh chọn bên trên nhé!"
-              : "Dạ xin lỗi bạn, hệ thống AI tạm thời đang bận kết nối. Bạn có thể thử đổi sang mô hình Local AI hoặc kiểm tra lại sau nhé!"),
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      };
-      setMessages(prev => [...prev, errorMsg]);
-    } finally {
+      setStreamingMsgId(null);
       setIsLoading(false);
     }
   };
@@ -516,6 +542,9 @@ export const FloatingChatWidget: React.FC<{
                         </span>
                       );
                     })}
+                    {streamingMsgId === msg.id && (
+                      <span className="inline-block w-1.5 h-3.5 bg-rose-600 animate-pulse ml-0.5 align-middle" />
+                    )}
                   </div>
 
                   {/* Embedded Product Cards inside AI Message */}

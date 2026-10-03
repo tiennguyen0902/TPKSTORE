@@ -8,7 +8,11 @@ import {
   Sparkles, 
   RefreshCw, 
   ArrowRight,
-  CheckCircle2 
+  CheckCircle2,
+  FileSpreadsheet,
+  Bot,
+  Send,
+  Loader2
 } from "lucide-react";
 import { api } from "../services/api";
 
@@ -22,6 +26,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
   const [totalUsers, setTotalUsers] = useState(8);
   const [alertCount, setAlertCount] = useState(5);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Admin Sales Intelligence Q&A State
+  const [qaInput, setQaInput] = useState("");
+  const [qaAnswer, setQaAnswer] = useState<string | null>(null);
+  const [qaLoading, setQaLoading] = useState(false);
+  const [qaSource, setQaSource] = useState<string>("");
 
   // 14-day historical curve (Unit: Million VND) matching screenshot
   const revenuePoints = [
@@ -76,6 +86,64 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
     handleRefresh();
   }, []);
 
+  const handleExportRevenueReport = () => {
+    const headers = ["Chỉ số / Ngày", "Giá trị", "Đơn vị / Ghi chú"];
+    const summaryRows = [
+      ["Tổng doanh thu ghi nhận", totalRevenue.toLocaleString("vi-VN"), "VND"],
+      ["Tổng đơn hàng hệ thống", totalOrders, "Đơn"],
+      ["Tổng khách hàng đăng ký", totalUsers, "Người dùng"],
+      ["Cảnh báo cạn kho thông minh", alertCount, "Sản phẩm cần nhập"],
+      ["", "", ""],
+      ["--- DOANH THU 14 NGÀY GẦN NHẤT ---", "", ""],
+      ["Ngày", "Doanh thu (Triệu VND)", ""]
+    ];
+
+    const revRows = revenuePoints.map(p => [p.day, p.val, "Triệu VND"]);
+
+    const orderRowsHeader = [
+      ["", "", ""],
+      ["--- SỐ LƯỢNG ĐƠN HÀNG 7 NGÀY ---", "", ""],
+      ["Ngày", "Số lượng đơn", ""]
+    ];
+    const ordRows = orderBars.map(b => [b.day, b.count, "Đơn hàng"]);
+
+    const allData = [
+      headers,
+      ...summaryRows,
+      ...revRows,
+      ...orderRowsHeader,
+      ...ordRows
+    ];
+
+    const csvContent = "\uFEFF" + allData.map(r => r.map(c => `"${c}"`).join(",")).join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Bao_cao_doanh_thu_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleAskQA = async (queryText?: string) => {
+    const q = (queryText || qaInput).trim();
+    if (!q) return;
+    if (queryText) setQaInput(queryText);
+    setQaLoading(true);
+    setQaAnswer(null);
+    try {
+      const res = await api.askAdminSalesQA(q);
+      setQaAnswer(res.answer);
+      setQaSource(res.source || "AI Sales Intelligence Engine");
+    } catch (err: any) {
+      setQaAnswer("❌ Đã xảy ra lỗi khi phân tích: " + (err.message || "Vui lòng thử lại"));
+    } finally {
+      setQaLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-16">
       {/* Top Welcome & Refresh Banner */}
@@ -85,17 +153,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             Xin chào, Admin! 👋
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Đây là tổng quan hoạt động của SHOPBEE hôm nay.
+            Đây là tổng quan hoạt động kinh doanh của SHOPBEE hôm nay.
           </p>
         </div>
 
-        <button
-          onClick={handleRefresh}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-xs transition-all"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 text-rose-600 ${isLoading ? "animate-spin" : ""}`} />
-          <span>Làm mới</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportRevenueReport}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-all"
+            title="Xuất báo cáo doanh thu ra file Excel / CSV chuẩn UTF-8"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Xuất Báo Cáo Doanh Thu</span>
+          </button>
+
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-xs transition-all"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-rose-600 ${isLoading ? "animate-spin" : ""}`} />
+            <span>Làm mới</span>
+          </button>
+        </div>
       </div>
 
       {/* 4 KPI Cards (Matching Screenshot) */}
@@ -330,6 +409,94 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
             ))}
           </div>
         </div>
+      </div>
+
+      {/* AI Sales Intelligence Copilot Section (Yêu cầu chức năng 3.2 mục 3) */}
+      <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white shadow-xl space-y-4 border border-slate-700/50">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-500 to-indigo-500 flex items-center justify-center shadow-md">
+              <Bot className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm tracking-wide text-white">TRỢ LÝ AI HỎI ĐÁP BÁN HÀNG & DOANH THU</h3>
+                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-rose-500/30 text-rose-300 border border-rose-500/40">
+                  STORE COPILOT
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Chủ cửa hàng đặt câu hỏi tự nhiên về doanh số, mặt hàng bán chậm, tồn đọng để AI phân tích trực tiếp từ CSDL
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Suggestion Chips */}
+        <div className="flex flex-wrap gap-2 pt-1">
+          {[
+            "Tháng này mặt hàng nào bán chậm?",
+            "Top 5 sản phẩm đem lại doanh thu cao nhất?",
+            "Tổng kết tình hình kinh doanh hôm nay và khuyến nghị tồn kho",
+            "Mặt hàng nào có nguy cơ tồn đọng vốn cao nhất?"
+          ].map((promptText, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleAskQA(promptText)}
+              disabled={qaLoading}
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white text-xs font-medium border border-white/10 transition-colors disabled:opacity-50 text-left"
+            >
+              💬 {promptText}
+            </button>
+          ))}
+        </div>
+
+        {/* Question Input Bar */}
+        <div className="flex items-center gap-2 pt-1">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={qaInput}
+              onChange={(e) => setQaInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !qaLoading && handleAskQA()}
+              placeholder="Hỏi AI: Ví dụ 'Tháng này mặt hàng nào bán chậm?' hoặc 'Phân tích doanh thu'..."
+              className="w-full bg-slate-950/70 border border-slate-700 rounded-2xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-colors"
+            />
+          </div>
+          <button
+            onClick={() => handleAskQA()}
+            disabled={qaLoading || !qaInput.trim()}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          >
+            {qaLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Đang phân tích CSDL...</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                <span>Phân tích</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* AI Answer Display Area */}
+        {qaAnswer && (
+          <div className="mt-4 p-5 rounded-2xl bg-slate-950/80 border border-indigo-500/30 text-xs text-slate-200 space-y-2 animate-in fade-in">
+            <div className="flex items-center justify-between text-[11px] pb-2 border-b border-slate-800 text-slate-400">
+              <span className="flex items-center gap-1.5 text-indigo-400 font-semibold">
+                <Sparkles className="w-3.5 h-3.5" />
+                Kết quả phân tích từ AI:
+              </span>
+              <span className="font-mono text-[10px] text-slate-500">{qaSource}</span>
+            </div>
+            <div className="whitespace-pre-line leading-relaxed text-slate-200">
+              {qaAnswer}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

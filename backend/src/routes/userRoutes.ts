@@ -4,8 +4,8 @@ import { authenticateToken, authorize, AuthenticatedRequest } from "../middlewar
 
 const router = Router();
 
-// GET /api/users (Admin & Staff view customer list)
-router.get("/", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
+// GET /api/users (Admin, Manager & Staff view customer list)
+router.get("/", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { role, search } = req.query;
 

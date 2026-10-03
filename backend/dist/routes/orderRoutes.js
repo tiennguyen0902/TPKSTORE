@@ -124,8 +124,8 @@ router.get("/my", auth_1.authenticateToken, async (req, res) => {
         return res.status(500).json({ error: "Lỗi truy vấn đơn hàng: " + err.message });
     }
 });
-// GET /api/orders (Admin / Staff view all orders)
-router.get("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "STAFF"]), async (req, res) => {
+// GET /api/orders (Admin / Manager / Staff view all orders)
+router.get("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER", "STAFF"]), async (req, res) => {
     try {
         const { status, search } = req.query;
         const where = {};
@@ -175,8 +175,8 @@ router.get("/:id", auth_1.authenticateToken, async (req, res) => {
         return res.status(500).json({ error: "Lỗi truy vấn: " + err.message });
     }
 });
-// PUT /api/orders/:id/status (Admin / Staff update state machine)
-router.put("/:id/status", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "STAFF"]), async (req, res) => {
+// PUT /api/orders/:id/status (Admin / Manager / Staff update state machine)
+router.put("/:id/status", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER", "STAFF"]), async (req, res) => {
     try {
         const order = await db_1.db.order.findUnique({
             where: { id: req.params.id },

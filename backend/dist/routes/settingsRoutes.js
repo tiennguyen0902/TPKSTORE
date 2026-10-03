@@ -1,9 +1,14 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "store_ai_access_secret_super_secure_key_2026";
 // GET /api/settings
 router.get("/", async (req, res) => {
     try {
@@ -14,7 +19,42 @@ router.get("/", async (req, res) => {
                 data: { id: "default" }
             });
         }
-        return res.json(settings);
+        // Kiểm tra xem người gọi có phải là Quản trị viên (ADMIN) không
+        let isAdmin = false;
+        const authHeader = req.headers["authorization"];
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+            const token = authHeader.split(" ")[1];
+            try {
+                const decoded = jsonwebtoken_1.default.verify(token, JWT_ACCESS_SECRET);
+                if (decoded && (decoded.role === "ADMIN" || decoded.role === "MANAGER")) {
+                    isAdmin = true;
+                }
+            }
+            catch (err) {
+                // Token không hợp lệ hoặc hết hạn => coi như khách vãng lai
+            }
+        }
+        // Nếu là Admin / Manager: Trả về đầy đủ cấu hình để giao diện quản trị hiển thị & cập nhật
+        if (isAdmin) {
+            return res.json(settings);
+        }
+        // Khách vãng lai / Khách hàng: TUYỆT ĐỐI KHÔNG để lộ API Key và bí mật thanh toán
+        const publicSettings = {
+            id: settings.id,
+            storeName: settings.storeName,
+            hotline: settings.hotline,
+            supportEmail: settings.supportEmail,
+            freeShippingThreshold: settings.freeShippingThreshold,
+            aiProvider: settings.aiProvider,
+            geminiModel: settings.geminiModel,
+            localAiModel: settings.localAiModel,
+            aiServiceUrl: settings.aiServiceUrl,
+            vnpayTmnCode: settings.vnpayTmnCode ? "SANDBOX_STORE_AI" : undefined,
+            momoPartnerCode: settings.momoPartnerCode ? "MOMO" : undefined,
+            createdAt: settings.createdAt,
+            updatedAt: settings.updatedAt
+        };
+        return res.json(publicSettings);
     }
     catch (err) {
         return res.status(500).json({ error: "Lỗi truy vấn cài đặt: " + err.message });

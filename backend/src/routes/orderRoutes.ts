@@ -138,8 +138,8 @@ router.get("/my", authenticateToken, async (req: AuthenticatedRequest, res: Resp
   }
 });
 
-// GET /api/orders (Admin / Staff view all orders)
-router.get("/", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
+// GET /api/orders (Admin / Manager / Staff view all orders)
+router.get("/", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { status, search } = req.query;
 
@@ -197,8 +197,8 @@ router.get("/:id", authenticateToken, async (req: AuthenticatedRequest, res: Res
   }
 });
 
-// PUT /api/orders/:id/status (Admin / Staff update state machine)
-router.put("/:id/status", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
+// PUT /api/orders/:id/status (Admin / Manager / Staff update state machine)
+router.put("/:id/status", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const order = await db.order.findUnique({
       where: { id: req.params.id },

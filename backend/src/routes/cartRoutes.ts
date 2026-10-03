@@ -80,6 +80,8 @@ router.post("/items", authenticateToken, async (req: AuthenticatedRequest, res: 
       return res.status(400).json({ error: "Vui lòng cung cấp productId." });
     }
 
+    const addQty = Math.max(1, parseInt(String(quantity), 10) || 1);
+
     const product = await db.product.findFirst({
       where: { OR: [{ id: productId }, { slug: productId }] },
       include: { category: true }
@@ -88,7 +90,8 @@ router.post("/items", authenticateToken, async (req: AuthenticatedRequest, res: 
       return res.status(404).json({ error: "Sản phẩm không tồn tại." });
     }
 
-    if (product.stock <= 0) {
+    const availableStock = typeof product.stock === "number" ? product.stock : (parseInt(String(product.stock)) || 0);
+    if (availableStock <= 0) {
       return res.status(400).json({ error: "Sản phẩm hiện đang hết hàng." });
     }
 
@@ -106,17 +109,28 @@ router.post("/items", authenticateToken, async (req: AuthenticatedRequest, res: 
 
     let item;
     if (existingItem) {
+      const newQty = existingItem.quantity + addQty;
+      if (newQty > availableStock) {
+        return res.status(400).json({
+          error: `Không thể thêm! Tổng số lượng trong giỏ (${newQty}) vượt quá tồn kho khả dụng (${availableStock} SP).`
+        });
+      }
       item = await db.cartItem.update({
         where: { id: existingItem.id },
-        data: { quantity: existingItem.quantity + (quantity || 1) },
+        data: { quantity: newQty },
         include: { product: { include: { category: true } } }
       });
     } else {
+      if (addQty > availableStock) {
+        return res.status(400).json({
+          error: `Số lượng yêu cầu (${addQty}) vượt quá tồn kho khả dụng (${availableStock} SP).`
+        });
+      }
       item = await db.cartItem.create({
         data: {
           cartId: cart.id,
           productId: product.id,
-          quantity: Math.max(1, quantity || 1),
+          quantity: addQty,
         },
         include: { product: { include: { category: true } } }
       });
@@ -143,17 +157,25 @@ router.put("/items/:id", authenticateToken, async (req: AuthenticatedRequest, re
 
     const cart = await getOrCreateUserCart(userId);
     const item = await db.cartItem.findFirst({
-      where: { id: req.params.id, cartId: cart.id }
+      where: { id: req.params.id, cartId: cart.id },
+      include: { product: true }
     });
 
     if (!item) {
       return res.status(404).json({ error: "Mặt hàng không tồn tại trong giỏ." });
     }
 
-    const qty = parseInt(quantity);
-    if (qty <= 0) {
+    const qty = parseInt(String(quantity), 10);
+    if (isNaN(qty) || qty <= 0) {
       await db.cartItem.delete({ where: { id: req.params.id } });
-      return res.json({ message: "Cập nhật số lượng thành công!", result: { deleted: true } });
+      return res.json({ message: "Đã xóa sản phẩm khỏi giỏ hàng!", result: { deleted: true } });
+    }
+
+    const prodStock = item.product?.stock ?? 999;
+    if (qty > prodStock) {
+      return res.status(400).json({
+        error: `Số lượng cập nhật (${qty}) vượt quá số lượng tồn kho hiện có (${prodStock} SP).`
+      });
     }
 
     const updated = await db.cartItem.update({

@@ -111,8 +111,16 @@ router.post("/create-momo-url", auth_1.authenticateToken, async (req, res) => {
 // POST /api/payment/momo-ipn (MoMo Instant Payment Notification Webhook)
 router.post("/momo-ipn", async (req, res) => {
     try {
-        const { orderId, resultCode, message, transId, amount, extraData } = req.body;
+        const { orderId, resultCode, message, transId, amount, extraData, signature } = req.body;
         console.log(`[MoMo IPN] Nhận callback đơn hàng ${orderId}, ResultCode: ${resultCode}, TransId: ${transId}`);
+        // Xác thực chữ ký số bảo mật của MoMo nếu có gửi kèm signature
+        if (signature) {
+            const isValid = await momoService_1.MomoPaymentService.verifyIpnSignature(req.body);
+            if (!isValid) {
+                console.warn(`[MoMo IPN] ⚠️ Chữ ký không hợp lệ cho đơn hàng ${orderId}!`);
+                return res.status(400).json({ message: "Invalid Signature - Xác thực chữ ký MoMo thất bại" });
+            }
+        }
         let origOrderId = "";
         if (extraData) {
             try {
@@ -156,9 +164,10 @@ router.post("/momo-ipn", async (req, res) => {
         return res.status(500).json({ error: err.message });
     }
 });
-// POST /api/payment/momo-confirm (Xác nhận nhanh thanh toán MoMo trên client / simulator)
+// POST /api/payment/momo-confirm (Xác nhận thanh toán MoMo trên client / simulator)
 router.post("/momo-confirm", auth_1.authenticateToken, async (req, res) => {
     try {
+        const user = req.user;
         const { orderId, resultCode = 0, transId } = req.body;
         const order = await db_1.db.order.findFirst({
             where: {
@@ -170,6 +179,10 @@ router.post("/momo-confirm", auth_1.authenticateToken, async (req, res) => {
         });
         if (!order) {
             return res.status(404).json({ error: "Không tìm thấy đơn hàng." });
+        }
+        // Bảo mật chống IDOR: Khách hàng chỉ được xác nhận thanh toán đơn của chính mình
+        if (user.role === "CUSTOMER" && order.userId !== user.id) {
+            return res.status(403).json({ error: "Bạn không có quyền xác nhận thanh toán cho đơn hàng này." });
         }
         if (Number(resultCode) === 0) {
             const updated = await db_1.db.order.update({

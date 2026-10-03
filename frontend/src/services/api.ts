@@ -432,6 +432,66 @@ export const api = {
     return res.json();
   },
 
+  async chatWithAiStream(
+    message: string,
+    history: any[] = [],
+    provider = "local",
+    image?: string,
+    onToken?: (token: string) => void,
+    onComplete?: (metadata: any) => void,
+    onError?: (err: any) => void
+  ) {
+    try {
+      const res = await fetch(`${API_BASE}/ai/chat-stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader()
+        },
+        body: JSON.stringify({ message, history, provider, image })
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Lỗi kết nối máy chủ AI (${res.status})`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("Không thể khởi tạo luồng đọc dữ liệu thời gian thực");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("data:")) {
+            const jsonStr = trimmed.slice(5).trim();
+            if (!jsonStr) continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              if (parsed.token && onToken) {
+                onToken(parsed.token);
+              }
+              if (parsed.done && onComplete) {
+                onComplete(parsed);
+              }
+            } catch (e) {}
+          }
+        }
+      }
+    } catch (err: any) {
+      if (onError) onError(err);
+      else throw err;
+    }
+  },
+
   async transcribeAudio(audioBlob: Blob): Promise<{ transcript: string }> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -498,6 +558,18 @@ export const api = {
     return res.json();
   },
 
+  async askAdminSalesQA(question: string): Promise<{ answer: string; source: string; metrics: any }> {
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
+    const res = await fetch(`${API_BASE}/ai/admin-qa`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ question })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Không thể xử lý câu hỏi");
+    return json;
+  },
+
   // Admin User Management & Settings
   async getAllUsers(role?: string, search?: string): Promise<{ total: number; users: User[] }> {
     const url = buildUrl("/users");
@@ -552,7 +624,9 @@ export const api = {
   },
 
   async getSettings(): Promise<SystemSettings> {
-    const res = await fetch(`${API_BASE}/settings`);
+    const res = await fetch(`${API_BASE}/settings`, {
+      headers: { ...getAuthHeader() }
+    });
     return res.json();
   },
 

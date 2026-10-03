@@ -262,10 +262,12 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
 
     console.log(`[AUTH] Mã OTP khôi phục mật khẩu cho ${normalizedEmail}: ${otp}`);
 
+    const isDev = process.env.NODE_ENV !== "production" || process.env.ENABLE_DEMO_OTP === "true";
+
     return res.json({
       message: "Mã xác thực OTP đã được tạo thành công!",
       email: normalizedEmail,
-      otp, // Trả về mã OTP phục vụ kiểm thử và demo trực quan
+      ...(isDev ? { otp } : {}), // Chỉ hiển thị OTP trong response khi ở môi trường Development / Demo
       expiresInMinutes: 15
     });
   } catch (err: any) {

@@ -144,11 +144,59 @@ paths:
       responses:
         200: { description: Dữ liệu dự báo 30 ngày & metrics }
 
-  /ai/inventory-alerts:
-    post:
-      summary: Phân tích và cảnh báo cạn kho thông minh (Safety Stock)
+  /settings:
+    get:
+      summary: Lấy cấu hình hệ thống (Public: thông tin công khai; Admin: đầy đủ cấu hình)
       responses:
-        200: { description: Danh sách cảnh báo tồn kho và khuyến nghị nhập }
+        200: { description: Thông tin cài đặt hệ thống }
+    put:
+      summary: Cập nhật cấu hình hệ thống (Admin Only)
+      security:
+        - BearerAuth: []
+      responses:
+        200: { description: Cập nhật cấu hình thành công }
+
+  /inventory/tickets:
+    get:
+      summary: Lấy danh sách phiếu nhập/xuất kho (Admin/Manager/Staff)
+      security:
+        - BearerAuth: []
+      responses:
+        200: { description: Danh sách phiếu kho }
+    post:
+      summary: Tạo phiếu yêu cầu nhập/xuất kho (Admin/Manager/Staff)
+      security:
+        - BearerAuth: []
+      responses:
+        201: { description: Tạo phiếu kho thành công }
+
+  /payment/create-momo-url:
+    post:
+      summary: Khởi tạo liên kết thanh toán MoMo Sandbox v2
+      security:
+        - BearerAuth: []
+      responses:
+        200: { description: Thông tin thanh toán MoMo (PayUrl, QR, Deeplink) }
+
+  /ai/admin-qa:
+    post:
+      summary: Trợ lý AI Q&A Báo cáo Bán hàng thông minh (Admin Sales Intelligence Copilot)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  example: "Tháng này mặt hàng nào bán chậm nhất và còn tồn kho nhiều?"
+      responses:
+        200:
+          description: Phân tích số liệu thực tế CSDL kèm khuyến nghị kinh doanh
 
 components:
   securitySchemes:

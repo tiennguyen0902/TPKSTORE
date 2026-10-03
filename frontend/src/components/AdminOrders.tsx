@@ -8,7 +8,10 @@ import {
   XCircle, 
   RotateCcw, 
   ChevronDown, 
-  ChevronUp 
+  ChevronUp,
+  FileSpreadsheet,
+  Printer,
+  Download
 } from "lucide-react";
 import { Order } from "../types";
 import { api } from "../services/api";
@@ -99,6 +102,156 @@ export const AdminOrders: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleExportCSV = () => {
+    if (orders.length === 0) {
+      alert("Không có dữ liệu đơn hàng để xuất!");
+      return;
+    }
+
+    const headers = [
+      "Mã đơn hàng",
+      "Khách hàng",
+      "Số điện thoại",
+      "Địa chỉ giao hàng",
+      "Phương thức thanh toán",
+      "Trạng thái thanh toán",
+      "Trạng thái đơn",
+      "Tiền hàng (VND)",
+      "Phí ship (VND)",
+      "Tổng thanh toán (VND)",
+      "Ngày đặt hàng"
+    ];
+
+    const rows = filteredOrders.map(o => [
+      `"${o.id}"`,
+      `"${(o.customerName || '').replace(/"/g, '""')}"`,
+      `"${o.phone || ''}"`,
+      `"${(o.shippingAddress || '').replace(/"/g, '""')}"`,
+      `"${o.paymentMethod || ''}"`,
+      `"${o.paymentStatus === 'COMPLETED' ? 'Đã thanh toán' : 'Chờ thanh toán'}"`,
+      `"${o.status}"`,
+      o.totalAmount || 0,
+      o.shippingFee || 0,
+      o.finalAmount || 0,
+      `"${new Date(o.createdAt).toLocaleString('vi-VN')}"`
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Danh_sach_don_hang_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePrintInvoice = (order: Order) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const itemsHtml = (order.items || []).map((it, idx) => `
+      <tr>
+        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${idx + 1}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${it.product?.name || it.productId}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${it.quantity}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${it.price.toLocaleString('vi-VN')} đ</td>
+        <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right; font-weight: bold;">${(it.price * it.quantity).toLocaleString('vi-VN')} đ</td>
+      </tr>
+    `).join("");
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Hóa Đơn Bán Hàng - ${order.id}</title>
+        <meta charset="utf-8" />
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #333; line-height: 1.5; }
+          .invoice-box { max-width: 800px; margin: auto; border: 1px solid #eee; padding: 30px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.15); border-radius: 8px; }
+          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e11d48; padding-bottom: 20px; margin-bottom: 20px; }
+          .store-name { font-size: 24px; font-weight: 900; color: #e11d48; letter-spacing: -0.5px; }
+          .invoice-title { font-size: 22px; font-weight: bold; text-align: right; color: #1e293b; }
+          .meta-info { margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+          th { background: #f8fafc; padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left; }
+          .totals { margin-top: 20px; float: right; width: 300px; }
+          .totals div { display: flex; justify-content: space-between; padding: 5px 0; }
+          .grand-total { border-top: 2px solid #333; font-size: 16px; font-weight: bold; color: #e11d48; padding-top: 8px !important; }
+          .footer { margin-top: 80px; clear: both; text-align: center; font-size: 12px; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 15px; }
+          @media print {
+            body { padding: 0; }
+            .invoice-box { border: none; box-shadow: none; padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-box">
+          <div class="header">
+            <div>
+              <div class="store-name">SHOPBEE / STORE AI</div>
+              <div style="font-size: 12px; color: #64748b;">Hệ thống bán lẻ công nghệ thông minh</div>
+              <div style="font-size: 12px; color: #64748b;">Hotline: 1900.8888 • Email: support@storeai.vn</div>
+            </div>
+            <div>
+              <div class="invoice-title">HÓA ĐƠN BÁN HÀNG</div>
+              <div style="font-size: 13px; text-align: right; color: #475569;">Mã ĐH: <strong>${order.id}</strong></div>
+              <div style="font-size: 12px; text-align: right; color: #64748b;">Ngày lập: ${new Date(order.createdAt).toLocaleDateString('vi-VN')}</div>
+            </div>
+          </div>
+
+          <div class="meta-info">
+            <div>
+              <strong style="color: #1e293b;">Khách hàng:</strong> ${order.customerName}<br />
+              <strong style="color: #1e293b;">Số điện thoại:</strong> ${order.phone}<br />
+              <strong style="color: #1e293b;">Địa chỉ giao:</strong> ${order.shippingAddress}
+            </div>
+            <div>
+              <strong style="color: #1e293b;">Phương thức:</strong> ${order.paymentMethod}<br />
+              <strong style="color: #1e293b;">Thanh toán:</strong> ${order.paymentStatus === 'COMPLETED' ? 'Đã hoàn tất' : 'Chưa thanh toán'}<br />
+              <strong style="color: #1e293b;">Trạng thái:</strong> ${order.status}
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;">STT</th>
+                <th>Tên sản phẩm</th>
+                <th style="width: 60px; text-align: center;">SL</th>
+                <th style="width: 120px; text-align: right;">Đơn giá</th>
+                <th style="width: 130px; text-align: right;">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <div class="totals">
+            <div><span>Tiền hàng:</span> <span>${(order.totalAmount || 0).toLocaleString('vi-VN')} đ</span></div>
+            <div><span>Phí vận chuyển:</span> <span>${(order.shippingFee || 0).toLocaleString('vi-VN')} đ</span></div>
+            ${order.discountAmount ? `<div><span>Giảm giá:</span> <span>-${order.discountAmount.toLocaleString('vi-VN')} đ</span></div>` : ''}
+            <div class="grand-total"><span>TỔNG CỘNG:</span> <span>${(order.finalAmount || 0).toLocaleString('vi-VN')} đ</span></div>
+          </div>
+
+          <div class="footer">
+            <p>Cảm ơn quý khách đã tin tưởng và mua sắm tại <strong>SHOPBEE STORE AI</strong>!</p>
+            <p style="font-style: italic;">(Hóa đơn điện tử khởi tạo tự động từ hệ thống quản lý bán hàng)</p>
+          </div>
+        </div>
+        <script>
+          window.onload = function() { window.print(); }
+        </script>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   return (
     <div className="space-y-6 pb-16">
       {/* Header */}
@@ -115,24 +268,35 @@ export const AdminOrders: React.FC = () => {
           </p>
         </div>
 
-        {/* Tabs (Matching Screenshot) */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-2xl text-xs overflow-x-auto max-w-full">
+        {/* Actions & Tabs */}
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => handleTabChange("all")}
-            className={`px-3 py-1.5 rounded-xl font-semibold transition-all whitespace-nowrap ${
-              activeTab === "all" ? "bg-rose-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
-            }`}
+            onClick={handleExportCSV}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors shadow-xs"
+            title="Xuất danh sách đơn hàng ra file Excel / CSV chuẩn UTF-8"
           >
-            Tất cả đơn hàng ({orders.length})
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Xuất Excel / CSV</span>
           </button>
-          <button
-            onClick={() => handleTabChange("returns")}
-            className={`px-3 py-1.5 rounded-xl font-semibold transition-all whitespace-nowrap ${
-              activeTab === "returns" ? "bg-rose-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Yêu cầu đổi trả ({returnsCount})
-          </button>
+
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-2xl text-xs overflow-x-auto max-w-full">
+            <button
+              onClick={() => handleTabChange("all")}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition-all whitespace-nowrap ${
+                activeTab === "all" ? "bg-rose-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Tất cả ({orders.length})
+            </button>
+            <button
+              onClick={() => handleTabChange("returns")}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition-all whitespace-nowrap ${
+                activeTab === "returns" ? "bg-rose-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Đổi trả ({returnsCount})
+            </button>
+          </div>
         </div>
       </div>
 
@@ -263,6 +427,16 @@ export const AdminOrders: React.FC = () => {
                                   ))}
                                 </div>
                               </div>
+                            </div>
+
+                            <div className="flex justify-end pt-2 border-t border-slate-100">
+                              <button
+                                onClick={() => handlePrintInvoice(o)}
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors shadow-xs"
+                              >
+                                <Printer className="w-3.5 h-3.5" />
+                                <span>In Hóa Đơn (PDF)</span>
+                              </button>
                             </div>
                           </div>
                         </td>

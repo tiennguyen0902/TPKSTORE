@@ -4,8 +4,8 @@ const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
-// GET /api/users (Admin & Staff view customer list)
-router.get("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "STAFF"]), async (req, res) => {
+// GET /api/users (Admin, Manager & Staff view customer list)
+router.get("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER", "STAFF"]), async (req, res) => {
     try {
         const { role, search } = req.query;
         const where = {};
