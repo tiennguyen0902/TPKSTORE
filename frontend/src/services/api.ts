@@ -337,6 +337,44 @@ export const api = {
     return res.json();
   },
 
+  // Customer Lookup & Quick Walk-in Registration (Retail POS & Staff Consultation)
+  async lookupCustomer(phone: string): Promise<{
+    found: boolean;
+    message?: string;
+    customer?: {
+      id: string;
+      fullName: string;
+      phone: string;
+      email: string;
+      address?: string;
+      role: string;
+      totalOrders: number;
+      totalSpent: number;
+      loyaltyPoints: number;
+      recentOrders: any[];
+    };
+  }> {
+    const url = buildUrl("/users/lookup");
+    url.searchParams.append("phone", phone);
+    const headers: Record<string, string> = { ...getAuthHeader() };
+    const res = await fetch(url.toString(), { headers });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Lỗi tra cứu khách hàng");
+    return json;
+  },
+
+  async quickCreateCustomer(data: { fullName: string; phone: string; address?: string }) {
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
+    const res = await fetch(`${API_BASE}/users/quick-customer`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Lỗi tạo hồ sơ khách hàng vãng lai");
+    return json;
+  },
+
   // Orders
   async createOrder(data: {
     customerName: string;
@@ -345,6 +383,11 @@ export const api = {
     note?: string;
     paymentMethod: "COD" | "VNPAY" | "MOMO";
     items?: { productId: string; quantity: number }[];
+    isCounterOrder?: boolean;
+    isWalkIn?: boolean;
+    discountAmount?: number;
+    paymentStatus?: "COMPLETED" | "PENDING";
+    status?: "DELIVERED" | "CONFIRMED" | "PENDING";
   }) {
     const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
     const res = await fetch(`${API_BASE}/orders`, {
@@ -354,6 +397,28 @@ export const api = {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "Đặt hàng thất bại");
+    return json;
+  },
+
+  async createPosOrder(data: {
+    customerName?: string;
+    phone: string;
+    shippingAddress?: string;
+    note?: string;
+    paymentMethod: "COD" | "VNPAY" | "MOMO";
+    items: { productId: string; quantity: number }[];
+    discountAmount?: number;
+    paymentStatus?: "COMPLETED" | "PENDING";
+    status?: "DELIVERED" | "CONFIRMED";
+  }) {
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
+    const res = await fetch(`${API_BASE}/orders/pos`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Lập đơn hàng tại quầy thất bại");
     return json;
   },
 

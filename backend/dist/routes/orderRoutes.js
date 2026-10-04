@@ -1,16 +1,38 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const router = (0, express_1.Router)();
-// POST /api/orders (Checkout: Create Order)
+// POST /api/orders (Checkout: Support both standard web checkout & Staff counter consultation for walk-in customers)
 router.post("/", auth_1.authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { customerName, phone, shippingAddress, note, paymentMethod, items } = req.body;
-        if (!customerName || !phone || !shippingAddress) {
-            return res.status(400).json({ error: "Vui lòng nhập đầy đủ Họ tên, Số điện thoại và Địa chỉ nhận hàng." });
+        const { customerName, phone, shippingAddress, note, paymentMethod, items, isCounterOrder, isWalkIn, status: requestedStatus, paymentStatus: requestedPaymentStatus, discountAmount: reqDiscount } = req.body;
+        const isStaffOrAdmin = ["STAFF", "MANAGER", "ADMIN"].includes(req.user.role);
+        const isCounter = Boolean(isCounterOrder || (isStaffOrAdmin && isWalkIn));
+        let orderCustomerName = (customerName && String(customerName).trim()) || "";
+        let orderPhone = (phone && String(phone).trim()) || "";
+        let orderAddress = (shippingAddress && String(shippingAddress).trim()) || "";
+        if (isCounter) {
+            if (!orderPhone) {
+                return res.status(400).json({ error: "Vui lòng nhập Số điện thoại khách hàng để kích hoạt bảo hành điện tử và tích điểm." });
+            }
+            if (!orderCustomerName) {
+                orderCustomerName = "Khách hàng vãng lai";
+            }
+            if (!orderAddress) {
+                orderAddress = "Mua trực tiếp tại quầy - TPKSTORE";
+            }
+        }
+        else {
+            if (!orderCustomerName || !orderPhone || !orderAddress) {
+                return res.status(400).json({ error: "Vui lòng nhập đầy đủ Họ tên, Số điện thoại và Địa chỉ nhận hàng." });
+            }
         }
         let checkoutItems = [];
         if (items && Array.isArray(items) && items.length > 0) {
@@ -32,6 +54,47 @@ router.post("/", auth_1.authenticateToken, async (req, res) => {
         }
         // Use transaction for atomic stock decrement + order creation
         const newOrder = await db_1.db.$transaction(async (tx) => {
+            let targetUserId = userId;
+            // Nếu là đơn hàng tại quầy / do nhân viên tư vấn, liên kết hoặc tạo nhanh tài khoản Khách hàng vãng lai theo SĐT
+            if (isCounter || (isStaffOrAdmin && orderPhone)) {
+                const cleanPhone = orderPhone.replace(/\D/g, "");
+                const existingCustomer = await tx.user.findFirst({
+                    where: {
+                        OR: [
+                            { phone: orderPhone },
+                            { phone: cleanPhone },
+                            ...(cleanPhone.length >= 9 ? [{ phone: { contains: cleanPhone.slice(-9) } }] : [])
+                        ]
+                    }
+                });
+                if (existingCustomer) {
+                    targetUserId = existingCustomer.id;
+                    if (orderCustomerName && orderCustomerName !== "Khách hàng vãng lai" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách hàng vãng lai")) {
+                        await tx.user.update({
+                            where: { id: existingCustomer.id },
+                            data: { fullName: orderCustomerName }
+                        });
+                    }
+                }
+                else {
+                    // Tự động tạo hồ sơ khách hàng vãng lai tại quầy
+                    const guestEmail = `kh_${cleanPhone || Date.now()}@tpkstore.vn`;
+                    const defaultPasswordHash = bcryptjs_1.default.hashSync("WalkInCustomer123@", 10);
+                    const newCust = await tx.user.create({
+                        data: {
+                            email: guestEmail,
+                            fullName: orderCustomerName || "Khách hàng vãng lai",
+                            phone: orderPhone,
+                            address: orderAddress,
+                            passwordHash: defaultPasswordHash,
+                            role: "CUSTOMER",
+                            isActive: true,
+                            canChatAi: true
+                        }
+                    });
+                    targetUserId = newCust.id;
+                }
+            }
             let totalAmount = 0;
             const orderItemsData = [];
             // Verify stock and compute snapshot price
@@ -58,28 +121,35 @@ router.post("/", auth_1.authenticateToken, async (req, res) => {
             }
             const settings = await tx.systemSettings.findFirst();
             const freeShippingThreshold = settings?.freeShippingThreshold || 500000;
-            const shippingFee = totalAmount >= freeShippingThreshold ? 0 : 30000;
-            const discountAmount = 0;
-            const finalAmount = totalAmount + shippingFee - discountAmount;
+            const shippingFee = isCounter ? 0 : (totalAmount >= freeShippingThreshold ? 0 : 30000);
+            const discountAmount = typeof reqDiscount === "number" ? reqDiscount : 0;
+            const finalAmount = Math.max(0, totalAmount + shippingFee - discountAmount);
             // Count existing orders for sequential ID
             const orderCount = await tx.order.count();
             const orderId = `#ord_${1000 + orderCount + 1}`;
             const pm = paymentMethod === "MOMO" ? "MOMO" : (paymentMethod === "VNPAY" ? "VNPAY" : "COD");
+            let finalNote = note || "";
+            if (isStaffOrAdmin) {
+                const staffTag = `[Nhân viên tư vấn: ${req.user.fullName || req.user.email}]`;
+                finalNote = finalNote ? `${finalNote} ${staffTag}` : `${isCounter ? "Mua trực tiếp tại quầy" : "Tư vấn bán hàng"} ${staffTag}`;
+            }
+            const orderStatusVal = isCounter ? (requestedStatus || "DELIVERED") : (requestedStatus || "PENDING");
+            const paymentStatusVal = isCounter ? (requestedPaymentStatus || (pm === "COD" ? "COMPLETED" : "PENDING")) : (requestedPaymentStatus || "PENDING");
             const order = await tx.order.create({
                 data: {
                     id: orderId,
-                    userId,
-                    customerName,
-                    phone,
-                    shippingAddress,
-                    note: note || null,
+                    userId: targetUserId,
+                    customerName: orderCustomerName,
+                    phone: orderPhone,
+                    shippingAddress: orderAddress,
+                    note: finalNote || null,
                     totalAmount,
                     shippingFee,
                     discountAmount,
                     finalAmount,
-                    status: "PENDING",
+                    status: orderStatusVal,
                     paymentMethod: pm,
-                    paymentStatus: "PENDING",
+                    paymentStatus: paymentStatusVal,
                     items: {
                         create: orderItemsData
                     }
@@ -90,16 +160,146 @@ router.post("/", auth_1.authenticateToken, async (req, res) => {
                     }
                 }
             });
-            // Clear cart after checkout
-            const cart = await tx.cart.findUnique({ where: { userId } });
-            if (cart) {
-                await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+            // Clear customer cart only for standard online checkout (not counter POS)
+            if (!isCounter) {
+                const cart = await tx.cart.findUnique({ where: { userId } });
+                if (cart) {
+                    await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+                }
             }
             return order;
         });
         return res.status(201).json({
-            message: "Đặt hàng thành công!",
+            message: isCounter ? "Tạo đơn hàng tại quầy & kích hoạt bảo hành thành công!" : "Đặt hàng thành công!",
             order: newOrder
+        });
+    }
+    catch (err) {
+        return res.status(400).json({ error: err.message });
+    }
+});
+// POST /api/orders/pos (Specialized POS Counter Order for Staff, Manager & Admin)
+router.post("/pos", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER", "STAFF"]), async (req, res) => {
+    try {
+        const { customerName, phone, shippingAddress, note, paymentMethod, items, discountAmount = 0, paymentStatus = "COMPLETED", status = "DELIVERED" } = req.body;
+        if (!phone || !String(phone).trim()) {
+            return res.status(400).json({ error: "Vui lòng nhập Số điện thoại khách hàng để lưu bảo hành và tích điểm." });
+        }
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ error: "Đơn hàng phải có ít nhất 1 sản phẩm." });
+        }
+        const trimmedPhone = String(phone).trim();
+        const cleanPhone = trimmedPhone.replace(/\D/g, "");
+        const orderCustomerName = (customerName && String(customerName).trim()) || "Khách hàng vãng lai";
+        const orderAddress = (shippingAddress && String(shippingAddress).trim()) || "Mua trực tiếp tại quầy - TPKSTORE";
+        const newOrder = await db_1.db.$transaction(async (tx) => {
+            // 1. Tìm hoặc tạo hồ sơ khách hàng vãng lai
+            let targetUserId = "";
+            const existingCustomer = await tx.user.findFirst({
+                where: {
+                    OR: [
+                        { phone: trimmedPhone },
+                        { phone: cleanPhone },
+                        ...(cleanPhone.length >= 9 ? [{ phone: { contains: cleanPhone.slice(-9) } }] : [])
+                    ]
+                }
+            });
+            if (existingCustomer) {
+                targetUserId = existingCustomer.id;
+                if (orderCustomerName !== "Khách hàng vãng lai" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách hàng vãng lai")) {
+                    await tx.user.update({
+                        where: { id: existingCustomer.id },
+                        data: { fullName: orderCustomerName }
+                    });
+                }
+            }
+            else {
+                const guestEmail = `kh_${cleanPhone || Date.now()}@tpkstore.vn`;
+                const defaultPasswordHash = bcryptjs_1.default.hashSync("WalkInCustomer123@", 10);
+                const newCust = await tx.user.create({
+                    data: {
+                        email: guestEmail,
+                        fullName: orderCustomerName,
+                        phone: trimmedPhone,
+                        address: orderAddress,
+                        passwordHash: defaultPasswordHash,
+                        role: "CUSTOMER",
+                        isActive: true,
+                        canChatAi: true
+                    }
+                });
+                targetUserId = newCust.id;
+            }
+            // 2. Trừ tồn kho & tính tiền
+            let totalAmount = 0;
+            const orderItemsData = [];
+            for (const item of items) {
+                const prod = await tx.product.findUnique({ where: { id: item.productId } });
+                if (!prod) {
+                    throw new Error(`Sản phẩm với ID ${item.productId} không tồn tại`);
+                }
+                if (prod.stock < item.quantity) {
+                    throw new Error(`Sản phẩm "${prod.name}" chỉ còn ${prod.stock} trong kho (yêu cầu: ${item.quantity})`);
+                }
+                await tx.product.update({
+                    where: { id: item.productId },
+                    data: { stock: { decrement: item.quantity } }
+                });
+                const itemTotal = prod.price * item.quantity;
+                totalAmount += itemTotal;
+                orderItemsData.push({
+                    productId: prod.id,
+                    quantity: item.quantity,
+                    price: prod.price
+                });
+            }
+            const orderCount = await tx.order.count();
+            const orderId = `#ord_${1000 + orderCount + 1}`;
+            const finalDiscount = Number(discountAmount) || 0;
+            const finalAmount = Math.max(0, totalAmount - finalDiscount);
+            const pm = paymentMethod === "MOMO" ? "MOMO" : (paymentMethod === "VNPAY" ? "VNPAY" : "COD");
+            const staffTag = `[Nhân viên tư vấn: ${req.user.fullName || req.user.email}]`;
+            const finalNote = note ? `${note} ${staffTag}` : `Mua tại quầy ${staffTag}`;
+            const createdOrder = await tx.order.create({
+                data: {
+                    id: orderId,
+                    userId: targetUserId,
+                    customerName: orderCustomerName,
+                    phone: trimmedPhone,
+                    shippingAddress: orderAddress,
+                    note: finalNote,
+                    totalAmount,
+                    shippingFee: 0,
+                    discountAmount: finalDiscount,
+                    finalAmount,
+                    status: status || "DELIVERED",
+                    paymentMethod: pm,
+                    paymentStatus: paymentStatus || "COMPLETED",
+                    items: {
+                        create: orderItemsData
+                    }
+                },
+                include: {
+                    items: {
+                        include: { product: true }
+                    },
+                    user: true
+                }
+            });
+            return createdOrder;
+        });
+        // Thông tin bảo hành điện tử theo SĐT
+        const loyaltyPointsEarned = Math.floor(newOrder.finalAmount / 10000);
+        return res.status(201).json({
+            message: "Lập đơn bán hàng tại quầy thành công!",
+            order: newOrder,
+            warrantyInfo: {
+                warrantyPhone: trimmedPhone,
+                customerName: orderCustomerName,
+                policy: "Bảo hành chính hãng 12-24 tháng tại hệ thống TPKSTORE",
+                loyaltyPointsEarned,
+                consultant: req.user.fullName
+            }
         });
     }
     catch (err) {

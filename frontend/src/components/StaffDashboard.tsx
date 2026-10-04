@@ -8,15 +8,17 @@ import {
   Truck, 
   CheckCircle2, 
   Clock, 
-  Sparkles 
+  Sparkles,
+  Store 
 } from "lucide-react";
 import { AdminOrders } from "./AdminOrders";
 import { AdminProducts } from "./AdminProducts";
 import { AdminInventoryAlerts } from "./AdminInventoryAlerts";
 import { StockTicketsView } from "./StockTicketsView";
+import { CounterPosView } from "./CounterPosView";
 
 export const StaffDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"tickets" | "products" | "orders" | "alerts">("tickets");
+  const [activeTab, setActiveTab] = useState<"pos" | "tickets" | "products" | "orders" | "alerts">("pos");
 
   return (
     <div className="space-y-6 pb-16">
@@ -29,17 +31,28 @@ export const StaffDashboard: React.FC = () => {
               <span>STAFF OPERATIONS & WAREHOUSE PORTAL</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Cổng Vận Hành & Xuất Nhập Kho Cho Nhân Viên
+              Cổng Vận Hành, Bán Hàng Tại Quầy & Kho Hàng
             </h1>
             <p className="text-xs text-slate-500 mt-0.5 font-medium">
-              Lập yêu cầu xuất/nhập kho gửi Quản lý phê duyệt, quản lý tồn kho và xử lý đơn hàng
+              Tư vấn lập đơn bán lẻ cho khách vãng lai, quản lý xuất nhập kho và theo dõi cảnh báo tồn kho
             </p>
           </div>
         </div>
 
-        {/* Tab Navigation Strip (All 4 tabs aligned cleanly in one horizontal row) */}
+        {/* Tab Navigation Strip */}
         <div className="pt-3 border-t border-slate-100">
           <div className="inline-flex items-center gap-1.5 p-1.5 bg-slate-100 border border-slate-200 rounded-2xl text-xs overflow-x-auto max-w-full shadow-xs">
+            <button
+              onClick={() => setActiveTab("pos")}
+              className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "pos"
+                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              }`}
+            >
+              <Store className="w-4 h-4" />
+              <span>Bán Hàng Tại Quầy (POS)</span>
+            </button>
             <button
               onClick={() => setActiveTab("tickets")}
               className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
@@ -89,6 +102,7 @@ export const StaffDashboard: React.FC = () => {
       </div>
 
       {/* Main Tab View */}
+      {activeTab === "pos" && <CounterPosView />}
       {activeTab === "tickets" && <StockTicketsView embeddedRole="STAFF" />}
       {activeTab === "products" && <AdminProducts />}
       {activeTab === "orders" && <AdminOrders />}

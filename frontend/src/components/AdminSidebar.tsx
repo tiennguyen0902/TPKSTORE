@@ -12,7 +12,8 @@ import {
   AlertTriangle, 
   Settings, 
   Home, 
-  LogOut 
+  LogOut,
+  Store 
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -34,7 +35,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     {
       title: "TỔNG QUAN",
       items: [
-        { id: "admin_dashboard", label: "Dashboard Kho", icon: <LayoutDashboard className="w-4 h-4" /> }
+        { id: "admin_dashboard", label: "Dashboard Kho", icon: <LayoutDashboard className="w-4 h-4" /> },
+        { id: "admin_pos", label: "Bán Hàng Tại Quầy (POS)", icon: <Store className="w-4 h-4 text-blue-500" /> }
       ]
     },
     {
@@ -57,7 +59,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     {
       title: "TỔNG QUAN",
       items: [
-        { id: "admin_dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> }
+        { id: "admin_dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+        { id: "admin_pos", label: "Bán Hàng Tại Quầy (POS)", icon: <Store className="w-4 h-4 text-blue-500" /> }
       ]
     },
     {

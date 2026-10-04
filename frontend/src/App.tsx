@@ -25,6 +25,7 @@ import { ArchitectureStudio } from "./components/ArchitectureStudio";
 import { AdminSettings } from "./components/AdminSettings";
 import { StaffDashboard } from "./components/StaffDashboard";
 import { StockTicketsView } from "./components/StockTicketsView";
+import { CounterPosView } from "./components/CounterPosView";
 import { Product } from "./types";
 import { ShieldAlert } from "lucide-react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -40,6 +41,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   auth: "/login",
   staff_dashboard: "/staff",
   admin_dashboard: "/admin/dashboard",
+  admin_pos: "/admin/pos",
   admin_products: "/admin/products",
   admin_categories: "/admin/categories",
   admin_orders: "/admin/orders",
@@ -93,6 +95,7 @@ function parseUrl(pathname: string, search: string): ParsedRoute {
 
   // Admin routes
   if (path === "/admin" || path === "/admin/dashboard") return { view: "admin_dashboard" };
+  if (path === "/admin/pos" || path === "/pos") return { view: "admin_pos" };
   if (path === "/admin/products") return { view: "admin_products" };
   if (path === "/admin/categories") return { view: "admin_categories" };
   if (path === "/admin/orders") return { view: "admin_orders" };
@@ -295,7 +298,7 @@ const MainApp: React.FC = () => {
   }
 
   // Route Protection: Staff Portal
-  if (currentView === "staff_dashboard" && user?.role !== "STAFF" && user?.role !== "ADMIN") {
+  if (currentView === "staff_dashboard" && user?.role !== "STAFF" && user?.role !== "ADMIN" && user?.role !== "MANAGER") {
     return (
       <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
         <Navbar
@@ -313,7 +316,7 @@ const MainApp: React.FC = () => {
             </div>
             <h2 className="text-lg font-bold text-slate-900">Yêu Cầu Quyền Nhân Viên Vận Hành</h2>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Cổng vận hành yêu cầu tài khoản Nhân viên (STAFF) hoặc Quản trị viên (ADMIN).
+              Cổng vận hành yêu cầu tài khoản Nhân viên (STAFF), Quản lý (MANAGER) hoặc Quản trị viên (ADMIN).
             </p>
             <div className="pt-2 flex justify-center gap-3">
               <button
@@ -349,6 +352,7 @@ const MainApp: React.FC = () => {
           <main className="flex-1 overflow-y-auto bg-[#f8fafc] p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
               {currentView === "admin_dashboard" && <AdminDashboard onNavigateTab={handleNavigateView} />}
+              {currentView === "admin_pos" && <CounterPosView />}
               {currentView === "admin_stock_tickets" && <StockTicketsView embeddedRole={user?.role as any} />}
               {currentView === "admin_products" && <AdminProducts />}
               {currentView === "admin_categories" && <AdminCategories />}

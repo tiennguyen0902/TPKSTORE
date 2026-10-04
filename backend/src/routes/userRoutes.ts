@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { db } from "../db";
 import { authenticateToken, authorize, AuthenticatedRequest } from "../middleware/auth";
+import bcrypt from "bcryptjs";
 
 const router = Router();
 
@@ -51,6 +52,136 @@ router.get("/", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]), asy
     return res.status(500).json({ error: "Lỗi truy vấn người dùng: " + err.message });
   }
 });
+
+// GET /api/users/lookup?phone=0912345678 (Staff, Manager & Admin quick lookup customer by phone)
+router.get("/lookup", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const phone = req.query.phone ? String(req.query.phone).trim() : "";
+    if (!phone) {
+      return res.status(400).json({ error: "Vui lòng cung cấp số điện thoại khách hàng." });
+    }
+
+    const cleanPhone = phone.replace(/\D/g, "");
+
+    const user = await db.user.findFirst({
+      where: {
+        OR: [
+          { phone: phone },
+          { phone: cleanPhone },
+          ...(cleanPhone.length >= 9 ? [{ phone: { contains: cleanPhone.slice(-9) } }] : [])
+        ]
+      },
+      include: {
+        orders: {
+          include: {
+            items: {
+              include: { product: true }
+            }
+          },
+          orderBy: { createdAt: "desc" }
+        }
+      }
+    });
+
+    if (!user) {
+      return res.json({
+        found: false,
+        message: "Khách hàng mới (chưa có thông tin tích điểm / bảo hành)"
+      });
+    }
+
+    // Calculate customer metrics for loyalty & warranty
+    const completedOrders = (user.orders || []).filter((o: any) => o.status !== "CANCELLED");
+    const totalSpent = completedOrders.reduce((sum: number, o: any) => sum + (o.finalAmount || o.totalAmount || 0), 0);
+    const loyaltyPoints = Math.floor(totalSpent / 10000); // 1 điểm / 10.000đ
+
+    return res.json({
+      found: true,
+      customer: {
+        id: user.id,
+        fullName: user.fullName,
+        phone: user.phone,
+        email: user.email,
+        address: user.address,
+        role: user.role,
+        totalOrders: completedOrders.length,
+        totalSpent,
+        loyaltyPoints,
+        recentOrders: user.orders ? user.orders.slice(0, 5) : []
+      }
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi tra cứu khách hàng: " + err.message });
+  }
+});
+
+// POST /api/users/quick-customer (Staff, Manager & Admin quick create walk-in customer profile)
+router.post("/quick-customer", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { fullName, phone, address } = req.body;
+    if (!phone || !String(phone).trim()) {
+      return res.status(400).json({ error: "Vui lòng nhập số điện thoại khách hàng." });
+    }
+
+    const trimmedPhone = String(phone).trim();
+    const cleanPhone = trimmedPhone.replace(/\D/g, "");
+
+    // Check if customer already exists
+    const existing = await db.user.findFirst({
+      where: {
+        OR: [
+          { phone: trimmedPhone },
+          { phone: cleanPhone }
+        ]
+      }
+    });
+
+    if (existing) {
+      if (fullName && String(fullName).trim() && existing.fullName !== String(fullName).trim()) {
+        const updated = await db.user.update({
+          where: { id: existing.id },
+          data: { fullName: String(fullName).trim() }
+        });
+        return res.json({
+          isNew: false,
+          message: "Khách hàng thân thiết đã có trong hệ thống",
+          customer: updated
+        });
+      }
+      return res.json({
+        isNew: false,
+        message: "Khách hàng đã có trong hệ thống",
+        customer: existing
+      });
+    }
+
+    // Auto-create walk-in customer account
+    const guestEmail = `kh_${cleanPhone || Date.now()}@tpkstore.vn`;
+    const defaultPasswordHash = bcrypt.hashSync("WalkInCustomer123@", 10);
+
+    const newCustomer = await db.user.create({
+      data: {
+        email: guestEmail,
+        fullName: (fullName && String(fullName).trim()) || "Khách hàng vãng lai",
+        phone: trimmedPhone,
+        address: (address && String(address).trim()) || "Mua tại quầy - TPKSTORE",
+        passwordHash: defaultPasswordHash,
+        role: "CUSTOMER",
+        isActive: true,
+        canChatAi: true
+      }
+    });
+
+    return res.status(201).json({
+      isNew: true,
+      message: "Tạo hồ sơ khách hàng vãng lai thành công!",
+      customer: newCustomer
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi tạo khách hàng: " + err.message });
+  }
+});
+
 
 // PUT /api/users/:id/role (Admin update role)
 router.put("/:id/role", authenticateToken, authorize(["ADMIN"]), async (req: AuthenticatedRequest, res: Response) => {

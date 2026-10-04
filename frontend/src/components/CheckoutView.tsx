@@ -8,7 +8,12 @@ import {
   User as UserIcon, 
   FileText, 
   ShieldCheck, 
-  AlertCircle 
+  AlertCircle,
+  Store,
+  Search,
+  Award,
+  CheckCircle2,
+  UserPlus
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
@@ -28,21 +33,53 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const { items, subtotal, shippingFee, isFreeShipping, total, clearCart } = useCart();
   const { user } = useAuth();
 
-  const [customerName, setCustomerName] = useState(user?.fullName || "Lê Hoàng Nam");
-  const [phone, setPhone] = useState(user?.phone || "0912345678");
-  const [shippingAddress, setShippingAddress] = useState(user?.address || "Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội");
+  const isStaff = user?.role === "STAFF" || user?.role === "MANAGER" || user?.role === "ADMIN";
+  const [isCounterMode, setIsCounterMode] = useState(isStaff);
+
+  const [customerName, setCustomerName] = useState(isStaff ? "Khách hàng vãng lai" : (user?.fullName || "Lê Hoàng Nam"));
+  const [phone, setPhone] = useState(isStaff ? "" : (user?.phone || "0912345678"));
+  const [shippingAddress, setShippingAddress] = useState(isStaff ? "Mua trực tiếp tại quầy - TPKSTORE" : (user?.address || "Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội"));
   const [note, setNote] = useState("Giao hàng giờ hành chính");
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "VNPAY" | "MOMO">("COD");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Customer Lookup state for Staff POS
+  const [lookupCustomerInfo, setLookupCustomerInfo] = useState<any>(null);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+
+  const handleLookupPhone = async (lookupVal?: string) => {
+    const raw = (lookupVal || phone).trim();
+    if (!raw || raw.length < 8) return;
+    setIsLookingUp(true);
+    try {
+      const res = await api.lookupCustomer(raw);
+      if (res.found && res.customer) {
+        setLookupCustomerInfo(res.customer);
+        setCustomerName(res.customer.fullName || "");
+        if (res.customer.address && !isCounterMode) {
+          setShippingAddress(res.customer.address);
+        }
+      } else {
+        setLookupCustomerInfo({ isNew: true });
+        if (!customerName || customerName.includes("Staff") || customerName.includes("Admin")) {
+          setCustomerName("Khách hàng vãng lai");
+        }
+      }
+    } catch {
+      setLookupCustomerInfo({ isNew: true });
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
   React.useEffect(() => {
-    if (user) {
+    if (user && !isCounterMode) {
       if (user.fullName) setCustomerName(user.fullName);
       if (user.phone) setPhone(user.phone);
       if (user.address) setShippingAddress(user.address);
     }
-  }, [user]);
+  }, [user, isCounterMode]);
 
   // Payment Modals state
   const [showVnpayModal, setShowVnpayModal] = useState(false);
@@ -66,23 +103,26 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     return /^(0[3|5|7|8|9])[0-9]{8}$/.test(val.trim());
   };
 
+  const effectiveShippingFee = isCounterMode ? 0 : (isFreeShipping ? 0 : shippingFee);
+  const effectiveTotal = isCounterMode ? subtotal : (subtotal + effectiveShippingFee);
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
 
     const errors: Record<string, string> = {};
     if (!customerName.trim()) {
-      errors.customerName = "Vui lòng nhập họ và tên người nhận hàng.";
+      errors.customerName = "Vui lòng nhập họ và tên khách hàng nhận máy.";
     }
 
     if (!phone.trim()) {
-      errors.phone = "Vui lòng nhập số điện thoại người nhận hàng.";
+      errors.phone = "Vui lòng nhập số điện thoại để kích hoạt bảo hành điện tử và tích điểm.";
     } else if (!isValidPhone(phone)) {
       errors.phone = "Số điện thoại không hợp lệ (phải gồm 10 chữ số, VD: 0912345678).";
     }
 
     if (!shippingAddress.trim()) {
-      errors.shippingAddress = "Vui lòng nhập địa chỉ giao hàng chi tiết (số nhà, đường, phường/xã...).";
+      errors.shippingAddress = "Vui lòng nhập địa chỉ nhận hàng.";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -97,9 +137,10 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       const res = await api.createOrder({
         customerName: customerName.trim(),
         phone: phone.trim(),
-        shippingAddress: shippingAddress.trim(),
-        note: note.trim(),
+        shippingAddress: isCounterMode ? "Mua trực tiếp tại quầy - TPKSTORE" : shippingAddress.trim(),
+        note: isCounterMode ? `${note.trim()} [Mua tại quầy]` : note.trim(),
         paymentMethod,
+        isCounterOrder: isCounterMode,
         items: items.map(i => ({ productId: i.productId, quantity: i.quantity }))
       });
 
@@ -151,9 +192,57 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         </button>
         <div>
           <h1 className="text-2xl font-black text-slate-900">Thanh Toán & Đặt Hàng</h1>
-          <p className="text-xs text-slate-500 font-medium">Vui lòng kiểm tra thông tin giao hàng và chọn phương thức thanh toán</p>
+          <p className="text-xs text-slate-500 font-medium">Vui lòng kiểm tra thông tin khách hàng và chọn phương thức thanh toán</p>
         </div>
       </div>
+
+      {/* Staff Counter Consultation Mode Banner */}
+      {isStaff && (
+        <div className="p-4 rounded-3xl bg-blue-50/80 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/20">
+              <Store className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-xs text-blue-950 uppercase tracking-wider">
+                  Chế Độ Tư Vấn & Bán Hàng Tại Quầy (POS Mode)
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-blue-200/70 text-blue-800 text-[10px] font-bold">
+                  {user?.role}
+                </span>
+              </div>
+              <p className="text-[11px] text-blue-800 font-medium mt-0.5">
+                Lên đơn cho khách vãng lai chỉ với <strong className="text-blue-950">Số điện thoại</strong> (tự động miễn phí giao hàng, kích hoạt bảo hành điện tử và tích điểm).
+              </p>
+            </div>
+          </div>
+
+          <label className="relative inline-flex items-center cursor-pointer shrink-0 self-end sm:self-center">
+            <input
+              type="checkbox"
+              checked={isCounterMode}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setIsCounterMode(checked);
+                if (checked) {
+                  setCustomerName("Khách hàng vãng lai");
+                  setPhone("");
+                  setShippingAddress("Mua trực tiếp tại quầy - TPKSTORE");
+                  setNote("Khách mua trực tiếp tại quầy");
+                } else if (user) {
+                  setCustomerName(user.fullName || "");
+                  setPhone(user.phone || "");
+                  setShippingAddress(user.address || "");
+                  setNote("Giao hàng giờ hành chính");
+                }
+              }}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+      )}
 
       {errorMsg && (
         <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
@@ -167,22 +256,99 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         <div className="lg:col-span-7 space-y-6">
           {/* Section 1: Customer Info */}
           <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-rose-600" />
-              1. Thông Tin Nhận Hàng
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-rose-600" />
+                {isCounterMode ? "1. Thông Tin Khách Hàng (Tích Điểm & Bảo Hành)" : "1. Thông Tin Nhận Hàng"}
+              </h3>
+              {isCounterMode && (
+                <span className="text-[11px] text-blue-700 font-bold bg-blue-100 px-2 py-0.5 rounded-full">
+                  Nhận tại quầy TPKSTORE
+                </span>
+              )}
+            </div>
 
             <div className="space-y-3 text-xs">
+              {/* Phone Field (Top priority in counter mode) */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Họ và tên người nhận <span className="text-rose-600">*</span>
+                  Số điện thoại khách hàng <span className="text-rose-600">*</span>
+                  <span className="text-[11px] text-slate-400 font-normal ml-1">
+                    (Dùng để tra cứu điểm tích lũy & bảo hành điện tử)
+                  </span>
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        clearFieldError("phone");
+                        if (e.target.value.replace(/\D/g, "").length === 10) {
+                          handleLookupPhone(e.target.value);
+                        }
+                      }}
+                      onBlur={() => handleLookupPhone()}
+                      placeholder="0912345678"
+                      className={`w-full bg-white border rounded-xl px-3 py-2.5 pl-9 text-slate-900 focus:outline-none transition-colors font-bold ${
+                        fieldErrors.phone 
+                          ? "border-rose-500 focus:border-rose-600 focus:ring-4 focus:ring-rose-500/10" 
+                          : "border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
+                      }`}
+                    />
+                    <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  </div>
+                  {isCounterMode && (
+                    <button
+                      type="button"
+                      onClick={() => handleLookupPhone()}
+                      disabled={isLookingUp || !phone.trim()}
+                      className="px-3.5 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 disabled:opacity-50 transition-colors shrink-0"
+                    >
+                      {isLookingUp ? "..." : "Tra cứu"}
+                    </button>
+                  )}
+                </div>
+                {fieldErrors.phone && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{fieldErrors.phone}</span>
+                  </p>
+                )}
+
+                {/* Customer recognition card */}
+                {lookupCustomerInfo?.fullName ? (
+                  <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="font-bold text-slate-900">
+                        Khách thân thiết: <strong>{lookupCustomerInfo.fullName}</strong>
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-black text-[11px]">
+                      {lookupCustomerInfo.loyaltyPoints?.toLocaleString("vi-VN") || 0} điểm
+                    </span>
+                  </div>
+                ) : lookupCustomerInfo?.isNew && phone.length >= 9 ? (
+                  <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                    <UserPlus className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Khách hàng mới tại quầy: Hệ thống sẽ tự động kích hoạt bảo hành theo SĐT này.</span>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Customer Name */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Họ và tên khách hàng <span className="text-rose-600">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     value={customerName}
                     onChange={(e) => { setCustomerName(e.target.value); clearFieldError("customerName"); }}
-                    placeholder="Nguyễn Văn A"
+                    placeholder="Nguyễn Văn A (hoặc Khách hàng vãng lai)"
                     className={`w-full bg-white border rounded-xl px-3 py-2.5 pl-9 text-slate-900 focus:outline-none transition-colors ${
                       fieldErrors.customerName 
                         ? "border-rose-500 focus:border-rose-600 focus:ring-4 focus:ring-rose-500/10" 
@@ -199,38 +365,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 )}
               </div>
 
+              {/* Address Field */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Số điện thoại liên hệ <span className="text-rose-600">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => { setPhone(e.target.value); clearFieldError("phone"); }}
-                    placeholder="0912345678"
-                    className={`w-full bg-white border rounded-xl px-3 py-2.5 pl-9 text-slate-900 focus:outline-none transition-colors ${
-                      fieldErrors.phone 
-                        ? "border-rose-500 focus:border-rose-600 focus:ring-4 focus:ring-rose-500/10" 
-                        : "border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
-                    }`}
-                  />
-                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                </div>
-                {fieldErrors.phone && (
-                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{fieldErrors.phone}</span>
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Địa chỉ chi tiết (Số nhà, Tòa nhà, Phường/Xã, Tỉnh/TP) <span className="text-rose-600">*</span>
+                  {isCounterMode ? "Địa chỉ nhận hàng (Mặc định tại quầy)" : "Địa chỉ chi tiết (Số nhà, Phường/Xã, Tỉnh/TP)"} <span className="text-rose-600">*</span>
                 </label>
                 <textarea
-                  rows={2}
+                  rows={isCounterMode ? 1 : 2}
                   value={shippingAddress}
                   onChange={(e) => { setShippingAddress(e.target.value); clearFieldError("shippingAddress"); }}
                   placeholder="Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội"
@@ -395,8 +536,12 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
               </div>
               <div className="flex justify-between text-slate-600 font-medium">
                 <span>Phí giao hàng:</span>
-                <span className={`font-semibold ${isFreeShipping ? "text-emerald-600" : "text-slate-900"}`}>
-                  {isFreeShipping ? "Miễn phí (Free Ship)" : `${shippingFee.toLocaleString("vi-VN")} đ`}
+                <span className={`font-semibold ${isCounterMode || isFreeShipping ? "text-emerald-600" : "text-slate-900"}`}>
+                  {isCounterMode 
+                    ? "Miễn phí (Nhận tại quầy)" 
+                    : isFreeShipping 
+                    ? "Miễn phí (Free Ship)" 
+                    : `${shippingFee.toLocaleString("vi-VN")} đ`}
                 </span>
               </div>
               <div className="flex justify-between text-slate-600 font-medium">
@@ -409,7 +554,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             <div className="pt-3 border-t border-slate-100 flex items-baseline justify-between">
               <span className="text-sm font-bold text-slate-900">Tổng cộng:</span>
               <span className="text-xl font-black text-rose-600">
-                {total.toLocaleString("vi-VN")} đ
+                {effectiveTotal.toLocaleString("vi-VN")} đ
               </span>
             </div>
 
@@ -417,10 +562,16 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             <button
               type="submit"
               disabled={isLoading || items.length === 0}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 disabled:opacity-40 text-white font-black text-sm shadow-xl shadow-rose-600/30 transition-all hover:scale-[1.02] active:scale-98"
+              className={`w-full py-4 rounded-2xl text-white font-black text-sm shadow-xl transition-all hover:scale-[1.02] active:scale-98 disabled:opacity-40 ${
+                isCounterMode 
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-600/30"
+                  : "bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 shadow-rose-600/30"
+              }`}
             >
               {isLoading 
                 ? "Đang xử lý đơn hàng..." 
+                : isCounterMode
+                ? "Xác Nhận Xuất Đơn & Kích Hoạt Bảo Hành Tại Quầy"
                 : paymentMethod === "MOMO"
                 ? "Thanh Toán Qua Ví MoMo"
                 : paymentMethod === "VNPAY" 
