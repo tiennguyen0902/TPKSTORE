@@ -14,6 +14,7 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev:ai": "cd ai_service && python app.py",
     "test": "node backend/test/core_business_ai.test.js",
+    "sync:db": "node backend/scripts/sync_from_db.js && npm --prefix backend run build",
     "docker:up": "docker-compose up --build -d",
     "docker:down": "docker-compose down"
   },
