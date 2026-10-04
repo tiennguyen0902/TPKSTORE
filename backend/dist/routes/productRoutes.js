@@ -3,8 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
+const searchEngine_1 = require("../utils/searchEngine");
 const router = (0, express_1.Router)();
-// GET /api/products (Public with filters)
+// GET /api/products (Public with filters & Smart Search)
 router.get("/", async (req, res) => {
     try {
         const { category, search, minPrice, maxPrice, isFeatured, isNew, sortBy, limit, page } = req.query;
@@ -14,17 +15,6 @@ router.get("/", async (req, res) => {
             where.OR = [
                 { categoryId: category },
                 { category: { slug: category } }
-            ];
-        }
-        if (search) {
-            const q = search.toLowerCase();
-            where.AND = [
-                {
-                    OR: [
-                        { name: { contains: q, mode: "insensitive" } },
-                        { description: { contains: q, mode: "insensitive" } }
-                    ]
-                }
             ];
         }
         if (minPrice !== undefined) {
@@ -39,6 +29,37 @@ router.get("/", async (req, res) => {
         if (isNew !== undefined) {
             where.isNew = isNew === "true";
         }
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 50;
+        const skip = (pageNum - 1) * limitNum;
+        // 🌟 THUẬT TOÁN TÌM KIẾM THÔNG MINH (Smart Search Engine):
+        // Xử lý từ đồng nghĩa, tiếng Việt có dấu/không dấu, nhận diện danh mục & ưu tiên độ khớp tên
+        if (search && String(search).trim()) {
+            const q = String(search).trim();
+            const candidateProducts = await db_1.db.product.findMany({
+                where,
+                include: { category: true }
+            });
+            let ranked = (0, searchEngine_1.filterAndRankProducts)(candidateProducts, q);
+            // Áp dụng sắp xếp người dùng nếu có chỉ định cụ thể
+            if (sortBy === "price_asc") {
+                ranked.sort((a, b) => a.price - b.price);
+            }
+            else if (sortBy === "price_desc") {
+                ranked.sort((a, b) => b.price - a.price);
+            }
+            else if (sortBy === "rating_desc") {
+                ranked.sort((a, b) => b.rating - a.rating);
+            }
+            const total = ranked.length;
+            const products = ranked.slice(skip, skip + limitNum);
+            return res.json({
+                total,
+                page: pageNum,
+                limit: limitNum,
+                products
+            });
+        }
         let orderBy = {};
         if (sortBy === "price_asc") {
             orderBy = { price: "asc" };
@@ -52,9 +73,6 @@ router.get("/", async (req, res) => {
         else if (sortBy === "newest") {
             orderBy = { createdAt: "desc" };
         }
-        const pageNum = parseInt(page) || 1;
-        const limitNum = parseInt(limit) || 50;
-        const skip = (pageNum - 1) * limitNum;
         const [products, total] = await Promise.all([
             db_1.db.product.findMany({
                 where,
