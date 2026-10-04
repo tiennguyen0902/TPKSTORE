@@ -11,6 +11,93 @@ function buildUrl(path: string): URL {
   return new URL(`${API_BASE}${path.startsWith('/') ? path : '/' + path}`, origin);
 }
 
+let isRefreshing = false;
+let refreshSubscribers: ((token: string | null) => void)[] = [];
+
+function subscribeTokenRefresh(cb: (token: string | null) => void) {
+  refreshSubscribers.push(cb);
+}
+
+function onRefreshed(token: string | null) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+async function tryRefreshToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem("store_ai_refresh_token");
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken })
+    });
+    if (!res.ok) {
+      localStorage.removeItem("store_ai_access_token");
+      localStorage.removeItem("store_ai_refresh_token");
+      return null;
+    }
+    const data = await res.json();
+    if (data?.tokens?.accessToken) {
+      localStorage.setItem("store_ai_access_token", data.tokens.accessToken);
+      if (data.tokens.refreshToken) {
+        localStorage.setItem("store_ai_refresh_token", data.tokens.refreshToken);
+      }
+      return data.tokens.accessToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchWithAuth(url: string | URL, init: RequestInit = {}): Promise<Response> {
+  const currentToken = localStorage.getItem("store_ai_access_token");
+  const headers = new Headers(init.headers || {});
+  if (currentToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${currentToken}`);
+  }
+
+  let res = await fetch(url.toString(), { ...init, headers });
+
+  // If 401 or 403 (token expired or invalid), attempt silent auto-refresh
+  if (res.status === 401 || res.status === 403) {
+    const cloned = res.clone();
+    let isExpired = false;
+    try {
+      const data = await cloned.json();
+      if (data.error && (data.error.includes("hết hạn") || data.error.includes("không hợp lệ") || data.error.includes("Token đã bị"))) {
+        isExpired = true;
+      }
+    } catch {}
+
+    if (isExpired) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        const newToken = await tryRefreshToken();
+        isRefreshing = false;
+        onRefreshed(newToken);
+
+        if (newToken) {
+          headers.set("Authorization", `Bearer ${newToken}`);
+          return fetch(url.toString(), { ...init, headers });
+        }
+      } else {
+        const retryToken = await new Promise<string | null>((resolve) => {
+          subscribeTokenRefresh(resolve);
+        });
+        if (retryToken) {
+          headers.set("Authorization", `Bearer ${retryToken}`);
+          return fetch(url.toString(), { ...init, headers });
+        }
+      }
+    }
+  }
+
+  return res;
+}
+
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem("store_ai_access_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -138,37 +225,28 @@ export const api = {
   },
 
   async createProduct(data: any) {
-    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
-    const res = await fetch(`${API_BASE}/products`, {
+    const res = await fetchWithAuth(`${API_BASE}/products`, {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Thêm sản phẩm thất bại");
-    return json;
+    return handleResponse(res, "Thêm sản phẩm thất bại");
   },
 
   async updateProduct(id: string, data: any) {
-    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
-    const res = await fetch(`${API_BASE}/products/${id}`, {
+    const res = await fetchWithAuth(`${API_BASE}/products/${id}`, {
       method: "PUT",
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Cập nhật sản phẩm thất bại");
-    return json;
+    return handleResponse(res, "Cập nhật sản phẩm thất bại");
   },
 
   async deleteProduct(id: string) {
-    const res = await fetch(`${API_BASE}/products/${id}`, {
-      method: "DELETE",
-      headers: { ...getAuthHeader() }
+    const res = await fetchWithAuth(`${API_BASE}/products/${id}`, {
+      method: "DELETE"
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Xóa sản phẩm thất bại");
-    return json;
+    return handleResponse(res, "Xóa sản phẩm thất bại");
   },
 
   async getCategories(): Promise<{ total: number; categories: Category[] }> {

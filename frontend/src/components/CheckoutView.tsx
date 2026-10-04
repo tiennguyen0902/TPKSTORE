@@ -299,9 +299,6 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
-                  Tiện lợi
-                </span>
               </label>
 
               {/* Option 2: VNPAY Sandbox */}
@@ -331,9 +328,6 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold border border-blue-200">
-                  Thẻ / VNPAY-QR
-                </span>
               </label>
 
               {/* Option 3: MoMo Sandbox (Gateway v2) */}
@@ -365,9 +359,6 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-pink-100 text-pink-800 font-bold border border-pink-200">
-                  Siêu tốc ⭐
-                </span>
               </label>
             </div>
           </div>

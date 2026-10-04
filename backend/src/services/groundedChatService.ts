@@ -107,6 +107,10 @@ QUY TẮC TƯ VẤN SẢN PHẨM CỬA HÀNG:
    - Tuyệt đối không tự bịa đặt giá bán hoặc số lượng tồn kho sai lệch so với CSDL.
 2. VỀ CHÍNH SÁCH MUA HÀNG TẠI SHOPBEE:
    - Nhắc khách về chính sách uy tín: Đổi trả 7 ngày miễn phí, bảo hành chính hãng 1 đổi 1 và giao hàng hỏa tốc trong 2 giờ.
+3. VỀ SỐ LƯỢNG VÀ ĐA DẠNG SẢN PHẨM (BẮT BUỘC):
+   - Khi CSDL cung cấp nhiều sản phẩm phù hợp (lên đến 4 sản phẩm): Hãy giới thiệu rõ ràng và so sánh ngắn gọn TẤT CẢ các sản phẩm trong danh sách CSDL (thường là 4 sản phẩm) để khách hàng có nhiều sự lựa chọn theo các phân khúc giá, thương hiệu và tính năng khác nhau.
+   - Tuyệt đối không chỉ chọn 1 sản phẩm duy nhất nếu CSDL có nhiều sản phẩm tương ứng với danh mục hoặc từ khóa khách hỏi.
+   - Khi danh sách gồm các sản phẩm chính đúng từ khóa (như pin sạc dự phòng) và các phụ kiện sạc bổ trợ tương thích (như củ sạc nhanh GaN, cáp sạc nhanh Type-C): Hãy ưu tiên tư vấn sâu các mẫu chính trước, sau đó gợi ý củ sạc/cáp sạc như phụ kiện đồng hành tối ưu để sạc nhanh cho pin và thiết bị.
 `;
     } else {
       productInstruction = `

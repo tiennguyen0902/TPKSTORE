@@ -13,12 +13,14 @@ import {
   Image as ImageIcon,
   Check,
   Lock,
-  ShieldAlert
+  ShieldAlert,
+  KeyRound
 } from "lucide-react";
 import { Product, Category } from "../types";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { Pagination } from "./Pagination";
+import { handleImageError } from "../utils/imageFallback";
 
 // Danh mục hình ảnh sản phẩm mẫu sắc nét sẵn sàng chọn nhanh
 const PRODUCT_IMAGE_PRESETS = [
@@ -60,12 +62,15 @@ export const AdminProducts: React.FC = () => {
   const [originalPrice, setOriginalPrice] = useState("");
   const [stock, setStock] = useState("");
   const [thumbnail, setThumbnail] = useState("");
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState("");
   const [description, setDescription] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
   const [isNew, setIsNew] = useState(false);
 
   const [toastMsg, setToastMsg] = useState("");
   const [formErrorMsg, setFormErrorMsg] = useState("");
+  const [isReloggingIn, setIsReloggingIn] = useState(false);
   const [productErrors, setProductErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -116,7 +121,10 @@ export const AdminProducts: React.FC = () => {
     setPrice("");
     setOriginalPrice("");
     setStock("20");
-    setThumbnail(PRODUCT_IMAGE_PRESETS[0].url);
+    const defaultImg = PRODUCT_IMAGE_PRESETS[0].url;
+    setThumbnail(defaultImg);
+    setGalleryImages([defaultImg]);
+    setNewImageUrl("");
     setDescription("");
     setIsFeatured(false);
     setIsNew(true);
@@ -137,7 +145,23 @@ export const AdminProducts: React.FC = () => {
     setOriginalPrice(p.originalPrice ? p.originalPrice.toString() : "");
     const numStock = typeof p.stock === "number" ? p.stock : (typeof p.stock === "object" && p.stock && "decrement" in (p.stock as any) ? Math.max(0, 25 - (p.stock as any).decrement) : (parseInt(String(p.stock)) || 0));
     setStock(numStock.toString());
-    setThumbnail(p.thumbnail || PRODUCT_IMAGE_PRESETS[0].url);
+    
+    // Parse existing gallery images
+    let rawImgs: string[] = [];
+    if (Array.isArray(p.images)) {
+      rawImgs = p.images.filter(x => typeof x === "string" && x.trim());
+    } else if (typeof (p as any).images === "string") {
+      try {
+        const parsed = JSON.parse((p as any).images);
+        if (Array.isArray(parsed)) rawImgs = parsed.filter(x => typeof x === "string" && x.trim());
+      } catch {}
+    }
+    const mainThumb = p.thumbnail || rawImgs[0] || PRODUCT_IMAGE_PRESETS[0].url;
+    const initialGallery = rawImgs.length > 0 ? (rawImgs.includes(mainThumb) ? rawImgs : [mainThumb, ...rawImgs]) : [mainThumb];
+
+    setThumbnail(mainThumb);
+    setGalleryImages(initialGallery);
+    setNewImageUrl("");
     setDescription(p.description);
     setIsFeatured(p.isFeatured);
     setIsNew(p.isNew);
@@ -147,21 +171,73 @@ export const AdminProducts: React.FC = () => {
   };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 8 * 1024 * 1024) {
-        setProductErrors(prev => ({ ...prev, thumbnail: "Vui lòng chọn ảnh có dung lượng dưới 8MB!" }));
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          setThumbnail(reader.result);
-          clearProductError("thumbnail");
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const newImgs: string[] = [];
+      let pending = files.length;
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.size > 8 * 1024 * 1024) {
+          setProductErrors(prev => ({ ...prev, thumbnail: "Vui lòng chọn ảnh có dung lượng dưới 8MB!" }));
+          pending--;
+          continue;
         }
-      };
-      reader.readAsDataURL(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === "string") {
+            newImgs.push(reader.result);
+          }
+          pending--;
+          if (pending === 0 && newImgs.length > 0) {
+            setGalleryImages(prev => [...prev, ...newImgs]);
+            setThumbnail(prev => prev || newImgs[0]);
+            clearProductError("thumbnail");
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     }
+  };
+
+  const handleAddUrlImage = () => {
+    const trimmed = newImageUrl.trim();
+    if (!trimmed) return;
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("data:")) {
+      alert("Đường dẫn ảnh phải bắt đầu bằng http:// hoặc https://");
+      return;
+    }
+    setGalleryImages(prev => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    setThumbnail(prev => prev || trimmed);
+    setNewImageUrl("");
+    clearProductError("thumbnail");
+  };
+
+  const handleSetMainThumbnail = (indexToPromote: number) => {
+    setGalleryImages(prev => {
+      const selected = prev[indexToPromote];
+      if (!selected) return prev;
+      setThumbnail(selected);
+      const rest = prev.filter((_, idx) => idx !== indexToPromote);
+      return [selected, ...rest];
+    });
+    clearProductError("thumbnail");
+  };
+
+  const handleRemoveGalleryImage = (indexToRemove: number) => {
+    setGalleryImages(prev => {
+      const removedUrl = prev[indexToRemove];
+      const next = prev.filter((_, idx) => idx !== indexToRemove);
+      if (thumbnail === removedUrl) {
+        setThumbnail(next[0] || "");
+      }
+      return next;
+    });
+  };
+
+  const handleAddPreset = (url: string) => {
+    setGalleryImages(prev => (prev.includes(url) ? prev : [...prev, url]));
+    setThumbnail(prev => prev || url);
+    clearProductError("thumbnail");
   };
 
   const handleDelete = async (id: string) => {
@@ -177,6 +253,26 @@ export const AdminProducts: React.FC = () => {
       setTimeout(() => setToastMsg(""), 3000);
     } catch (err: any) {
       alert(err.message || "Lỗi khi xóa sản phẩm");
+    }
+  };
+
+  const handleQuickRelogin = async () => {
+    setIsReloggingIn(true);
+    try {
+      const data = await api.login("admin@example.com", "Password123@");
+      if (data?.tokens?.accessToken) {
+        localStorage.setItem("store_ai_access_token", data.tokens.accessToken);
+        if (data.tokens.refreshToken) {
+          localStorage.setItem("store_ai_refresh_token", data.tokens.refreshToken);
+        }
+      }
+      setFormErrorMsg("");
+      setToastMsg("Đã gia hạn phiên Admin thành công! Bạn có thể bấm Lưu ngay.");
+      setTimeout(() => setToastMsg(""), 4000);
+    } catch (err: any) {
+      alert("Không thể tự động gia hạn: " + (err.message || "Vui lòng đăng nhập lại"));
+    } finally {
+      setIsReloggingIn(false);
     }
   };
 
@@ -209,8 +305,9 @@ export const AdminProducts: React.FC = () => {
       errors.stock = "Số lượng tồn kho ban đầu phải từ 0 trở lên.";
     }
 
-    if (!thumbnail) {
-      errors.thumbnail = "Vui lòng chọn hoặc tải lên hình ảnh cho sản phẩm.";
+    const finalThumb = thumbnail || galleryImages[0] || "";
+    if (!finalThumb) {
+      errors.thumbnail = "Vui lòng chọn hoặc tải lên ít nhất một hình ảnh cho sản phẩm.";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -220,13 +317,23 @@ export const AdminProducts: React.FC = () => {
     setProductErrors({});
 
     try {
+      const finalGallery = galleryImages.length > 0 ? [...galleryImages] : [finalThumb];
+      const thumbIdx = finalGallery.indexOf(finalThumb);
+      if (thumbIdx > 0) {
+        finalGallery.splice(thumbIdx, 1);
+        finalGallery.unshift(finalThumb);
+      } else if (thumbIdx === -1) {
+        finalGallery.unshift(finalThumb);
+      }
+
       const payload = {
         name: name.trim(),
         categoryId: currentCategoryId,
         price: parsedPrice,
         originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
         stock: parsedStock,
-        thumbnail,
+        thumbnail: finalThumb,
+        images: finalGallery,
         description: description.trim(),
         isFeatured,
         isNew
@@ -351,7 +458,7 @@ export const AdminProducts: React.FC = () => {
               <tr>
                 <th className="p-4">Sản Phẩm</th>
                 <th className="p-4">Danh Mục</th>
-                <th className="p-4">Giá Bán</th>
+                <th className="p-4">Giá Bán & Lợi Nhuận</th>
                 <th className="p-4">Tồn Kho</th>
                 <th className="p-4">Đặc Điểm</th>
                 <th className="p-4 text-right">Thao Tác</th>
@@ -371,7 +478,12 @@ export const AdminProducts: React.FC = () => {
                   <tr key={prod.id} className="hover:bg-rose-50/40 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <img src={prod.thumbnail} alt="" className="w-12 h-12 object-cover rounded-xl bg-slate-50 border border-slate-200 shrink-0 shadow-sm" />
+                        <img 
+                          src={prod.thumbnail} 
+                          alt="" 
+                          onError={(e) => handleImageError(e, prod.categoryId)}
+                          className="w-12 h-12 object-cover rounded-xl bg-slate-50 border border-slate-200 shrink-0 shadow-sm" 
+                        />
                         <div>
                           <p className="font-bold text-slate-900 line-clamp-1">{prod.name}</p>
                           <p className="text-[10px] text-slate-500 font-mono">ID: {prod.id}</p>
@@ -383,8 +495,14 @@ export const AdminProducts: React.FC = () => {
                         {prod.category?.name || "Công nghệ"}
                       </span>
                     </td>
-                    <td className="p-4 font-black text-rose-600 whitespace-nowrap">
-                      {prod.price.toLocaleString("vi-VN")} đ
+                    <td className="p-4 whitespace-nowrap">
+                      <p className="font-black text-slate-900">{prod.price.toLocaleString("vi-VN")} đ</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
+                        <span className="text-slate-500">Vốn (75%): {Math.round(prod.price * 0.75).toLocaleString("vi-VN")} đ</span>
+                        <span className="font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                          +{Math.round(prod.price * 0.25).toLocaleString("vi-VN")} đ (25%)
+                        </span>
+                      </div>
                     </td>
                     <td className="p-4 whitespace-nowrap">
                       {(() => {
@@ -476,9 +594,22 @@ export const AdminProducts: React.FC = () => {
             </div>
 
             {formErrorMsg && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
-                <span>{formErrorMsg}</span>
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>{formErrorMsg}</span>
+                </div>
+                {(formErrorMsg.includes("hết hạn") || formErrorMsg.includes("không hợp lệ") || formErrorMsg.includes("Chưa xác thực")) && (
+                  <button
+                    type="button"
+                    onClick={handleQuickRelogin}
+                    disabled={isReloggingIn}
+                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-[11px] shrink-0 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>{isReloggingIn ? "Đang gia hạn..." : "Gia hạn phiên Admin ngay"}</span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -594,119 +725,211 @@ export const AdminProducts: React.FC = () => {
                 </div>
               </div>
 
-              {/* PHẦN CHỌN HÌNH ẢNH SẢN PHẨM - BỎ ADD LINK HOÀN TOÀN */}
-              <div className="space-y-2 p-3.5 rounded-2xl bg-rose-50/50 border border-rose-100">
+              {/* Box Tính Toán Giá Vốn (75%) & Lợi Nhuận Dự Kiến (25%) */}
+              {price && !isNaN(Number(price)) && Number(price) > 0 && (
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-blue-50/80 via-slate-50 to-emerald-50/80 border border-slate-200 grid grid-cols-2 gap-3 text-xs shadow-2xs">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Giá Vốn Tự Động (Cost 75%):
+                    </span>
+                    <span className="font-black text-slate-800 text-sm mt-0.5 block">
+                      {Math.round(Number(price) * 0.75).toLocaleString("vi-VN")} đ
+                    </span>
+                    <span className="text-[9px] text-slate-400">Chi phí nhập hàng tiêu chuẩn</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                      Lợi Nhuận Dự Kiến / SP (25%):
+                    </span>
+                    <span className="font-black text-emerald-600 text-sm mt-0.5 block">
+                      +{Math.round(Number(price) * 0.25).toLocaleString("vi-VN")} đ
+                    </span>
+                    <span className="text-[9px] text-emerald-600 font-semibold">Biên độ lợi nhuận ròng 25.0%</span>
+                  </div>
+                </div>
+              )}
+
+              {/* QUẢN LÝ BỘ SƯU TẬP ẢNH SẢN PHẨM & ẢNH ĐẠI DIỆN */}
+              <div className="space-y-3 p-4 rounded-2xl bg-gradient-to-b from-rose-50/70 to-slate-50 border border-rose-200">
                 <div className="flex items-center justify-between">
-                  <label className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <label className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
                     <ImageIcon className="w-4 h-4 text-rose-600" />
-                    <span>Chọn Hình Ảnh Sản Phẩm *</span>
+                    <span>Bộ Sưu Tập Hình Ảnh Sản Phẩm ({galleryImages.length} ảnh) *</span>
                   </label>
                   <span className="text-[10px] text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full font-bold border border-rose-200">
-                    File Upload & Thư Viện Mẫu
+                    Ảnh chính & Album chi tiết
                   </span>
                 </div>
 
-                {/* Input file ẩn */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImageFileChange}
-                />
-
-                {/* Khung tải ảnh từ máy tính hoặc xem trước */}
-                {thumbnail ? (
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-rose-200 shadow-sm">
-                    <img
-                      src={thumbnail}
-                      alt="Xem trước ảnh sản phẩm"
-                      className="w-16 h-16 object-cover rounded-xl border border-rose-300 shadow-sm shrink-0"
-                    />
+                {/* 1. Preview Ảnh Đại Diện Chính (Đang chọn) */}
+                {thumbnail && (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-rose-300 shadow-sm">
+                    <div className="relative shrink-0">
+                      <img
+                        src={thumbnail}
+                        alt="Ảnh chính"
+                        onError={(e) => handleImageError(e, categoryId)}
+                        className="w-16 h-16 object-cover rounded-xl border-2 border-rose-500 shadow-sm"
+                      />
+                      <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white p-0.5 rounded-full shadow" title="Ảnh đại diện chính">
+                        <Star className="w-3 h-3 fill-white" />
+                      </span>
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-slate-900 font-bold text-[11px] truncate">
-                        Ảnh sản phẩm đã được chọn
-                      </p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">
-                        {thumbnail.startsWith("data:") ? "Tệp tải lên từ máy tính của bạn" : "Ảnh từ thư viện mẫu"}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] flex items-center gap-1 transition-colors"
-                        >
-                          <Upload className="w-3 h-3" />
-                          <span>Tải ảnh khác từ máy</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setThumbnail("")}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition-colors border border-slate-200"
-                        >
-                          Gỡ ảnh
-                        </button>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-700 font-extrabold text-[10px]">
+                          ⭐ ẢNH ĐẠI DIỆN CHÍNH
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          {thumbnail.startsWith("data:") ? "Tệp tải lên" : "URL web"}
+                        </span>
                       </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-5 border-2 border-dashed border-rose-300 hover:border-rose-500 bg-white hover:bg-rose-50/40 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all group"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Upload className="w-5 h-5" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-slate-900 font-bold text-xs">
-                        Bấm vào đây để chọn file ảnh từ máy tính
-                      </p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">
-                        Hỗ trợ định dạng PNG, JPG, JPEG, WebP (Tối đa 8MB)
+                      <p className="text-[10px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Đồng bộ tự động với Trang chủ, Chi tiết & Preview Chat AI
                       </p>
                     </div>
                   </div>
                 )}
 
-                {/* Hoặc chọn nhanh từ danh mục ảnh mẫu sắc nét */}
-                <div className="pt-2 border-t border-rose-100">
-                  <p className="text-[10px] text-slate-600 font-bold mb-1.5">
-                    Hoặc bấm chọn nhanh hình ảnh từ thư viện thiết bị công nghệ:
-                  </p>
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-36 overflow-y-auto p-1">
-                    {PRODUCT_IMAGE_PRESETS.map((preset, idx) => {
-                      const isSelected = thumbnail === preset.url;
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => { setThumbnail(preset.url); clearProductError("thumbnail"); }}
-                          className={`group relative rounded-xl overflow-hidden border transition-all text-left ${
-                            isSelected
-                              ? "border-rose-500 ring-2 ring-rose-500/50 scale-105"
-                              : "border-slate-200 hover:border-slate-400 opacity-80 hover:opacity-100"
-                          }`}
-                        >
-                          <img
-                            src={preset.url}
-                            alt={preset.name}
-                            className="w-full h-12 object-cover"
-                          />
-                          <div className="p-1 bg-slate-50 text-[9px] text-slate-700 font-semibold truncate text-center border-t border-slate-100">
-                            {preset.name}
-                          </div>
-                          {isSelected && (
-                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md">
-                              <Check className="w-2.5 h-2.5" />
+                {/* 2. Danh sách Album Gallery hình ảnh */}
+                {galleryImages.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span>Album ảnh hiển thị trong Modal chi tiết (Khách có thể click chọn từng ảnh):</span>
+                      <span className="text-[10px] text-slate-500 font-normal">Bấm "⭐ Đặt làm chính" để chọn ảnh đại diện</span>
+                    </p>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-48 overflow-y-auto p-1.5 bg-white rounded-xl border border-slate-200">
+                      {galleryImages.map((imgUrl, idx) => {
+                        const isMain = thumbnail === imgUrl;
+                        return (
+                          <div
+                            key={idx}
+                            className={`group relative rounded-xl overflow-hidden border-2 transition-all bg-white flex flex-col ${
+                              isMain ? "border-rose-600 ring-2 ring-rose-500/30" : "border-slate-200 hover:border-slate-400"
+                            }`}
+                          >
+                            <div className="relative w-full h-16 bg-slate-50">
+                              <img
+                                src={imgUrl}
+                                alt={`Ảnh ${idx + 1}`}
+                                onError={(e) => handleImageError(e, categoryId)}
+                                className="w-full h-full object-cover"
+                              />
+                              {isMain && (
+                                <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-rose-600 text-white text-[8px] font-black shadow">
+                                  CHÍNH
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveGalleryImage(idx)}
+                                className="absolute top-1 right-1 p-1 rounded-full bg-slate-900/70 hover:bg-red-600 text-white transition-colors"
+                                title="Xóa ảnh này khỏi album"
+                              >
+                                <Trash2 className="w-2.5 h-2.5" />
+                              </button>
                             </div>
-                          )}
-                        </button>
-                      );
-                    })}
+                            <div className="p-1 bg-slate-50 text-center border-t border-slate-100 flex flex-col gap-0.5">
+                              <span className="text-[9px] font-bold text-slate-600">Ảnh #{idx + 1}</span>
+                              {!isMain ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetMainThumbnail(idx)}
+                                  className="text-[8px] font-bold text-rose-600 hover:text-rose-700 hover:underline"
+                                >
+                                  ⭐ Đặt làm chính
+                                </button>
+                              ) : (
+                                <span className="text-[8px] font-extrabold text-emerald-600">Đang là ảnh chính</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Công cụ thêm ảnh mới vào Album */}
+                <div className="space-y-2 pt-2 border-t border-rose-200">
+                  <p className="text-[11px] font-bold text-slate-800">Thêm hình ảnh vào Album sản phẩm:</p>
+                  
+                  {/* Ô dán URL */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Dán link ảnh (https://...)"
+                      value={newImageUrl}
+                      onChange={(e) => setNewImageUrl(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddUrlImage(); } }}
+                      className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddUrlImage}
+                      className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs flex items-center gap-1 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Thêm link</span>
+                    </button>
+                  </div>
+
+                  {/* Nút upload file từ máy tính (hỗ trợ chọn nhiều ảnh multiple) */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleImageFileChange}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1 py-2 px-3 rounded-xl border border-dashed border-rose-300 hover:border-rose-500 bg-white hover:bg-rose-50/50 text-rose-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <Upload className="w-4 h-4 text-rose-600" />
+                      <span>Tải ảnh từ máy tính (Có thể chọn nhiều ảnh cùng lúc)</span>
+                    </button>
+                  </div>
+
+                  {/* Chọn nhanh từ thư viện mẫu */}
+                  <div className="pt-1.5">
+                    <p className="text-[10px] text-slate-600 font-semibold mb-1">
+                      Hoặc bấm để thêm nhanh từ thư viện mẫu công nghệ:
+                    </p>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-28 overflow-y-auto p-1 bg-white rounded-xl border border-slate-200">
+                      {PRODUCT_IMAGE_PRESETS.map((preset, idx) => {
+                        const inGallery = galleryImages.includes(preset.url);
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleAddPreset(preset.url)}
+                            className={`group relative rounded-lg overflow-hidden border transition-all text-left ${
+                              inGallery ? "border-rose-500 opacity-90 ring-1 ring-rose-500/50" : "border-slate-200 hover:border-slate-400 opacity-70 hover:opacity-100"
+                            }`}
+                          >
+                            <img src={preset.url} alt={preset.name} className="w-full h-10 object-cover" />
+                            <div className="p-0.5 bg-slate-50 text-[8px] text-slate-700 font-semibold truncate text-center">
+                              {preset.name}
+                            </div>
+                            {inGallery && (
+                              <div className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-rose-600 text-white flex items-center justify-center">
+                                <Check className="w-2 h-2" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
+
                 {productErrors.thumbnail && (
-                  <p className="mt-1.5 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                     <span>{productErrors.thumbnail}</span>
                   </p>

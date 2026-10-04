@@ -8,25 +8,15 @@ import {
   isContextReferenceQuery 
 } from "./vietnameseUtils";
 import { StructuredProductQuery } from "./productSearchService";
+import { 
+  CATEGORIES, 
+  BRAND_MAPPINGS, 
+  findCategoryMatch, 
+  findBrandMatch 
+} from "./categoryDictionary";
 
-const KNOWN_BRANDS = [
-  "samsung", "apple", "iphone", "ipad", "macbook", "airpods",
-  "asus", "dell", "hp", "lenovo", "sony", "marshall", "garmin",
-  "anker", "philips", "logitech", "keychron", "rain", "microsoft", "kaspersky"
-];
-
-const KNOWN_CATEGORIES = [
-  { key: "phone", aliases: ["dien thoai", "phone", "smartphone", "tablet", "ipad", "dien thoai & tablet"] },
-  { key: "laptop", aliases: ["laptop", "macbook", "may tinh xach tay", "laptop & macbook"] },
-  { key: "audio", aliases: ["tai nghe", "headphone", "loa", "am thanh", "soundbar", "tai nghe & am thanh"] },
-  { key: "watch", aliases: ["dong ho", "smartwatch", "apple watch", "dong ho thong minh"] },
-  { key: "accessory", aliases: ["phu kien", "cap", "sac", "pin", "du phong", "gan", "phu kien & cap sac"] },
-  { key: "smarthome", aliases: ["nha thong minh", "smart home", "camera", "robot", "hut bui", "den", "khoa"] },
-  { key: "monitor", aliases: ["man hinh", "monitor", "man hinh may tinh"] },
-  { key: "keyboard_mouse", aliases: ["ban phim", "chuot", "keyboard", "mouse", "ban phim & chuot"] },
-  { key: "network", aliases: ["mang", "wifi", "router", "mesh", "switch", "thiet bi mang"] },
-  { key: "software", aliases: ["phan mem", "ban quyen", "office", "windows", "antivirus", "kaspersky"] }
-];
+const KNOWN_BRANDS = BRAND_MAPPINGS.map(b => b.match);
+const KNOWN_CATEGORIES = CATEGORIES;
 
 export class IntentParserService {
   /**
@@ -96,7 +86,7 @@ Allowed intents:
 Expected JSON schema:
 {
   "intent": "product_search" | "product_details" | "price_query" | "stock_query" | "discount_query" | "category_query" | "brand_query" | "comparison" | "recommendation" | "general_product_question" | "external_knowledge",
-  "category": string | null,
+  "category": "cat_1" | "cat_2" | "cat_3" | "cat_4" | "cat_5" | "cat_6" | "cat_7" | "cat_8" | "cat_9" | "cat_10" | null,
   "brand": string | null,
   "keywords": string[],
   "min_price": number | null,
@@ -119,6 +109,32 @@ Vietnamese price conversion rules:
 - "còn hàng" = in_stock: true
 - "đang giảm giá" = discount_only: true
 - "cái nào", "con nào", "sản phẩm này" referring to previous bot reply = context_reference: true
+
+Standard 10 Store Categories (MUST use category ID "cat_1" to "cat_10"):
+- cat_1: Điện thoại & Tablet (smartphone, iPhone, iPad, Galaxy, Xiaomi, OPPO, vivo, realme, Pixel, máy tính bảng...)
+- cat_2: Laptop & Macbook (laptop, máy tính xách tay, macbook, mac, máy mac, imac, mac mini, MacBook Air, MacBook Pro, gaming laptop, ultrabook, M1/M2/M3/M4, Core i5/i7, Ryzen...)
+- cat_3: Tai nghe & Âm thanh (tai nghe, headphone, loa, speaker, soundbar, airpods, galaxy buds, bluetooth, anc, microphone...)
+- cat_4: Đồng hồ thông minh (smartwatch, đồng hồ thông minh, Apple Watch, Galaxy Watch, Garmin, Huawei Watch, Amazfit, Mi Band...)
+- cat_5: Phụ kiện & Cáp sạc (phụ kiện điện thoại/laptop, cáp sạc, củ sạc, sạc nhanh GaN, sạc không dây, MagSafe, pin dự phòng, hub USB...)
+- cat_6: Nhà thông minh (Smart Home) (smart home, camera thông minh, camera wifi, robot hút bụi, đèn thông minh, ổ cắm thông minh, smart lock...)
+- cat_7: Màn hình máy tính (màn hình máy tính, monitor, màn hình gaming, 4K, OLED, 144Hz, 165Hz, 240Hz, ultrawide, cong...)
+- cat_8: Bàn phím & Chuột (bàn phím cơ, mechanical keyboard, chuột gaming, chuột không dây, công thái học, Logitech, Keychron...)
+- cat_9: Thiết bị mạng & Wi-Fi 7 (router, wifi, wifi 6, wifi 7, bộ phát wifi, mesh wifi, access point, switch mạng...)
+- cat_10: Phần mềm & Bản quyền (phần mềm, bản quyền, software license, Windows 11, Office 365, antivirus, Kaspersky, Bitdefender...)
+
+Category & Brand mapping rules:
+- Queries with "mac", "máy mac", "macbook", "imac", "mac mini" MUST map to category: "cat_2", brand: "Apple"
+- Queries asking for accessories (e.g. "phụ kiện iPhone", "củ sạc Samsung") MUST map to category: "cat_5", NOT cat_1.
+- Queries with "router wifi 7" MUST map to category: "cat_9".
+- Queries with "chuột gaming" or "bàn phím" MUST map to category: "cat_8".
+- CRITICAL RULE FOR GENERAL CATEGORY QUERIES: If the user is asking about a general category (e.g. "tôi muốn mua điện thoại", "tư vấn laptop", "xem phụ kiện"), set the category ID ("cat_1", "cat_2", "cat_5", etc.) and LEAVE keywords EMPTY []. DO NOT put broad category words (like "điện thoại", "laptop", "phụ kiện") into keywords!
+- IMPORTANT FOR SPECIFIC SUBTYPE QUERIES: In categories containing diverse product types, you MUST include the specific subtype in keywords so the store engine filters accurately:
+  * In cat_5 (Phụ kiện & Cáp sạc): "sạc dự phòng", "pin dự phòng" -> keywords: ["sạc dự phòng"]; "củ sạc", "trạm sạc" -> keywords: ["củ sạc"]; "cáp sạc", "dây sạc" -> keywords: ["cáp sạc"]; "bút cảm ứng", "apple pencil" -> keywords: ["bút cảm ứng"]; "hub", "dock", "bộ chuyển đổi" -> keywords: ["hub"].
+  * In cat_3 (Tai nghe & Âm thanh): "tai nghe", "headphone" -> keywords: ["tai nghe"]; "loa", "loa bluetooth", "soundbar" -> keywords: ["loa"].
+  * In cat_8 (Bàn phím & Chuột): "chuột", "chuột gaming" -> keywords: ["chuột"]; "bàn phím", "bàn phím cơ" -> keywords: ["bàn phím"].
+  * In cat_6 (Nhà thông minh): "robot hút bụi" -> keywords: ["robot hút bụi"]; "camera" -> keywords: ["camera"].
+- Keywords MUST contain specific models (e.g. "s24", "pro max", "blade 100w"), brand names (e.g. "Anker", "Baseus"), technical features (e.g. "magsafe", "gan", "anc", "oled"), or specific product subtypes above.
+- Always separate keywords into individual concise search tokens (e.g. keywords: ["m3", "pro"]) instead of long compound sentences.
 
 Respond ONLY with valid JSON. Do not include markdown codeblocks or other text.`;
 
@@ -183,33 +199,22 @@ Respond ONLY with valid JSON. Do not include markdown codeblocks or other text.`
     const contextRef = isContextReferenceQuery(text);
 
     // 1. Detect Brand
-    let detectedBrand: string | null = null;
-    for (const b of KNOWN_BRANDS) {
-      if (unaccented.includes(b)) {
-        if (b === "iphone" || b === "ipad" || b === "macbook" || b === "airpods") {
-          detectedBrand = "Apple";
-        } else {
-          detectedBrand = b.charAt(0).toUpperCase() + b.slice(1);
-        }
-        break;
-      }
-    }
+    const detectedBrand = findBrandMatch(unaccented);
 
-    // 2. Detect Category
-    let detectedCategory: string | null = null;
-    for (const cat of KNOWN_CATEGORIES) {
-      if (cat.aliases.some(alias => unaccented.includes(alias))) {
-        detectedCategory = cat.key;
-        break;
-      }
-    }
+    // 2. Detect Category (Longest match with boundary safety)
+    const matchedCategory = findCategoryMatch(unaccented);
+    const detectedCategory = matchedCategory ? matchedCategory.id : null;
 
     // 3. Detect Keywords & Specific Model Codes
     const keywords: string[] = [];
     const keywordCandidates = [
+      "sac du phong", "pin du phong", "pin sac", "power bank", "cu sac", "tram sac",
+      "cap sac", "day sac", "but cam ung", "apple pencil", "hub", "dock",
+      "tai nghe", "loa", "chuot", "ban phim", "robot hut bui", "camera",
       "gaming", "anc", "chong on", "bluetooth", "oled", "4k", "ips", "titan",
-      "magsafe", "gan", "lidar", "wifi 7", "mesh", "360", "faceid", "co hoc",
-      "s24", "s25", "s23", "ultra", "pro max", "zenbook", "rtx", "airpods"
+      "magsafe", "gan", "lidar", "wifi 7", "wifi 6", "mesh", "360", "faceid", "co hoc",
+      "s24", "s25", "s23", "ultra", "pro max", "zenbook", "rtx", "airpods",
+      "m1", "m2", "m3", "m4", "snapdragon", "ryzen", "core i5", "core i7"
     ];
     for (const kw of keywordCandidates) {
       if (unaccented.includes(kw)) {
@@ -220,7 +225,11 @@ Respond ONLY with valid JSON. Do not include markdown codeblocks or other text.`
     // Capture alphanumeric model tokens (e.g., "xyz 999", "999", "s25", "m3", "rtx 4060")
     // Standalone pure numbers (like "2", "20", "25") from price phrases must NOT be treated as product keywords
     const words = unaccented.split(/\s+/);
-    const stopWords = new Set(["tim", "cho", "toi", "xem", "co", "con", "nao", "duoi", "tren", "khoang", "tam", "gia", "re", "dat", "nhat", "muon", "khong", "trieu", "cu", "nghin", "dong", "k"]);
+    const stopWords = new Set([
+      "tim", "cho", "toi", "xem", "co", "con", "nao", "duoi", "tren", "khoang", "tam",
+      "gia", "re", "dat", "nhat", "muon", "khong", "trieu", "cu", "nghin", "dong", "k",
+      "tu", "van", "mua", "can", "chinh", "hang"
+    ]);
     for (const w of words) {
       if (!stopWords.has(w) && !KNOWN_BRANDS.includes(w) && !keywords.includes(w)) {
         // Alphanumeric tokens (e.g. s24, m3, rtx4060, 4k, 165hz) or specific code like xyz, or 3+ digit pure code (like 999)
@@ -349,7 +358,8 @@ Respond ONLY with valid JSON. Do not include markdown codeblocks or other text.`
       sort,
       limit,
       targetProductName: typeof raw.target_product_name === "string" ? raw.target_product_name.trim().slice(0, 100) : null,
-      contextReference: raw.context_reference === true || isContextReferenceQuery(originalText)
+      contextReference: raw.context_reference === true || isContextReferenceQuery(originalText),
+      rawText: originalText
     };
   }
 }

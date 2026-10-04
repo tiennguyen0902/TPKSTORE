@@ -1,5 +1,8 @@
 import { db } from "../db";
 import { removeVietnameseAccents } from "./vietnameseUtils";
+import { findCategoryMatch, CATEGORY_MAP } from "./categoryDictionary";
+
+export { CATEGORY_MAP };
 
 export interface StructuredProductQuery {
   intent:
@@ -26,6 +29,7 @@ export interface StructuredProductQuery {
   limit?: number;
   targetProductName?: string | null;
   contextReference?: boolean;
+  rawText?: string | null;
 }
 
 export interface SearchResult {
@@ -35,20 +39,6 @@ export interface SearchResult {
   exactCount?: number;
   similarCount?: number;
 }
-
-// Exact category map by category ID
-const CATEGORY_MAP: Record<string, string[]> = {
-  cat_1: ["phone", "dien thoai", "smartphone", "tablet", "ipad"],
-  cat_2: ["laptop", "macbook", "may tinh xach tay"],
-  cat_3: ["tai nghe", "headphone", "loa", "am thanh", "soundbar", "airpods"],
-  cat_4: ["dong ho", "smartwatch", "apple watch", "watch"],
-  cat_5: ["phu kien", "cap", "sac", "pin", "du phong", "gan"],
-  cat_6: ["nha thong minh", "smart home", "camera", "robot", "hut bui", "den", "khoa"],
-  cat_7: ["man hinh", "monitor"],
-  cat_8: ["ban phim", "chuot", "keyboard", "mouse"],
-  cat_9: ["mang", "wifi", "router", "mesh", "switch"],
-  cat_10: ["phan mem", "ban quyen", "office", "windows", "antivirus", "kaspersky"]
-};
 
 export class ProductSearchService {
   /**
@@ -89,17 +79,11 @@ export class ProductSearchService {
       let categoryMatches = [...allDbProducts];
       if (query.category) {
         appliedFilters.category = query.category;
-        const targetCat = removeVietnameseAccents(query.category);
-        let matchedCatId: string | null = null;
-        for (const [catId, aliases] of Object.entries(CATEGORY_MAP)) {
-          if (aliases.some(a => targetCat.includes(a) || a.includes(targetCat))) {
-            matchedCatId = catId;
-            break;
-          }
-        }
-        if (matchedCatId) {
-          categoryMatches = allDbProducts.filter(p => p.categoryId === matchedCatId);
+        const matched = findCategoryMatch(query.category);
+        if (matched) {
+          categoryMatches = allDbProducts.filter(p => p.categoryId === matched.id);
         } else {
+          const targetCat = removeVietnameseAccents(query.category);
           categoryMatches = allDbProducts.filter(p => {
             const catName = removeVietnameseAccents(p.category?.name || "");
             const catSlug = removeVietnameseAccents(p.category?.slug || "");
@@ -169,21 +153,14 @@ export class ProductSearchService {
       }
 
       // 2. Category Filter (Strict by category ID / category metadata)
+      let matchedCat: any = null;
       if (query.category) {
-        const targetCat = removeVietnameseAccents(query.category);
         appliedFilters.category = query.category;
-
-        let matchedCatId: string | null = null;
-        for (const [catId, aliases] of Object.entries(CATEGORY_MAP)) {
-          if (aliases.some(a => targetCat.includes(a) || a.includes(targetCat))) {
-            matchedCatId = catId;
-            break;
-          }
-        }
-
-        if (matchedCatId) {
-          pool = pool.filter(p => p.categoryId === matchedCatId);
+        matchedCat = findCategoryMatch(query.category);
+        if (matchedCat) {
+          pool = pool.filter(p => p.categoryId === matchedCat.id);
         } else {
+          const targetCat = removeVietnameseAccents(query.category);
           pool = pool.filter(p => {
             const catName = removeVietnameseAccents(p.category?.name || "");
             const catSlug = removeVietnameseAccents(p.category?.slug || "");
@@ -192,71 +169,352 @@ export class ProductSearchService {
         }
       }
 
-    // 3. Brand Filter
-    if (query.brand) {
-      const targetBrand = removeVietnameseAccents(query.brand);
-      appliedFilters.brand = query.brand;
+      // 2.1 Comprehensive Subcategory Disambiguation Engine
+      const fullQueryText = removeVietnameseAccents(
+        `${query.rawText || ""} ${(query.keywords || []).join(" ")} ${query.targetProductName || ""}`
+      ).toLowerCase();
 
-      // Handle brand synonyms (e.g., iPhone/iPad/MacBook -> Apple)
-      pool = pool.filter(p => {
-        const pName = removeVietnameseAccents(p.name);
-        const pDesc = removeVietnameseAccents(p.description || "");
-
-        if (targetBrand.includes("apple") || targetBrand.includes("iphone") || targetBrand.includes("ipad") || targetBrand.includes("macbook")) {
-          return (
-            pName.includes("apple") ||
-            pName.includes("iphone") ||
-            pName.includes("ipad") ||
-            pName.includes("macbook") ||
-            pName.includes("airpods")
-          );
+      const SUBCATEGORY_RULES = [
+        // cat_5: Phụ kiện & Cáp sạc
+        {
+          id: "subcat_cat5_powerbank",
+          name: "Pin sạc dự phòng",
+          categoryId: "cat_5",
+          triggers: ["sac du phong", "pin du phong", "power bank", "pin sac du phong", "pin sac", "sac di dong", "sac pin du phong"],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("du phong") || pName.includes("power bank") || pName.includes("pin sac"),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("but cam ung") || pName.includes("pencil") || pName.includes("stylus") || pName.includes("hub") || pName.includes("dock") || pName.includes("hdmi"),
+          compatibleBackfill: (pName: string, pDesc: string) => pName.includes("cu sac") || pName.includes("tram sac") || pName.includes("de sac") || pName.includes("cap sac") || pName.includes("gan")
+        },
+        {
+          id: "subcat_cat5_charger",
+          name: "Củ sạc & Trạm sạc",
+          categoryId: "cat_5",
+          triggers: ["cu sac", "adapter sac", "tram sac", "sac gan", "sac nhanh", "de sac", "magsafe charger", "sac khong day"],
+          primaryMatch: (pName: string, pDesc: string) => (pName.includes("cu sac") || pName.includes("tram sac") || pName.includes("de sac") || pName.includes("gan") || pName.includes("sac nhanh")) && !pName.includes("du phong"),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("but cam ung") || pName.includes("pencil") || pName.includes("stylus") || pName.includes("hub") || pName.includes("dock") || pName.includes("hdmi"),
+          compatibleBackfill: (pName: string, pDesc: string) => pName.includes("cap sac") || pName.includes("du phong")
+        },
+        {
+          id: "subcat_cat5_cable",
+          name: "Cáp sạc & Dây sạc",
+          categoryId: "cat_5",
+          triggers: ["cap sac", "day sac", "cap type c", "cap type-c", "cap lightning", "cap thunderbolt", "day cap"],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("cap sac") || pName.includes("day sac") || pName.includes("type-c to type-c"),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("but cam ung") || pName.includes("pencil") || pName.includes("stylus") || pName.includes("hub") || pName.includes("dock")
+        },
+        {
+          id: "subcat_cat5_stylus",
+          name: "Bút cảm ứng",
+          categoryId: "cat_5",
+          triggers: ["but cam ung", "apple pencil", "stylus", "pencil", "but cho ipad", "but ve"],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("but cam ung") || pName.includes("pencil") || pName.includes("stylus") || pName.includes("but "),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("du phong") || pName.includes("cu sac") || pName.includes("tram sac") || pName.includes("cap sac") || pName.includes("hub") || pName.includes("dock") || pName.includes("hdmi")
+        },
+        {
+          id: "subcat_cat5_hub",
+          name: "Hub chuyển đổi & Dock",
+          categoryId: "cat_5",
+          triggers: ["hub", "dock", "cong chuyen doi", "bo chuyen doi", "docking", "hub usb"],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("hub") || pName.includes("dock") || pName.includes("chuyen doi"),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("but cam ung") || pName.includes("pencil") || pName.includes("du phong") || pName.includes("cu sac")
+        },
+        {
+          id: "subcat_cat5_hdmi",
+          name: "Cáp HDMI & Hiển thị",
+          categoryId: "cat_5",
+          triggers: ["hdmi", "cap hdmi", "cap man hinh"],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("hdmi"),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("but cam ung") || pName.includes("pencil") || pName.includes("du phong") || pName.includes("cu sac")
+        },
+        // cat_3: Tai nghe & Âm thanh
+        {
+          id: "subcat_cat3_headphone",
+          name: "Tai nghe",
+          categoryId: "cat_3",
+          triggers: ["tai nghe", "headphone", "earphone", "earbuds", "airpods", "buds", "chup tai", "in-ear", "over-ear"],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("tai nghe") || pName.includes("airpods") || pName.includes("buds") || pName.includes("headphone"),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("loa") || pName.includes("soundbar") || pName.includes("speaker")
+        },
+        {
+          id: "subcat_cat3_speaker",
+          name: "Loa & Soundbar",
+          categoryId: "cat_3",
+          triggers: ["loa", "speaker", "soundbar", "loa bluetooth", "loa de ban"],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("loa") || pName.includes("soundbar") || pName.includes("speaker"),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("tai nghe") || pName.includes("airpods") || pName.includes("buds") || pName.includes("headphone")
+        },
+        // cat_8: Bàn phím & Chuột
+        {
+          id: "subcat_cat8_mouse",
+          name: "Chuột",
+          categoryId: "cat_8",
+          triggers: ["chuot", "mouse", "chuot gaming", "chuot khong day"],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("chuot") || pName.includes("mouse"),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("ban phim") || pName.includes("keyboard")
+        },
+        {
+          id: "subcat_cat8_keyboard",
+          name: "Bàn phím",
+          categoryId: "cat_8",
+          triggers: ["ban phim", "keyboard", "ban phim co"],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("ban phim") || pName.includes("keyboard"),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("chuot") || pName.includes("mouse")
+        },
+        // cat_6: Smart Home
+        {
+          id: "subcat_cat6_vacuum",
+          name: "Robot hút bụi",
+          categoryId: "cat_6",
+          triggers: ["robot hut bui", "robot lau nha", "hut bui", "deebot", "ecovacs", "vacuum"],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("robot") || pName.includes("hut bui") || pName.includes("deebot") || pName.includes("ecovacs"),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("camera") || pName.includes("den") || pName.includes("khoa")
+        },
+        {
+          id: "subcat_cat6_camera",
+          name: "Camera an ninh",
+          categoryId: "cat_6",
+          triggers: ["camera", "cam", "giam sat", "an ninh"],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("camera") || pName.includes("cam "),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("robot") || pName.includes("hut bui")
+        },
+        // cat_1: Điện thoại & Tablet
+        {
+          id: "subcat_cat1_phone",
+          name: "Điện thoại",
+          categoryId: "cat_1",
+          triggers: ["dien thoai", "phone", "smartphone", "dtdd"],
+          primaryMatch: (pName: string, pDesc: string) => !pName.includes("ipad") && !pName.includes("tab ") && !pName.includes("tablet"),
+          strictlyExcluded: (pName: string, pDesc: string) => pName.includes("ipad") || pName.includes("tab ") || pName.includes("tablet")
+        },
+        {
+          id: "subcat_cat1_tablet",
+          name: "Máy tính bảng",
+          categoryId: "cat_1",
+          triggers: ["tablet", "may tinh bang", "ipad", "tab "],
+          primaryMatch: (pName: string, pDesc: string) => pName.includes("ipad") || pName.includes("tab") || pName.includes("tablet"),
+          strictlyExcluded: (pName: string, pDesc: string) => !pName.includes("ipad") && !pName.includes("tab") && !pName.includes("tablet")
         }
-        return pName.includes(targetBrand) || pDesc.includes(targetBrand);
-      });
-    }
+      ];
 
-    // 4. Specific Product Target / Non-existent model check
-    if (query.targetProductName) {
-      const targetName = removeVietnameseAccents(query.targetProductName);
-      appliedFilters.targetProductName = query.targetProductName;
-      pool = pool.filter(p => {
-        const pName = removeVietnameseAccents(p.name);
-        return pName.includes(targetName) || targetName.includes(pName);
-      });
-    }
-
-    // 5. Keyword Matching
-    if (query.keywords && query.keywords.length > 0) {
-      const validKws = query.keywords
-        .map(kw => removeVietnameseAccents(kw))
-        .filter(kw => kw.length > 1);
-
-      if (validKws.length > 0) {
-        appliedFilters.keywords = query.keywords;
-        const strictMatches = pool.filter(p => {
-          const searchable = removeVietnameseAccents(`${p.name} ${p.description || ""}`);
-          return validKws.every(kw => searchable.includes(kw));
-        });
-
-        if (strictMatches.length > 0) {
-          pool = strictMatches;
-        } else {
-          // If strict all-keywords match is 0, check any-keywords match
-          const anyMatches = pool.filter(p => {
-            const searchable = removeVietnameseAccents(`${p.name} ${p.description || ""}`);
-            return validKws.some(kw => searchable.includes(kw));
-          });
-          // If still 0, and query has non-existent tokens (like xyz, 999), keep pool empty (do not fabricate)
-          const hasUnknownTokens = validKws.some(kw => kw.includes("xyz") || kw.includes("999") || kw.includes("fake"));
-          if (hasUnknownTokens) {
-            pool = [];
-          } else if (anyMatches.length > 0) {
-            pool = anyMatches;
+      let activeSubcat: any = null;
+      if (matchedCat) {
+        const candidateRules = SUBCATEGORY_RULES.filter(r => r.categoryId === matchedCat.id);
+        let bestMatchLen = 0;
+        for (const rule of candidateRules) {
+          for (const trig of rule.triggers) {
+            if (fullQueryText.includes(trig) && trig.length > bestMatchLen) {
+              if ((rule.id === "subcat_cat5_charger" || rule.id === "subcat_cat5_cable") &&
+                  (fullQueryText.includes("du phong") || fullQueryText.includes("power bank") || fullQueryText.includes("pin sac"))) {
+                continue;
+              }
+              bestMatchLen = trig.length;
+              activeSubcat = rule;
+            }
           }
         }
       }
+
+      if (activeSubcat) {
+        appliedFilters.subcategory = activeSubcat.name;
+        // 1. Remove strictly excluded products from the pool
+        pool = pool.filter(p => {
+          const pName = removeVietnameseAccents(p.name || "").toLowerCase();
+          const pDesc = removeVietnameseAccents(p.description || "").toLowerCase();
+          return !activeSubcat.strictlyExcluded(pName, pDesc);
+        });
+
+        // 2. Identify primary matches for the subcategory
+        const primaryMatches = pool.filter(p => {
+          const pName = removeVietnameseAccents(p.name || "").toLowerCase();
+          const pDesc = removeVietnameseAccents(p.description || "").toLowerCase();
+          return activeSubcat.primaryMatch(pName, pDesc);
+        });
+
+        if (primaryMatches.length > 0) {
+          // Sort primary matches by rating and featured
+          primaryMatches.sort((a, b) => {
+            if (b.isFeatured !== a.isFeatured) return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
+            return (Number(b.rating || 0) - Number(a.rating || 0)) || (Number(b.reviewCount || 0) - Number(a.reviewCount || 0));
+          });
+
+          if (primaryMatches.length >= 4 || !activeSubcat.compatibleBackfill) {
+            pool = primaryMatches;
+          } else {
+            // Backfill with compatible companion products up to 4 items
+            const seenIds = new Set<string>(primaryMatches.map(p => p.id));
+            const backfillCandidates = pool.filter(p => {
+              if (seenIds.has(p.id)) return false;
+              const pName = removeVietnameseAccents(p.name || "").toLowerCase();
+              const pDesc = removeVietnameseAccents(p.description || "").toLowerCase();
+              return activeSubcat.compatibleBackfill(pName, pDesc);
+            });
+
+            backfillCandidates.sort((a, b) => {
+              if (b.isFeatured !== a.isFeatured) return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
+              return (Number(b.rating || 0) - Number(a.rating || 0)) || (Number(b.reviewCount || 0) - Number(a.reviewCount || 0));
+            });
+
+            pool = [...primaryMatches, ...backfillCandidates.slice(0, 4 - primaryMatches.length)];
+          }
+        }
+      }
+
+      // 3. Brand Filter
+      if (query.brand) {
+        const targetBrand = removeVietnameseAccents(query.brand);
+        appliedFilters.brand = query.brand;
+
+        // Handle brand synonyms (e.g., Apple, Samsung, Microsoft...)
+        pool = pool.filter(p => {
+          const pName = removeVietnameseAccents(p.name);
+          const pDesc = removeVietnameseAccents(p.description || "");
+
+          if (targetBrand.includes("apple") || targetBrand.includes("iphone") || targetBrand.includes("ipad") || targetBrand.includes("macbook") || targetBrand.includes("mac") || targetBrand.includes("imac")) {
+            return (
+              pName.includes("apple") ||
+              pName.includes("iphone") ||
+              pName.includes("ipad") ||
+              pName.includes("macbook") ||
+              pName.includes("mac") ||
+              pName.includes("airpods")
+            );
+          }
+          if (targetBrand.includes("samsung") || targetBrand.includes("galaxy")) {
+            return pName.includes("samsung") || pName.includes("galaxy") || pDesc.includes("samsung");
+          }
+          if (targetBrand.includes("microsoft") || targetBrand.includes("windows") || targetBrand.includes("office")) {
+            return pName.includes("microsoft") || pName.includes("windows") || pName.includes("office") || pDesc.includes("microsoft");
+          }
+          return pName.includes(targetBrand) || pDesc.includes(targetBrand);
+        });
+      }
+
+      // 4. Specific Product Target / Non-existent model check
+      if (query.targetProductName) {
+        const targetName = removeVietnameseAccents(query.targetProductName);
+        appliedFilters.targetProductName = query.targetProductName;
+        pool = pool.filter(p => {
+          const pName = removeVietnameseAccents(p.name);
+          return pName.includes(targetName) || targetName.includes(pName);
+        });
+      }
+
+      // 5. Keyword Matching & Category Token Sanitization
+      // Only sanitize broad generic category stopwords, preserving equipment subtypes
+      const BROAD_CATEGORY_STOPWORDS: Record<string, string[]> = {
+        cat_1: ["dien thoai", "smartphone", "mobile phone", "phone", "dtdd", "dien thoai di dong"],
+        cat_2: ["laptop", "may tinh xach tay", "notebook", "ultrabook", "may tinh laptop"],
+        cat_3: ["thiet bi am thanh", "am thanh"],
+        cat_4: ["dong ho", "watch"],
+        cat_5: ["phu kien", "accessories", "phu kien cong nghe", "phu kien dien thoai", "phu kien laptop"],
+        cat_6: ["smart home", "nha thong minh", "thiet bi thong minh", "thiet bi"],
+        cat_7: ["man hinh", "monitor", "display"],
+        cat_8: ["ban phim va chuot"],
+        cat_9: ["thiet bi mang", "networking", "mang"],
+        cat_10: ["phan mem", "software", "ban quyen"]
+      };
+
+      const categoryTokens = new Set<string>(
+        matchedCat && BROAD_CATEGORY_STOPWORDS[matchedCat.id]
+          ? BROAD_CATEGORY_STOPWORDS[matchedCat.id]
+          : []
+      );
+
+      const rawKeywords = query.keywords || [];
+      const sanitizedKws = rawKeywords.filter(kw => {
+        const clean = removeVietnameseAccents(kw.toLowerCase().trim());
+        if (clean.length <= 1) return false;
+        if (categoryTokens.has(clean)) return false;
+        return true;
+      });
+
+      const allTokens: string[] = [];
+      for (const kw of sanitizedKws) {
+        const clean = removeVietnameseAccents(kw.toLowerCase().trim());
+        if (clean.length > 1) {
+          allTokens.push(clean);
+          const parts = clean.split(/\s+/).filter(p => p.length > 1 && !categoryTokens.has(p));
+          if (parts.length > 1) {
+            allTokens.push(...parts);
+          }
+        }
+      }
+      const validKws = Array.from(new Set(allTokens));
+      const candidateCategoryPool = [...pool];
+
+      if (validKws.length > 0) {
+        appliedFilters.keywords = validKws;
+        const strictMatches = pool.filter(p => {
+          const searchable = removeVietnameseAccents(`${p.name} ${p.description || ""}`).toLowerCase();
+          return validKws.every(kw => searchable.includes(kw));
+        });
+
+        if (strictMatches.length >= 4) {
+          pool = strictMatches;
+        } else {
+          // Score products by matching tokens and sort by score descending
+          const scoredMatches = pool.map(p => {
+            const pName = removeVietnameseAccents((p.name || "").toLowerCase());
+            const pDesc = removeVietnameseAccents((p.description || "").toLowerCase());
+            let score = 0;
+            for (const kw of validKws) {
+              if (pName.includes(kw)) {
+                score += kw.length >= 3 ? 15 : 10;
+              } else if (pDesc.includes(kw)) {
+                score += 5;
+              }
+            }
+            return { product: p, score };
+          }).filter(item => item.score > 0);
+
+          const hasUnknownTokens = validKws.some(kw => kw.includes("xyz") || kw.includes("999") || kw.includes("fake"));
+          if (hasUnknownTokens) {
+            pool = [];
+          } else {
+            scoredMatches.sort((a, b) => b.score - a.score);
+            const combined: any[] = [];
+            const seenIds = new Set<string>();
+
+            // Strict matches first
+            for (const p of strictMatches) {
+              if (!seenIds.has(p.id)) {
+                seenIds.add(p.id);
+                combined.push(p);
+              }
+            }
+            // Scored matches next
+            for (const item of scoredMatches) {
+              if (!seenIds.has(item.product.id)) {
+                seenIds.add(item.product.id);
+                combined.push(item.product);
+              }
+            }
+            // Backfill from candidate pool up to at least 4 products only if category context exists
+            if (matchedCat) {
+              for (const p of candidateCategoryPool) {
+                if (!seenIds.has(p.id)) {
+                  if (activeSubcat) {
+                    const pName = removeVietnameseAccents(p.name || "").toLowerCase();
+                    const pDesc = removeVietnameseAccents(p.description || "").toLowerCase();
+                    if (activeSubcat.strictlyExcluded(pName, pDesc)) continue;
+                  }
+                  seenIds.add(p.id);
+                  combined.push(p);
+                  if (combined.length >= 4) break;
+                }
+              }
+            }
+            pool = combined;
+          }
+        }
+      } else {
+        // No specific keywords: sort by featured and rating
+        pool.sort((a, b) => {
+          if (b.isFeatured !== a.isFeatured) return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
+          return (Number(b.rating || 0) - Number(a.rating || 0)) || (Number(b.reviewCount || 0) - Number(a.reviewCount || 0));
+        });
+      }
     }
-  }
 
     // 6. Price Range Filters
     if (typeof query.minPrice === "number" && !isNaN(query.minPrice)) {

@@ -24,6 +24,7 @@ import { api } from "../services/api";
 import { Product } from "../types";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import { handleImageError, CATEGORY_FALLBACK_IMAGES, DEFAULT_PRODUCT_IMAGE } from "../utils/imageFallback";
 
 interface ChatMessage {
   id: string;
@@ -553,36 +554,41 @@ export const FloatingChatWidget: React.FC<{
                       <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1">
                         <Sparkles className="w-3 h-3" /> Sản phẩm gợi ý phù hợp:
                       </p>
-                      {msg.suggestedProducts.map((prod) => (
-                        <div
-                          key={prod.id}
-                          className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200 hover:border-rose-300 transition-all gap-2"
-                        >
-                          <img
-                            src={prod.thumbnail}
-                            alt={prod.name}
-                            className="w-11 h-11 object-cover rounded-lg shrink-0 bg-white border border-slate-200"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-slate-900 truncate text-[11px]">{prod.name}</p>
-                            <p className="text-rose-600 font-black text-xs">{prod.price.toLocaleString("vi-VN")} đ</p>
+                      {msg.suggestedProducts.map((prod) => {
+                        const mainImg = prod.thumbnail || (Array.isArray(prod.images) && prod.images[0]) || (prod.categoryId && CATEGORY_FALLBACK_IMAGES[prod.categoryId]) || DEFAULT_PRODUCT_IMAGE;
+                        return (
+                          <div
+                            key={prod.id}
+                            className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200 hover:border-rose-300 transition-all gap-2"
+                          >
+                            <img
+                              src={mainImg}
+                              alt={prod.name}
+                              onError={(e) => handleImageError(e, prod.categoryId)}
+                              className="w-11 h-11 object-cover rounded-lg shrink-0 bg-white border border-slate-200"
+                              loading="lazy"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-slate-900 truncate text-[11px]">{prod.name}</p>
+                              <p className="text-rose-600 font-black text-xs">{prod.price.toLocaleString("vi-VN")} đ</p>
+                            </div>
+                            <div className="flex flex-col gap-1 shrink-0">
+                              <button
+                                onClick={() => onSelectProduct?.(prod)}
+                                className="px-2 py-1 rounded bg-white hover:bg-slate-100 text-slate-700 text-[10px] flex items-center gap-1 border border-slate-200 font-semibold"
+                              >
+                                <ExternalLink className="w-2.5 h-2.5" /> Xem
+                              </button>
+                              <button
+                                onClick={() => addToCart(prod, 1)}
+                                className="px-2 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] flex items-center gap-1 font-semibold shadow-sm"
+                              >
+                                <ShoppingBag className="w-2.5 h-2.5" /> Thêm
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex flex-col gap-1 shrink-0">
-                            <button
-                              onClick={() => onSelectProduct?.(prod)}
-                              className="px-2 py-1 rounded bg-white hover:bg-slate-100 text-slate-700 text-[10px] flex items-center gap-1 border border-slate-200 font-semibold"
-                            >
-                              <ExternalLink className="w-2.5 h-2.5" /> Xem
-                            </button>
-                            <button
-                              onClick={() => addToCart(prod, 1)}
-                              className="px-2 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] flex items-center gap-1 font-semibold shadow-sm"
-                            >
-                              <ShoppingBag className="w-2.5 h-2.5" /> Thêm
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 

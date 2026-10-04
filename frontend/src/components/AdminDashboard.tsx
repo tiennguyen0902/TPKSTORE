@@ -12,7 +12,10 @@ import {
   FileSpreadsheet,
   Bot,
   Send,
-  Loader2
+  Loader2,
+  Wallet,
+  PiggyBank,
+  BadgePercent
 } from "lucide-react";
 import { api } from "../services/api";
 
@@ -86,26 +89,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
     handleRefresh();
   }, []);
 
+  const totalCost = Math.round(totalRevenue * 0.75);
+  const totalProfit = totalRevenue - totalCost;
+  const profitMarginPercent = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : "25.0";
+
   const handleExportRevenueReport = () => {
     const headers = ["Chỉ số / Ngày", "Giá trị", "Đơn vị / Ghi chú"];
     const summaryRows = [
-      ["Tổng doanh thu ghi nhận", totalRevenue.toLocaleString("vi-VN"), "VND"],
+      ["Tổng doanh thu ghi nhận (Revenue)", totalRevenue.toLocaleString("vi-VN"), "VND (100%)"],
+      ["Tổng giá vốn hàng bán (Cost 75%)", totalCost.toLocaleString("vi-VN"), "VND (75%)"],
+      ["Tổng lợi nhuận thực thu (Gross Profit 25%)", totalProfit.toLocaleString("vi-VN"), "VND (25%)"],
+      ["Tỷ suất biên lợi nhuận (Profit Margin)", `${profitMarginPercent}%`, "%"],
       ["Tổng đơn hàng hệ thống", totalOrders, "Đơn"],
       ["Tổng khách hàng đăng ký", totalUsers, "Người dùng"],
       ["Cảnh báo cạn kho thông minh", alertCount, "Sản phẩm cần nhập"],
       ["", "", ""],
-      ["--- DOANH THU 14 NGÀY GẦN NHẤT ---", "", ""],
-      ["Ngày", "Doanh thu (Triệu VND)", ""]
+      ["--- DOANH THU & LỢI NHUẬN 14 NGÀY GẦN NHẤT ---", "", "", ""],
+      ["Ngày", "Doanh thu (Triệu VND)", "Giá vốn 75% (Triệu VND)", "Lợi nhuận 25% (Triệu VND)"]
     ];
 
-    const revRows = revenuePoints.map(p => [p.day, p.val, "Triệu VND"]);
+    const revRows = revenuePoints.map(p => [
+      p.day,
+      p.val.toFixed(1),
+      (p.val * 0.75).toFixed(2),
+      (p.val * 0.25).toFixed(2)
+    ]);
 
     const orderRowsHeader = [
-      ["", "", ""],
-      ["--- SỐ LƯỢNG ĐƠN HÀNG 7 NGÀY ---", "", ""],
-      ["Ngày", "Số lượng đơn", ""]
+      ["", "", "", ""],
+      ["--- SỐ LƯỢNG ĐƠN HÀNG 7 NGÀY ---", "", "", ""],
+      ["Ngày", "Số lượng đơn", "", ""]
     ];
-    const ordRows = orderBars.map(b => [b.day, b.count, "Đơn hàng"]);
+    const ordRows = orderBars.map(b => [b.day, b.count, "Đơn hàng", ""]);
 
     const allData = [
       headers,
@@ -120,7 +135,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `Bao_cao_doanh_thu_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `Bao_cao_doanh_thu_loi_nhuan_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -177,69 +192,113 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
         </div>
       </div>
 
-      {/* 4 KPI Cards (Matching Screenshot) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Tổng Doanh Thu */}
-        <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">TỔNG DOANH THU</p>
-            <h3 className="text-xl font-black text-slate-900 mt-1">
-              {totalRevenue.toLocaleString("vi-VN")} <span className="text-sm font-bold text-rose-600">đ</span>
-            </h3>
-            <p className="text-[11px] text-emerald-600 font-bold mt-1">
-              +12.5% <span className="text-slate-400 font-normal">so với tháng trước</span>
-            </p>
+      {/* 6 KPI Cards: Financial & Operational */}
+      <div className="space-y-4">
+        {/* Row 1: Tài chính (Doanh thu - Giá vốn 75% - Lợi nhuận 25%) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Card 1: Tổng Doanh Thu */}
+          <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+            <div>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">TỔNG DOANH THU (REVENUE)</p>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">
+                {totalRevenue.toLocaleString("vi-VN")} <span className="text-sm font-bold text-blue-600">đ</span>
+              </h3>
+              <p className="text-[11px] text-blue-600 font-bold mt-1 flex items-center gap-1">
+                <span className="px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 text-[10px] font-black border border-blue-200">100%</span>
+                <span>Doanh số bán hàng thực tế</span>
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shadow-xs shrink-0">
+              <DollarSign className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shadow-xs">
-            <DollarSign className="w-6 h-6" />
+
+          {/* Card 2: Tổng Giá Vốn Hàng Bán (COGS - 75%) */}
+          <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-400 to-slate-600"></div>
+            <div>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">TỔNG GIÁ VỐN (COST 75%)</p>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">
+                {totalCost.toLocaleString("vi-VN")} <span className="text-sm font-bold text-slate-600">đ</span>
+              </h3>
+              <p className="text-[11px] text-slate-600 font-bold mt-1 flex items-center gap-1">
+                <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 text-[10px] font-black border border-slate-200">75.0%</span>
+                <span>Giá vốn nhập kho sản phẩm</span>
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center shadow-xs shrink-0">
+              <Wallet className="w-6 h-6" />
+            </div>
+          </div>
+
+          {/* Card 3: Tổng Lợi Nhuận Gộp (PROFIT - 25%) */}
+          <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/40 border border-emerald-200 flex items-center justify-between shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-600"></div>
+            <div>
+              <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">TỔNG LỢI NHUẬN (PROFIT 25%)</p>
+              <h3 className="text-2xl font-black text-emerald-700 mt-1">
+                +{totalProfit.toLocaleString("vi-VN")} <span className="text-sm font-bold">đ</span>
+              </h3>
+              <p className="text-[11px] text-emerald-700 font-bold mt-1 flex items-center gap-1">
+                <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300">Biên độ 25.0%</span>
+                <span>Lợi nhuận ròng thu về</span>
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
+              <PiggyBank className="w-6 h-6" />
+            </div>
           </div>
         </div>
 
-        {/* Card 2: Đơn Hàng */}
-        <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">ĐƠN HÀNG</p>
-            <h3 className="text-xl font-black text-slate-900 mt-1">{totalOrders}</h3>
-            <p className="text-[11px] text-rose-600 font-bold mt-1">
-              98% <span className="text-slate-400 font-normal">tỷ lệ hoàn thành</span>
-            </p>
+        {/* Row 2: Vận hành (Đơn hàng - Khách hàng - Cảnh báo tồn kho) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Card 4: Đơn Hàng */}
+          <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">ĐƠN HÀNG HỆ THỐNG</p>
+              <h3 className="text-xl font-black text-slate-900 mt-1">{totalOrders} đơn</h3>
+              <p className="text-[11px] text-rose-600 font-bold mt-1">
+                98% <span className="text-slate-400 font-normal">tỷ lệ hoàn thành</span>
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center shadow-xs shrink-0">
+              <ShoppingBag className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center shadow-xs">
-            <ShoppingBag className="w-6 h-6" />
-          </div>
-        </div>
 
-        {/* Card 3: Khách Hàng */}
-        <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">KHÁCH HÀNG</p>
-            <h3 className="text-xl font-black text-slate-900 mt-1">{totalUsers}</h3>
-            <p className="text-[11px] text-emerald-600 font-bold mt-1">
-              +{totalUsers} <span className="text-slate-400 font-normal">khách mới tháng này</span>
-            </p>
+          {/* Card 5: Khách Hàng */}
+          <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">KHÁCH HÀNG ĐĂNG KÝ</p>
+              <h3 className="text-xl font-black text-slate-900 mt-1">{totalUsers} người dùng</h3>
+              <p className="text-[11px] text-emerald-600 font-bold mt-1">
+                +{totalUsers} <span className="text-slate-400 font-normal">khách mới tháng này</span>
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shadow-xs shrink-0">
+              <Users className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shadow-xs">
-            <Users className="w-6 h-6" />
-          </div>
-        </div>
 
-        {/* Card 4: Cảnh Báo Tồn Kho */}
-        <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">CẢNH BÁO TỒN KHO</p>
-            <h3 className="text-xl font-black text-slate-900 mt-1">{alertCount} SP</h3>
-            <p className="text-[11px] text-amber-600 font-bold mt-1">
-              Cần nhập thêm <span className="text-slate-400 font-normal">sắp hết hàng</span>
-            </p>
-            <button
-              onClick={() => onNavigateTab("admin_inventory_alerts")}
-              className="text-[10px] text-rose-600 hover:underline mt-1 font-semibold flex items-center gap-1"
-            >
-              Xem chi tiết &gt;
-            </button>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center shadow-xs">
-            <AlertTriangle className="w-6 h-6" />
+          {/* Card 6: Cảnh Báo Tồn Kho */}
+          <div className="p-5 rounded-3xl bg-white border border-slate-200 flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">CẢNH BÁO TỒN KHO</p>
+              <h3 className="text-xl font-black text-slate-900 mt-1">{alertCount} sản phẩm</h3>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[11px] text-amber-600 font-bold">Sắp hết hàng</span>
+                <button
+                  onClick={() => onNavigateTab("admin_inventory_alerts")}
+                  className="text-[10px] text-rose-600 hover:underline font-semibold"
+                >
+                  Xem chi tiết &gt;
+                </button>
+              </div>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center shadow-xs shrink-0">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
           </div>
         </div>
       </div>
@@ -270,27 +329,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
 
       {/* 2 Charts Grid (Matching Screenshot) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Chart: Doanh Thu 14 Ngày Qua */}
+        {/* Left Chart: Doanh Thu & Lợi Nhuận 14 Ngày Qua */}
         <div className="lg:col-span-8 p-6 rounded-3xl bg-white border border-slate-200 space-y-4 shadow-sm relative overflow-hidden">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-blue-600" />
-                Doanh Thu 14 Ngày Qua
+                Doanh Thu & Lợi Nhuận 14 Ngày Qua
               </h3>
-              <p className="text-[10px] text-slate-500">Đơn vị: Triệu VNĐ (Dữ liệu thực tế phân tích theo ngày)</p>
+              <p className="text-[10px] text-slate-500">Đơn vị: Triệu VNĐ (Giá vốn: 75% • Lợi nhuận: 25%)</p>
             </div>
 
-            <span className="px-2.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 text-[10px] font-extrabold tracking-wider animate-pulse">
-              LIVE DATA
-            </span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                <span>Doanh thu (100%)</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                <span>Lợi nhuận ròng (25%)</span>
+              </div>
+            </div>
           </div>
 
-          {/* SVG Area Chart with Monotone Smooth Spline (Fixes curve overshoot bug) */}
+          {/* SVG Area Chart with Revenue & Profit Curves */}
           <div className="h-64 w-full pt-2 relative select-none">
             {(() => {
-              const minVal = 15;
-              const maxVal = 35;
+              const minVal = 0;
+              const maxVal = 38;
               const topY = 25;
               const baseY = 175;
               const startX = 20;
@@ -300,31 +366,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                 const x = startX + (i / (revenuePoints.length - 1)) * (endX - startX);
                 const safeVal = Math.max(minVal, Math.min(maxVal, pt.val));
                 const y = baseY - ((safeVal - minVal) / (maxVal - minVal)) * (baseY - topY);
-                return { x, y, day: pt.day, val: pt.val };
+
+                const profitVal = pt.val * 0.25;
+                const profitY = baseY - ((profitVal - minVal) / (maxVal - minVal)) * (baseY - topY);
+
+                return { x, y, profitY, day: pt.day, val: pt.val, profitVal };
               });
 
-              // Construct Monotone Bounded Cubic Bezier Spline
-              let linePath = "";
+              // Construct Monotone Spline for Revenue
+              let revLinePath = "";
               if (coords.length > 0) {
-                linePath = `M ${coords[0].x} ${coords[0].y}`;
+                revLinePath = `M ${coords[0].x} ${coords[0].y}`;
                 for (let i = 0; i < coords.length - 1; i++) {
                   const p0 = coords[i];
                   const p1 = coords[i + 1];
                   const dx = (p1.x - p0.x) * 0.45;
-                  linePath += ` C ${p0.x + dx} ${p0.y}, ${p1.x - dx} ${p1.y}, ${p1.x} ${p1.y}`;
+                  revLinePath += ` C ${p0.x + dx} ${p0.y}, ${p1.x - dx} ${p1.y}, ${p1.x} ${p1.y}`;
                 }
               }
 
-              const areaPath = linePath
-                ? `${linePath} L ${coords[coords.length - 1].x} ${baseY} L ${coords[0].x} ${baseY} Z`
+              // Construct Monotone Spline for Profit
+              let profitLinePath = "";
+              if (coords.length > 0) {
+                profitLinePath = `M ${coords[0].x} ${coords[0].profitY}`;
+                for (let i = 0; i < coords.length - 1; i++) {
+                  const p0 = coords[i];
+                  const p1 = coords[i + 1];
+                  const dx = (p1.x - p0.x) * 0.45;
+                  profitLinePath += ` C ${p0.x + dx} ${p0.profitY}, ${p1.x - dx} ${p1.profitY}, ${p1.x} ${p1.profitY}`;
+                }
+              }
+
+              const revAreaPath = revLinePath
+                ? `${revLinePath} L ${coords[coords.length - 1].x} ${baseY} L ${coords[0].x} ${baseY} Z`
+                : "";
+
+              const profitAreaPath = profitLinePath
+                ? `${profitLinePath} L ${coords[coords.length - 1].x} ${baseY} L ${coords[0].x} ${baseY} Z`
                 : "";
 
               return (
                 <svg viewBox="0 0 700 220" className="w-full h-full">
                   <defs>
                     <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
-                      <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+                    </linearGradient>
+                    <linearGradient id="emeraldGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity="0.30" />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity="0.02" />
                     </linearGradient>
                   </defs>
 
@@ -334,32 +424,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
                   <line x1="15" y1="125" x2="685" y2="125" stroke="#f1f5f9" strokeDasharray="4 4" />
                   <line x1="15" y1={baseY} x2="685" y2={baseY} stroke="#e2e8f0" strokeWidth="1.5" />
 
-                  {/* Shaded Area Fill */}
-                  <path d={areaPath} fill="url(#blueGradient)" />
+                  {/* Shaded Area Fills */}
+                  <path d={revAreaPath} fill="url(#blueGradient)" />
+                  <path d={profitAreaPath} fill="url(#emeraldGradient)" />
 
-                  {/* Main Curve Line (Guaranteed not to overshoot) */}
+                  {/* Revenue Curve Line */}
                   <path
-                    d={linePath}
+                    d={revLinePath}
                     fill="none"
-                    stroke="#4f46e5"
-                    strokeWidth="3.5"
+                    stroke="#2563eb"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  />
+
+                  {/* Profit Curve Line (25%) */}
+                  <path
+                    d={profitLinePath}
+                    fill="none"
+                    stroke="#059669"
+                    strokeWidth="3"
                     strokeLinecap="round"
                   />
 
                   {/* Individual Data Points */}
                   {coords.map((pt, i) => (
                     <g key={i} className="cursor-pointer group">
+                      {/* Revenue Point */}
                       <circle
                         cx={pt.x}
                         cy={pt.y}
-                        r="4.5"
+                        r="4"
                         fill="#ffffff"
-                        stroke="#4f46e5"
+                        stroke="#2563eb"
                         strokeWidth="2.5"
-                        className="transition-all duration-150 group-hover:r-6 group-hover:fill-indigo-600 group-hover:stroke-white shadow-sm"
+                        className="transition-all duration-150 group-hover:r-5 group-hover:fill-blue-600 group-hover:stroke-white shadow-sm"
+                      />
+                      {/* Profit Point */}
+                      <circle
+                        cx={pt.x}
+                        cy={pt.profitY}
+                        r="3.5"
+                        fill="#ffffff"
+                        stroke="#059669"
+                        strokeWidth="2"
+                        className="transition-all duration-150 group-hover:r-4.5 group-hover:fill-emerald-600 group-hover:stroke-white shadow-sm"
                       />
                       {/* Interactive Tooltip on hover */}
-                      <title>{`Ngày ${pt.day}: ${pt.val.toFixed(1)} Triệu VNĐ`}</title>
+                      <title>{`Ngày ${pt.day}\n• Doanh thu: ${pt.val.toFixed(1)} Tr VND\n• Giá vốn (75%): ${(pt.val * 0.75).toFixed(2)} Tr VND\n• Lợi nhuận (25%): ${pt.profitVal.toFixed(2)} Tr VND`}</title>
                     </g>
                   ))}
 
@@ -435,10 +546,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab })
         {/* Quick Suggestion Chips */}
         <div className="flex flex-wrap gap-2 pt-1">
           {[
-            "Tháng này mặt hàng nào bán chậm?",
-            "Top 5 sản phẩm đem lại doanh thu cao nhất?",
-            "Tổng kết tình hình kinh doanh hôm nay và khuyến nghị tồn kho",
-            "Mặt hàng nào có nguy cơ tồn đọng vốn cao nhất?"
+            "Tổng kết doanh thu và lợi nhuận ròng của cửa hàng?",
+            "Top 5 sản phẩm đem lại doanh thu & lợi nhuận cao nhất?",
+            "Tháng này mặt hàng nào bán chậm và tồn đọng vốn?",
+            "Phân tích tỷ suất sinh lời và khuyến nghị tối ưu giá vốn"
           ].map((promptText, idx) => (
             <button
               key={idx}

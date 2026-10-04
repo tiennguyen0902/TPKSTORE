@@ -182,8 +182,42 @@ router.put("/:id", authenticateToken, authorize(["ADMIN", "MANAGER"]), async (re
     if (originalPrice !== undefined) updateData.originalPrice = originalPrice ? parseFloat(originalPrice) : null;
     if (stock !== undefined) updateData.stock = parseInt(stock);
     if (categoryId) updateData.categoryId = categoryId;
-    if (thumbnail) updateData.thumbnail = thumbnail;
-    if (images) updateData.images = images;
+    
+    // Always keep thumbnail and primary image in images[0] strictly synchronized
+    if (Array.isArray(images)) {
+      const sanitizedImages = images.filter((img: any) => typeof img === "string" && img.trim().length > 0);
+      let chosenThumb = (thumbnail && typeof thumbnail === "string" && thumbnail.trim().length > 0)
+        ? thumbnail.trim()
+        : (sanitizedImages[0] || existing.thumbnail);
+
+      let finalImages = [...sanitizedImages];
+      if (chosenThumb) {
+        const foundIdx = finalImages.indexOf(chosenThumb);
+        if (foundIdx > 0) {
+          finalImages.splice(foundIdx, 1);
+          finalImages.unshift(chosenThumb);
+        } else if (foundIdx === -1) {
+          finalImages.unshift(chosenThumb);
+        }
+      } else if (finalImages.length > 0) {
+        chosenThumb = finalImages[0];
+      }
+
+      updateData.images = finalImages;
+      updateData.thumbnail = chosenThumb || "";
+    } else if (thumbnail) {
+      updateData.thumbnail = thumbnail;
+      const currentImages = Array.isArray(existing.images) ? [...(existing.images as string[])] : [];
+      const foundIdx = currentImages.indexOf(thumbnail);
+      if (foundIdx > 0) {
+        currentImages.splice(foundIdx, 1);
+        currentImages.unshift(thumbnail);
+      } else if (foundIdx === -1) {
+        currentImages.unshift(thumbnail);
+      }
+      updateData.images = currentImages;
+    }
+    
     if (isFeatured !== undefined) updateData.isFeatured = Boolean(isFeatured);
     if (isNew !== undefined) updateData.isNew = Boolean(isNew);
 

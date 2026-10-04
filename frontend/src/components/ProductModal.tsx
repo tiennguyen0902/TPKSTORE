@@ -15,12 +15,16 @@ import {
   CheckCircle2,
   Share2,
   Copy,
-  Layers
+  Layers,
+  Palette,
+  HardDrive,
+  Check
 } from "lucide-react";
 import { Product } from "../types";
 import { useCart } from "../context/CartContext";
 import { api } from "../services/api";
 import { getProductSpecifications, SpecGroup } from "../data/productSpecs";
+import { getProductVariants, ProductVariantGroup, ColorVariant, OptionItem } from "../data/productVariants";
 import { handleImageError } from "../utils/imageFallback";
 
 interface ProductModalProps {
@@ -108,12 +112,27 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [activeTab, setActiveTab] = useState<"specs" | "desc" | "warranty">("specs");
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // Variant States (Màu sắc & Cấu hình / Dung lượng chính hãng)
+  const [selectedColor, setSelectedColor] = useState<ColorVariant | null>(null);
+  const [selectedOption, setSelectedOption] = useState<OptionItem | null>(null);
+
   useEffect(() => {
     if (product) {
       setQuantity(1);
       setActiveTab("specs");
       const images = getSafeImages(product.images, product.thumbnail);
       setSelectedImage(images[0] || product.thumbnail || "");
+
+      // Nạp cấu hình biến thể màu & dung lượng thật từ hãng
+      const v = getProductVariants(product);
+      if (v) {
+        setSelectedColor(v.colors && v.colors.length > 0 ? v.colors[0] : null);
+        const defOpt = v.options?.find(o => o.isDefault) || (v.options && v.options.length > 0 ? v.options[0] : null);
+        setSelectedOption(defOpt || null);
+      } else {
+        setSelectedColor(null);
+        setSelectedOption(null);
+      }
 
       // Fetch AI Similar Products
       const fetchSimilar = async () => {
@@ -130,21 +149,43 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   if (!product) return null;
 
+  const variantData: ProductVariantGroup | null = getProductVariants(product);
   const safeStock = getSafeStock(product.stock);
-  const safePrice = getSafePrice(product.price);
-  const safeOriginalPrice = product.originalPrice ? getSafePrice(product.originalPrice) : null;
+  const basePrice = getSafePrice(product.price);
+  const priceDiff = selectedOption?.priceDiff || 0;
+  const currentPrice = Math.max(0, basePrice + priceDiff);
+  const currentOriginalPrice = product.originalPrice 
+    ? Math.max(0, getSafePrice(product.originalPrice) + priceDiff) 
+    : null;
   const safeRating = getSafeRating(product.rating);
   const safeImages = getSafeImages(product.images, product.thumbnail);
   const specGroups: SpecGroup[] = getProductSpecifications(product);
 
+  const variantSummary = [
+    selectedColor ? selectedColor.name : "",
+    selectedOption ? selectedOption.name : ""
+  ].filter(Boolean).join(" • ");
+
   const handleAddToCart = async () => {
-    await addToCart(product, quantity);
+    const productWithVariant: Product = {
+      ...product,
+      price: currentPrice,
+      originalPrice: currentOriginalPrice || product.originalPrice,
+      name: variantSummary ? `${product.name} (${variantSummary})` : product.name
+    };
+    await addToCart(productWithVariant, quantity);
     setAddedToast(true);
     setTimeout(() => setAddedToast(false), 2200);
   };
 
   const handleBuyNow = async () => {
-    await addToCart(product, quantity);
+    const productWithVariant: Product = {
+      ...product,
+      price: currentPrice,
+      originalPrice: currentOriginalPrice || product.originalPrice,
+      name: variantSummary ? `${product.name} (${variantSummary})` : product.name
+    };
+    await addToCart(productWithVariant, quantity);
     onClose();
     onGoToCheckout?.();
   };
@@ -155,8 +196,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const discountPercent = safeOriginalPrice && safeOriginalPrice > safePrice
-    ? Math.round(((safeOriginalPrice - safePrice) / safeOriginalPrice) * 100)
+  const discountPercent = currentOriginalPrice && currentOriginalPrice > currentPrice
+    ? Math.round(((currentOriginalPrice - currentPrice) / currentOriginalPrice) * 100)
     : 0;
 
   return (
@@ -245,12 +286,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           {/* Right Column: Information, Specs Tabs & Actions (7 cols) */}
           <div className="lg:col-span-7 flex flex-col justify-between">
             <div>
-              {/* Category & ID badge */}
+              {/* Category & Featured badge */}
               <div className="flex items-center gap-2 mb-2">
                 <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold uppercase tracking-wider">
                   {product.category?.name || "Thiết bị công nghệ"}
                 </span>
-                <span className="text-xs text-slate-400 font-mono">ID: {product.id}</span>
                 {product.isFeatured && (
                   <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
                     ★ Nổi bật
@@ -277,19 +317,19 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </div>
 
               {/* Price Banner */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-50/80 via-white to-amber-50/80 border border-rose-200/80 mb-5 shadow-sm">
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-50/80 via-white to-amber-50/80 border border-rose-200/80 mb-4 shadow-sm">
                 <div className="flex items-baseline gap-3 flex-wrap">
                   <span className="text-2xl sm:text-3xl font-black text-rose-600 tracking-tight">
-                    {safePrice.toLocaleString("vi-VN")} <span className="text-base font-bold">VNĐ</span>
+                    {currentPrice.toLocaleString("vi-VN")} <span className="text-base font-bold">VNĐ</span>
                   </span>
-                  {safeOriginalPrice && safeOriginalPrice > safePrice && (
+                  {currentOriginalPrice && currentOriginalPrice > currentPrice && (
                     <span className="text-sm text-slate-400 line-through font-semibold">
-                      {safeOriginalPrice.toLocaleString("vi-VN")} VNĐ
+                      {currentOriginalPrice.toLocaleString("vi-VN")} VNĐ
                     </span>
                   )}
                   {discountPercent > 0 && (
                     <span className="px-2 py-0.5 rounded-md bg-red-100 text-red-700 text-xs font-black">
-                      Tiết kiệm {((safeOriginalPrice || 0) - safePrice).toLocaleString("vi-VN")} đ
+                      Tiết kiệm {((currentOriginalPrice || 0) - currentPrice).toLocaleString("vi-VN")} đ
                     </span>
                   )}
                 </div>
@@ -298,6 +338,106 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   Miễn phí vận chuyển toàn quốc cho đơn hàng từ 500.000 VNĐ
                 </p>
               </div>
+
+              {/* PRODUCT VARIANTS SELECTION (MÀU SẮC & DUNG LƯỢNG / CẤU HÌNH THẬT TỪ HÃNG) */}
+              {variantData && (
+                <div className="mb-5 p-4 rounded-2xl bg-slate-50/90 border border-slate-200 space-y-4 shadow-sm">
+                  {/* 1. Chọn Màu Sắc Chính Hãng */}
+                  {variantData.colors && variantData.colors.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 text-xs mb-2.5">
+                        <span className="font-bold text-slate-700 flex items-center gap-1.5 shrink-0">
+                          <Palette className="w-4 h-4 text-rose-600" />
+                          <span>Màu sắc:</span>
+                        </span>
+                        <span className="font-bold text-rose-600">
+                          {selectedColor?.name || ""}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {variantData.colors.map((c, cIdx) => {
+                          const isSelected = selectedColor?.name === c.name;
+                          const isLight = ["#FFFFFF", "#F2F1ED", "#FDFDFD", "#F5F5F7", "#F4F3ED", "#E2E4E5", "#E1E2E4", "#DCDDDF", "#D6D4CD", "#ECECEC", "#EAEAE8"].includes(c.hex.toUpperCase());
+                          return (
+                            <button
+                              key={cIdx}
+                              type="button"
+                              onClick={() => setSelectedColor(c)}
+                              className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+                                isSelected
+                                  ? "bg-rose-50/70 border-rose-500 text-rose-700 shadow-2xs"
+                                  : "bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50/60"
+                              }`}
+                            >
+                              <span
+                                className="w-4 h-4 rounded-full border border-black/15 shrink-0 shadow-inner flex items-center justify-center"
+                                style={{ backgroundColor: c.hex }}
+                              >
+                                {isSelected && (
+                                  <Check className={`w-2.5 h-2.5 stroke-[3] ${isLight ? "text-slate-900" : "text-white"}`} />
+                                )}
+                              </span>
+                              <span>{c.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. Chọn Dung Lượng / Cấu Hình Chính Hãng */}
+                  {variantData.options && variantData.options.length > 0 && (
+                    <div className="pt-3 border-t border-slate-200/80">
+                      <div className="flex items-center gap-2 text-xs mb-2.5">
+                        <span className="font-bold text-slate-700 flex items-center gap-1.5 shrink-0">
+                          <HardDrive className="w-4 h-4 text-rose-600" />
+                          <span>Phiên bản:</span>
+                        </span>
+                        <span className="font-bold text-rose-600">
+                          {selectedOption?.name || ""}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {variantData.options.map((opt, oIdx) => {
+                          const isSelected = selectedOption?.name === opt.name;
+                          return (
+                            <button
+                              key={oIdx}
+                              type="button"
+                              onClick={() => setSelectedOption(opt)}
+                              className={`group relative p-2.5 rounded-xl border text-left cursor-pointer flex flex-col justify-between transition-colors ${
+                                isSelected
+                                  ? "bg-rose-50/50 border-rose-500 shadow-2xs"
+                                  : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-1 mb-1">
+                                <span className={`text-xs font-black ${isSelected ? "text-rose-600" : "text-slate-800"}`}>
+                                  {opt.name}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-medium leading-tight">
+                                {opt.priceDiff === 0 ? (
+                                  <span className="text-emerald-600 font-bold">Giá chuẩn</span>
+                                ) : opt.priceDiff > 0 ? (
+                                  <span className="text-rose-600 font-bold">+{opt.priceDiff.toLocaleString("vi-VN")} đ</span>
+                                ) : (
+                                  <span className="text-emerald-600 font-bold">{opt.priceDiff.toLocaleString("vi-VN")} đ</span>
+                                )}
+                              </div>
+                              {opt.description && (
+                                <p className="text-[9px] text-slate-400 mt-1 line-clamp-1 group-hover:text-slate-600">
+                                  {opt.description}
+                                </p>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* TABS NAVIGATION */}
               <div className="flex border-b border-slate-200 mb-4 gap-2">
@@ -449,7 +589,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </button>
                 </div>
                 <span className="text-xs text-slate-500 font-medium">
-                  Tổng: <span className="font-bold text-rose-600">{(safePrice * quantity).toLocaleString("vi-VN")} đ</span>
+                  Tổng: <span className="font-bold text-rose-600">{(currentPrice * quantity).toLocaleString("vi-VN")} đ</span>
                 </span>
               </div>
             </div>
@@ -460,7 +600,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <button
                   onClick={handleAddToCart}
                   disabled={safeStock <= 0}
-                  className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 text-xs font-bold border border-slate-300 transition-all active:scale-98 shadow-sm"
+                  className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 text-xs font-bold border border-slate-300 transition-all active:scale-98 shadow-sm cursor-pointer"
                 >
                   <ShoppingBag className="w-4 h-4 text-rose-600" />
                   <span>{addedToast ? "✓ Đã thêm vào giỏ hàng" : "Thêm vào giỏ hàng"}</span>
@@ -469,16 +609,16 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <button
                   onClick={handleBuyNow}
                   disabled={safeStock <= 0}
-                  className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 disabled:opacity-40 text-white text-xs font-bold shadow-lg shadow-rose-600/30 transition-all active:scale-98"
+                  className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 disabled:opacity-40 text-white text-xs font-bold shadow-lg shadow-rose-600/30 transition-all active:scale-98 cursor-pointer"
                 >
                   <span>{safeStock <= 0 ? "Hết hàng" : "Mua ngay (Giao 2h)"}</span>
                 </button>
               </div>
 
               {addedToast && (
-                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs text-emerald-800 font-bold animate-in fade-in flex items-center justify-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  Đã thêm {quantity} sản phẩm vào giỏ hàng thành công!
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs text-emerald-800 font-bold animate-in fade-in flex items-center justify-center gap-1.5 shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Đã thêm {quantity} x {product.name} {variantSummary ? `(${variantSummary})` : ""} vào giỏ hàng thành công!</span>
                 </div>
               )}
             </div>

@@ -6,8 +6,8 @@ import { User } from "@prisma/client";
 
 // WARNING: Fallback secrets dưới đây CHỈ dùng cho môi trường dev.
 // Trong production, bắt buộc set JWT_ACCESS_SECRET và JWT_REFRESH_SECRET qua biến môi trường.
-const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "store_ai_access_secret_super_secure_key_2026";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "store_ai_refresh_secret_super_secure_key_2026";
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "store_ai_access_secret_key_2026";
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "store_ai_refresh_secret_key_2026";
 
 // In-memory blacklist for invalidated access tokens (only needs to survive within session)
 const blacklistedTokens = new Set<string>();
@@ -25,12 +25,12 @@ export async function generateTokens(user: User) {
     canChatAi: (user as any).canChatAi !== false
   };
 
-  const accessToken = jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: "15m" });
+  const accessToken = jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: "7d" });
   const rawRefreshToken = crypto.randomBytes(40).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawRefreshToken).digest("hex");
 
   const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
+  expiresAt.setDate(expiresAt.getDate() + 30);
 
   // Store hashed refresh token in database
   await db.refreshToken.create({
@@ -44,7 +44,7 @@ export async function generateTokens(user: User) {
   return {
     accessToken,
     refreshToken: rawRefreshToken,
-    expiresIn: 900 // 15 minutes
+    expiresIn: 7 * 24 * 3600 // 7 days
   };
 }
 

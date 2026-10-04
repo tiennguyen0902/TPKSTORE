@@ -843,6 +843,7 @@ const unifiedChatHandler = async (req, res) => {
         // ==========================================
         // 2. Natural-Language Intent & Constraint Extraction
         const structuredQuery = await intentParserService_1.IntentParserService.parse(userQuery, history, activeGeminiKey, settings.geminiModel || "gemini-3.8-flash");
+        structuredQuery.rawText = userQuery;
         console.log(`[INTENT] ${structuredQuery.intent}`);
         console.log(`[STRUCTURED_QUERY]`, JSON.stringify(structuredQuery));
         // 4. Safe Parameterized Database Search (Real DB Source of Truth)
@@ -938,16 +939,8 @@ router.post("/chat-stream", async (req, res) => {
         return res.end();
     }
     const allDbProducts = await db_1.db.product.findMany({ include: { category: true } });
-    const userMsgLower = (message || "").toLowerCase();
-    const matchedProducts = allDbProducts
-        .filter(p => {
-        const name = (p.name || "").toLowerCase();
-        const desc = (p.description || "").toLowerCase();
-        const words = userMsgLower.split(/\s+/).filter(w => w.length > 2);
-        return words.some(w => name.includes(w) || desc.includes(w));
-    })
-        .slice(0, 4);
-    const displayProducts = matchedProducts.length > 0 ? matchedProducts : allDbProducts.slice(0, 4);
+    const contextProducts = extractRecentProductsFromHistory(history || [], allDbProducts);
+    const cleanImg = image || imageBase64;
     if (selectedProvider === "local") {
         const localUrl = (settings.localAiUrl || "http://localhost:11434").replace(/\/$/, "");
         let targetModel = (settings.localAiModel || "llama3.1:8b").trim();
@@ -958,7 +951,7 @@ router.post("/chat-stream", async (req, res) => {
             localUrl.includes("localhost") ? localUrl.replace("localhost", "host.docker.internal") : null,
             localUrl.includes("127.0.0.1") ? localUrl.replace("127.0.0.1", "host.docker.internal") : null
         ].filter(Boolean);
-        const productContext = displayProducts.map(p => `- ${p.name}: ${Number(p.price).toLocaleString("vi-VN")} VND (Tồn kho: ${p.stock}) - ${p.description}`).join("\n");
+        const productContext = allDbProducts.slice(0, 5).map(p => `- ${p.name}: ${Number(p.price).toLocaleString("vi-VN")} VND (Tồn kho: ${p.stock}) - ${p.description}`).join("\n");
         const systemPrompt = `Bạn là Trợ lý AI Bán hàng Local của SHOPBEE (STORE AI) vận hành cục bộ.\nNhiệm vụ:\n1. Trả lời súc tích, lịch sự, thân thiện bằng tiếng Việt chuẩn có định dạng Markdown.\n2. Danh mục sản phẩm tại cửa hàng:\n${productContext}\nChính sách: Đổi trả miễn phí 7 ngày, bảo hành 1 đổi 1 chính hãng, giao hàng hỏa tốc trong 2 giờ.`;
         const chatMessages = [{ role: "system", content: systemPrompt }];
         if (Array.isArray(history) && history.length > 0) {
@@ -969,8 +962,7 @@ router.post("/chat-stream", async (req, res) => {
                     chatMessages.push({ role, content });
             }
         }
-        const cleanImg = image || imageBase64;
-        const userPayload = { role: "user", content: message };
+        const userPayload = { role: "user", content: message || "tư vấn sản phẩm" };
         if (cleanImg) {
             const cleanB64 = cleanImg.includes(";base64,") ? cleanImg.split(";base64,")[1] : cleanImg;
             userPayload.images = [cleanB64];
@@ -1021,7 +1013,7 @@ router.post("/chat-stream", async (req, res) => {
                 });
                 res.write(`data: ${JSON.stringify({
                     done: true,
-                    suggestedProducts: matchedProducts.length > 0 ? matchedProducts.slice(0, 3) : allDbProducts.slice(0, 3),
+                    suggestedProducts: allDbProducts.slice(0, 3),
                     source: `Local Ollama (${targetModel})`,
                     suggestedQuickReplies: ["Tư vấn Laptop Gaming", "Tai nghe chống ồn AI", "Chính sách bảo hành 1 đổi 1"]
                 })}\n\n`);
@@ -1036,17 +1028,104 @@ router.post("/chat-stream", async (req, res) => {
         if (streamedSuccess)
             return;
     }
-    // Fallback text generator streamed chunk by chunk for ultra-smooth typing effect
-    const fallbackText = `Dạ chào bạn! Cửa hàng SHOPBEE hiện đang có sẵn các sản phẩm công nghệ chính hãng như iPhone 16 Pro Max, MacBook Pro, tai nghe chống ồn và đồng hồ thông minh với chính sách bảo hành 1 đổi 1 trong 30 ngày. Bạn cần hỗ trợ thêm thông tin chi tiết về sản phẩm nào không ạ?`;
-    const words = fallbackText.split(" ");
-    for (const w of words) {
+    // ==========================================
+    // GOOGLE GEMINI AI STREAMING PIPELINE (RAG + Grounded)
+    // ==========================================
+    const activeGeminiKey = (settings.geminiApiKey || process.env.GEMINI_API_KEY || "").trim();
+    try {
+        let structuredQuery;
+        let retrievedProducts = [];
+        let visualAnalysis = null;
+        if (cleanImg && activeGeminiKey) {
+            try {
+                const validation = imageAnalysisService_1.ImageAnalysisService.validateImage(cleanImg);
+                if (validation.valid) {
+                    visualAnalysis = await imageAnalysisService_1.ImageAnalysisService.analyzeImage({
+                        imageBase64: validation.cleanBase64,
+                        mimeType: validation.safeMime,
+                        userText: message,
+                        apiKey: activeGeminiKey,
+                        preferredModel: process.env.GEMINI_VISION_MODEL || settings.geminiModel || "gemini-3.6-flash"
+                    });
+                    structuredQuery = imageAnalysisService_1.ImageAnalysisService.buildVisualProductQuery(visualAnalysis, message);
+                    const searchResult = await productSearchService_1.ProductSearchService.search(structuredQuery, contextProducts);
+                    retrievedProducts = searchResult.products;
+                }
+            }
+            catch (imgErr) {
+                console.warn("[STREAM IMAGE] Vision fallback:", imgErr.message);
+            }
+        }
+        if (!structuredQuery) {
+            structuredQuery = await intentParserService_1.IntentParserService.parse(message || "tư vấn sản phẩm", history || [], activeGeminiKey, settings.geminiModel || "gemini-3.8-flash");
+            structuredQuery.rawText = message || "tư vấn sản phẩm";
+            const searchResult = await productSearchService_1.ProductSearchService.search(structuredQuery, contextProducts);
+            retrievedProducts = searchResult.products;
+        }
+        // Call GroundedChatService to generate the database-grounded reply
+        const groundedResult = await groundedChatService_1.GroundedChatService.generateResponse({
+            userMessage: message || "tư vấn sản phẩm",
+            history: history || [],
+            structuredQuery,
+            retrievedProducts,
+            apiKey: activeGeminiKey,
+            model: settings.geminiModel || "gemini-3.5-flash",
+            provider: selectedProvider,
+            isVoice: false,
+            isImage: !!cleanImg,
+            visualAnalysis
+        });
+        if (groundedResult && groundedResult.reply) {
+            // Safe interaction logging
+            try {
+                await db_1.db.aIInteraction.create({
+                    data: {
+                        sessionId: req.headers["x-session-id"] || "anonymous_session",
+                        query: message || "[IMAGE]",
+                        response: groundedResult.reply,
+                        type: "CHAT_STREAM"
+                    }
+                });
+            }
+            catch (e) { }
+            // Stream the tokens smoothly to client SSE
+            const words = groundedResult.reply.split(" ");
+            for (let i = 0; i < words.length; i++) {
+                const token = words[i] + (i === words.length - 1 ? "" : " ");
+                res.write(`data: ${JSON.stringify({ token })}\n\n`);
+                await new Promise(r => setTimeout(r, 16));
+            }
+            const finalSuggested = (groundedResult.suggestedProducts && groundedResult.suggestedProducts.length > 0)
+                ? groundedResult.suggestedProducts.slice(0, 4)
+                : (retrievedProducts && retrievedProducts.length > 0)
+                    ? retrievedProducts.slice(0, 4)
+                    : allDbProducts.slice(0, 4);
+            res.write(`data: ${JSON.stringify({
+                done: true,
+                suggestedProducts: finalSuggested,
+                suggestedQuickReplies: groundedResult.suggestedQuickReplies || ["Tư vấn Laptop Gaming", "Tai nghe chống ồn AI", "Chính sách bảo hành 1 đổi 1"],
+                source: groundedResult.source || "Google Gemini AI",
+                provider: groundedResult.provider || "gemini",
+                model: groundedResult.model || settings.geminiModel || "gemini-3.5-flash"
+            })}\n\n`);
+            return res.end();
+        }
+    }
+    catch (geminiErr) {
+        console.error("[STREAM] Error in Gemini RAG stream pipeline:", geminiErr.message);
+    }
+    // Graceful Fallback if Gemini or RAG encounters an error
+    const fallbackProducts = allDbProducts.slice(0, 3);
+    const fallbackMsg = "Dạ chào bạn! Cửa hàng SHOPBEE hiện đang có sẵn các sản phẩm công nghệ chính hãng. Tôi có thể hỗ trợ thông tin chi tiết gì cho bạn về dòng máy này không ạ?";
+    const fbWords = fallbackMsg.split(" ");
+    for (const w of fbWords) {
         res.write(`data: ${JSON.stringify({ token: w + " " })}\n\n`);
-        await new Promise(r => setTimeout(r, 35));
+        await new Promise(r => setTimeout(r, 20));
     }
     res.write(`data: ${JSON.stringify({
         done: true,
-        suggestedProducts: displayProducts.slice(0, 3),
-        source: selectedProvider === "local" ? "SHOPBEE Local Engine" : "Google Gemini AI",
+        suggestedProducts: fallbackProducts,
+        source: "Google Gemini AI (Fallback)",
         suggestedQuickReplies: ["Tư vấn Laptop Gaming", "Tai nghe chống ồn AI", "Chính sách bảo hành 1 đổi 1"]
     })}\n\n`);
     res.end();
@@ -1278,15 +1357,22 @@ router.post("/admin-qa", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN
                 cancelledOrders++;
             }
         }
+        const totalCost = Math.round(totalRevenue * 0.75);
+        const totalProfit = totalRevenue - totalCost;
+        const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : "25.0";
         const sortedProducts = Object.values(salesByProduct).sort((a, b) => b.quantitySold - a.quantitySold);
         const topSelling = sortedProducts.slice(0, 5);
         const slowSelling = sortedProducts.filter(p => p.quantitySold === 0 && p.stock > 0).slice(0, 5);
         const dataContext = `
-DỮ LIỆU BÁN HÀNG TỔNG HỢP:
-- Tổng doanh thu thực tế: ${totalRevenue.toLocaleString("vi-VN")} VND
+DỮ LIỆU BÁN HÀNG & TÀI CHÍNH TỔNG HỢP:
+- Quy tắc hạch toán chi phí: Giá vốn sản phẩm (Cost) = 75% giá gốc bán ra; Lợi nhuận gộp (Profit) = 25% doanh thu.
+- Tổng doanh thu thực tế (Revenue): ${totalRevenue.toLocaleString("vi-VN")} VND
+- Tổng giá vốn hàng bán xuất kho (Cost 75%): ${totalCost.toLocaleString("vi-VN")} VND
+- Tổng lợi nhuận ròng thu về (Gross Profit 25%): +${totalProfit.toLocaleString("vi-VN")} VND
+- Tỷ suất biên lợi nhuận ròng (Profit Margin): ${profitMargin}%
 - Tổng số đơn hàng: ${orders.length} đơn (${completedOrders} giao thành công, ${cancelledOrders} đã hủy)
 - Top 5 mặt hàng bán chạy nhất:
-${topSelling.map((p, i) => `  ${i + 1}. ${p.name}: Đã bán ${p.quantitySold} cái, Doanh thu: ${p.revenue.toLocaleString("vi-VN")} đ (Tồn kho còn: ${p.stock})`).join("\n")}
+${topSelling.map((p, i) => `  ${i + 1}. ${p.name}: Đã bán ${p.quantitySold} cái, Doanh thu: ${p.revenue.toLocaleString("vi-VN")} đ, Lợi nhuận (25%): ${Math.round(p.revenue * 0.25).toLocaleString("vi-VN")} đ (Tồn kho còn: ${p.stock})`).join("\n")}
 - Top 5 mặt hàng bán chậm / chưa phát sinh lượt bán:
 ${slowSelling.map((p, i) => `  ${i + 1}. ${p.name}: Đã bán 0 cái (Tồn kho đọng: ${p.stock} sản phẩm)`).join("\n")}
 - Tổng số khách hàng đã đăng ký: ${users.length} khách hàng
@@ -1296,7 +1382,7 @@ ${slowSelling.map((p, i) => `  ${i + 1}. ${p.name}: Đã bán 0 cái (Tồn kho 
         const activeKey = (settings.geminiApiKey || process.env.GEMINI_API_KEY || "").trim();
         if (activeKey) {
             try {
-                const prompt = `Bạn là Trợ lý Phân tích Bán hàng (Sales Intelligence Copilot) cho Quản trị viên SHOPBEE.\n\nDỮ LIỆU CSDL CỬA HÀNG:\n${dataContext}\n\nCÂU HỎI CỦA CHỦ CỬA HÀNG:\n"${question}"\n\nHãy trả lời chi tiết, chính xác dựa trên số liệu thực tế ở trên bằng tiếng Việt, định dạng Markdown rõ ràng, kèm khuyến nghị quản trị phù hợp.`;
+                const prompt = `Bạn là Trợ lý Phân tích Bán hàng và Tài chính (Sales Intelligence Copilot) cho Quản trị viên SHOPBEE.\n\nDỮ LIỆU CSDL VÀ TÀI CHÍNH CỬA HÀNG:\n${dataContext}\n\nCÂU HỎI CỦA CHỦ CỬA HÀNG:\n"${question}"\n\nHãy trả lời chi tiết, chính xác dựa trên số liệu thực tế ở trên bằng tiếng Việt, định dạng Markdown rõ ràng, phân tích rõ doanh thu, giá vốn (75%) và lợi nhuận (25%), kèm khuyến nghị quản trị kinh doanh phù hợp.`;
                 const resp = await axios_1.default.post(`https://generativelanguage.googleapis.com/v1beta/models/${settings.geminiModel || "gemini-3.5-flash"}:generateContent?key=${activeKey}`, {
                     contents: [{ role: "user", parts: [{ text: prompt }] }],
                     generationConfig: { temperature: 0.3, maxOutputTokens: 2000 }
@@ -1306,7 +1392,7 @@ ${slowSelling.map((p, i) => `  ${i + 1}. ${p.name}: Đã bán 0 cái (Tồn kho 
                     return res.json({
                         answer: aiText,
                         source: "Google Gemini (Database-Grounded Q&A)",
-                        metrics: { totalRevenue, totalOrders: orders.length, slowSellingCount: slowSelling.length }
+                        metrics: { totalRevenue, totalCost, totalProfit, profitMargin, totalOrders: orders.length, slowSellingCount: slowSelling.length }
                     });
                 }
             }
@@ -1317,23 +1403,34 @@ ${slowSelling.map((p, i) => `  ${i + 1}. ${p.name}: Đã bán 0 cái (Tồn kho 
         // Fallback Rule-Based Analytical Engine
         let localAnswer = "";
         const qLower = question.toLowerCase();
-        if (qLower.includes("chậm") || qLower.includes("tồn") || qLower.includes("ít")) {
+        if (qLower.includes("lợi nhuận") || qLower.includes("lãi") || qLower.includes("profit") || qLower.includes("giá vốn") || qLower.includes("cost") || qLower.includes("tài chính")) {
+            localAnswer = `### 💰 Báo Cáo Doanh Thu, Giá Vốn & Lợi Nhuận
+- **Tổng doanh thu thực tế (Revenue)**: **${totalRevenue.toLocaleString("vi-VN")} đ** (100% doanh số)
+- **Tổng chi phí giá vốn (Cost 75%)**: **${totalCost.toLocaleString("vi-VN")} đ** (Vốn nhập hàng kho)
+- **Tổng lợi nhuận ròng thu về (Gross Profit 25%)**: **+${totalProfit.toLocaleString("vi-VN")} đ**
+- **Tỷ suất biên lợi nhuận ròng**: **${profitMargin}%**
+
+💡 **Đánh giá & Khuyến nghị quản trị tài chính**:
+- Tỷ suất sinh lời đạt mức chuẩn **25.0%**, đáp ứng tốt mục tiêu kế hoạch kinh doanh của cửa hàng.
+- Nhóm sản phẩm bán chạy nhất hiện mang lại tổng lợi nhuận **+${Math.round(topSelling.reduce((s, p) => s + p.revenue * 0.25, 0)).toLocaleString("vi-VN")} đ**, cần ưu tiên bảo đảm nguồn hàng ổn định.`;
+        }
+        else if (qLower.includes("chậm") || qLower.includes("tồn") || qLower.includes("ít")) {
             localAnswer = `### 📊 Báo Cáo Mặt Hàng Bán Chậm & Tồn Đọng\n\nDựa trên CSDL đơn hàng, hiện có **${slowSelling.length} mặt hàng** chưa phát sinh đơn mua nhưng lượng tồn kho còn nhiều:\n\n` +
                 slowSelling.map(p => `- **${p.name}**: Tồn kho **${p.stock} sản phẩm**, 0 lượt mua.`).join("\n") +
                 `\n\n💡 **Khuyến nghị cho Quản lý**:\n- Áp dụng chương trình Flash Sale giảm giá 10-15% xả hàng tồn.\n- Tạo gói Combo mua kèm với các sản phẩm bán chạy (${topSelling[0]?.name || "Điện thoại"}).`;
         }
         else if (qLower.includes("chạy") || qLower.includes("nhiều") || qLower.includes("hot")) {
             localAnswer = `### 🏆 Top Mặt Hàng Bán Chạy Nhất\n\n` +
-                topSelling.map((p, i) => `${i + 1}. **${p.name}**: Đã bán **${p.quantitySold} SP** • Doanh thu: **${p.revenue.toLocaleString("vi-VN")} đ** (Tồn kho: ${p.stock})`).join("\n") +
+                topSelling.map((p, i) => `${i + 1}. **${p.name}**: Đã bán **${p.quantitySold} SP** • Doanh thu: **${p.revenue.toLocaleString("vi-VN")} đ** • Lãi dự kiến (25%): **+${Math.round(p.revenue * 0.25).toLocaleString("vi-VN")} đ** (Tồn kho: ${p.stock})`).join("\n") +
                 `\n\n💡 **Khuyến nghị**: Chuẩn bị kế hoạch nhập thêm hàng đối với các sản phẩm có tồn kho thấp hơn 15.`;
         }
         else {
-            localAnswer = `### 📈 Tổng Kết Hoạt Động Bán Hàng\n\n- **Tổng doanh thu thực tế**: **${totalRevenue.toLocaleString("vi-VN")} đ**\n- **Tổng đơn hàng**: **${orders.length} đơn** (${completedOrders} thành công, ${cancelledOrders} hủy)\n- **Mặt hàng bán chạy nhất**: **${topSelling[0]?.name || "N/A"}**\n- **Mặt hàng cần xả kho**: **${slowSelling[0]?.name || "N/A"}**\n\nBạn có thể hỏi thêm chi tiết về doanh số theo ngày, mặt hàng tồn kho cao hoặc tỷ lệ đơn đổi trả!`;
+            localAnswer = `### 📈 Tổng Kết Hoạt Động Bán Hàng & Lợi Nhuận\n\n- **Tổng doanh thu thực tế**: **${totalRevenue.toLocaleString("vi-VN")} đ**\n- **Tổng giá vốn hàng bán (75%)**: **${totalCost.toLocaleString("vi-VN")} đ**\n- **Tổng lợi nhuận ròng (25%)**: **+${totalProfit.toLocaleString("vi-VN")} đ**\n- **Tổng đơn hàng**: **${orders.length} đơn** (${completedOrders} thành công, ${cancelledOrders} hủy)\n- **Mặt hàng bán chạy nhất**: **${topSelling[0]?.name || "N/A"}**\n- **Mặt hàng cần xả kho**: **${slowSelling[0]?.name || "N/A"}**\n\nBạn có thể hỏi thêm chi tiết về dòng tiền, tỷ suất lợi nhuận hoặc phân tích mặt hàng bán chậm!`;
         }
         return res.json({
             answer: localAnswer,
             source: "SHOPBEE Sales Intelligence Engine (Local Database Analysis)",
-            metrics: { totalRevenue, totalOrders: orders.length, slowSellingCount: slowSelling.length }
+            metrics: { totalRevenue, totalCost, totalProfit, profitMargin, totalOrders: orders.length, slowSellingCount: slowSelling.length }
         });
     }
     catch (err) {
