@@ -202,19 +202,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onClick={() => { navigate("/pos"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
                         >
-                          <Store className="w-3.5 h-3.5 text-emerald-600" /> 1. Bàn Tư Vấn Bán Quầy (POS)
+                          <Store className="w-3.5 h-3.5 text-emerald-600" /> Bàn Tư Vấn Bán Quầy (POS)
                         </button>
                         <button 
                           onClick={() => { navigate("/warehouse"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold"
                         >
-                          <Boxes className="w-3.5 h-3.5 text-blue-600" /> 2. Cổng Quản Lý Kho Hàng
+                          <Boxes className="w-3.5 h-3.5 text-blue-600" /> Cổng Quản Lý Kho Hàng
                         </button>
                         <button 
                           onClick={() => { navigate("/admin/stock-tickets"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2 font-bold"
                         >
-                          <Boxes className="w-3.5 h-3.5 text-rose-600" /> 3. Duyệt Xuất / Nhập Kho
+                          <Boxes className="w-3.5 h-3.5 text-rose-600" /> Duyệt Xuất / Nhập Kho
                         </button>
                       </>
                     )}
@@ -226,19 +226,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onClick={() => { navigate("/pos"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
                         >
-                          <Store className="w-3.5 h-3.5 text-emerald-600" /> 1. Bàn Tư Vấn Bán Quầy (POS)
+                          <Store className="w-3.5 h-3.5 text-emerald-600" /> Bàn Tư Vấn Bán Quầy (POS)
                         </button>
                         <button 
                           onClick={() => { navigate("/warehouse"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold"
                         >
-                          <Boxes className="w-3.5 h-3.5 text-blue-600" /> 2. Cổng Quản Lý Kho Hàng
+                          <Boxes className="w-3.5 h-3.5 text-blue-600" /> Cổng Quản Lý Kho Hàng
                         </button>
                         <button 
                           onClick={() => { navigate("/admin/dashboard"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2 font-bold"
                         >
-                          <Shield className="w-3.5 h-3.5 text-rose-600" /> 3. Bảng Điều Khiển Admin
+                          <Shield className="w-3.5 h-3.5 text-rose-600" /> Bảng Điều Khiển Admin
                         </button>
                       </>
                     )}
@@ -250,13 +250,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onClick={() => { navigate("/pos"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
                         >
-                          <Store className="w-3.5 h-3.5 text-emerald-600" /> 1. Bàn Tư Vấn Bán Quầy (POS)
+                          <Store className="w-3.5 h-3.5 text-emerald-600" /> Bàn Tư Vấn Bán Quầy (POS)
                         </button>
                         <button 
                           onClick={() => { navigate("/warehouse"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold"
                         >
-                          <Boxes className="w-3.5 h-3.5 text-blue-600" /> 2. Cổng Quản Lý Kho Hàng
+                          <Boxes className="w-3.5 h-3.5 text-blue-600" /> Cổng Quản Lý Kho Hàng
                         </button>
                       </>
                     )}
