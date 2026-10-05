@@ -322,76 +322,87 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
   return (
     <div className="space-y-6 pb-16">
       {/* Top Banner: Sales Consultation & Retail POS */}
-      <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 mb-2">
-            <Store className="w-3.5 h-3.5 text-emerald-600" />
-            <span>QUẦY BÁN LẺ & TƯ VẤN KHÁCH HÀNG (RETAIL POS)</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Bàn Làm Việc Tư Vấn & Bán Hàng Tại Quầy
-          </h1>
-          <p className="text-xs text-slate-500 mt-1 font-medium max-w-2xl">
-            Tối ưu cho 90% khách hàng không có tài khoản web: Tra cứu SĐT tích điểm & bảo hành, sử dụng <strong className="text-purple-600 font-bold">Trợ Lý AI Tư Vấn Bán Hàng</strong> để gợi ý cấu hình và chốt đơn nhanh chóng.
-          </p>
-        </div>
+      <div className="relative overflow-hidden p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-white via-white to-slate-50/70 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow">
+        {/* Decorative background glows */}
+        <div className="absolute -top-16 -right-16 w-80 h-80 bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-gradient-to-tr from-emerald-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setShowAiAdvisorModal(true)}
-            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-600/25 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 border border-purple-400/30"
-          >
-            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-            <span>AI Tư Vấn Bán Hàng</span>
-            <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-[10px] uppercase font-black tracking-wider">Copilot</span>
-          </button>
-
-          {onNavigateWarehouse && (
-            <button
-              type="button"
-              onClick={onNavigateWarehouse}
-              className="px-3.5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-xs"
-              title="Chuyển sang Cổng Quản Lý Kho Hàng"
-            >
-              <Boxes className="w-4 h-4 text-blue-600" />
-              <span>Chuyển Sang Quản Lý Kho ➔</span>
-            </button>
-          )}
-
-          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-2 rounded-2xl shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-rose-600/20">
-              {user?.fullName?.charAt(0) || "S"}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative z-10">
+          {/* Left Column: POS Identity, Title & Feature highlights */}
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50/90 text-emerald-800 text-xs font-bold border border-emerald-200/80 mb-2.5 shadow-2xs">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <Store className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="tracking-wide uppercase font-extrabold text-[11px]">Quầy Bán Lẻ & Tư Vấn Khách Hàng (Retail POS)</span>
             </div>
-            <div className="text-xs">
-              <p className="font-bold text-slate-900">{user?.fullName || "Nhân viên bán hàng"}</p>
-              <p className="text-[11px] text-slate-500 font-medium">Vai trò: <span className="text-rose-600 font-bold">{user?.role || "STAFF"}</span> • Ca trực quầy</p>
+
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
+              Bàn Làm Việc Tư Vấn &amp; Bán Hàng <span className="inline-block whitespace-nowrap">Tại Quầy</span>
+            </h1>
+
+            <p className="text-xs text-slate-500 mt-2 font-medium leading-relaxed">
+              Tối ưu cho khách ghé showroom: Tra cứu SĐT tích điểm &amp; bảo hành điện tử chính hãng, đồng hành cùng{" "}
+              <strong className="text-purple-600 font-bold">Trợ Lý AI Tư Vấn Bán Hàng</strong> để gợi ý cấu hình và chốt đơn nhanh chóng.
+            </p>
+          </div>
+
+          {/* Right Column: Staff Profile & Quick POS Actions */}
+          <div className="flex flex-col sm:items-end justify-center gap-3 shrink-0">
+            {/* Staff Profile Card */}
+            <div className="flex items-center gap-3 bg-white/90 backdrop-blur-sm border border-slate-200/90 px-3.5 py-2 rounded-2xl shadow-2xs hover:border-slate-300 transition-colors w-full sm:w-auto">
+              <div className="relative">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 via-rose-500 to-pink-500 text-white flex items-center justify-center font-black text-sm shadow-md shadow-rose-600/20">
+                  {user?.fullName?.charAt(0) || "S"}
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" title="Trực ca quầy" />
+              </div>
+              <div className="text-xs">
+                <div className="flex items-center gap-1.5">
+                  <p className="font-bold text-slate-900 truncate max-w-[170px]">
+                    {user?.fullName || "Nhân viên bán hàng"}
+                  </p>
+                  <span className="px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-black uppercase tracking-wider border border-rose-200/60">
+                    {user?.role || "STAFF"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                  <span>Ca trực quầy showroom</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons Row */}
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setShowAiAdvisorModal(true)}
+                className="flex-1 sm:flex-initial px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-600/25 flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 border border-purple-400/30 cursor-pointer group"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300 animate-pulse group-hover:rotate-12 transition-transform" />
+                <span>AI Tư Vấn Bán Hàng</span>
+                <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-[10px] uppercase font-black tracking-wider">
+                  Copilot
+                </span>
+              </button>
+
+              {onNavigateWarehouse && (
+                <button
+                  type="button"
+                  onClick={onNavigateWarehouse}
+                  className="px-3.5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200/80 flex items-center justify-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
+                  title="Chuyển sang Cổng Quản Lý Kho Hàng"
+                >
+                  <Boxes className="w-4 h-4 text-blue-600" />
+                  <span>Quản Lý Kho ➔</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Consultation Quick Helper Strip */}
-      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 border border-purple-200/70 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-purple-600/30">
-            <Bot className="w-4 h-4" />
-          </div>
-          <div>
-            <span className="font-bold text-purple-950">Chức Năng Tư Vấn Bán Hàng Trực Tiếp:</span>
-            <span className="text-purple-800 ml-1.5">
-              Tra cứu khách cũ/bảo hành bằng SĐT ở cột phải, hoặc bấm <strong>"AI Tư Vấn Bán Hàng"</strong> để nhận kịch bản tư vấn theo nhu cầu & so sánh sản phẩm.
-            </span>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowAiAdvisorModal(true)}
-          className="px-3 py-1.5 rounded-xl bg-white border border-purple-300 text-purple-700 hover:bg-purple-600 hover:text-white font-bold text-[11px] transition-all shrink-0 flex items-center gap-1.5 shadow-2xs"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Mở Cửa Sổ Tư Vấn AI</span>
-        </button>
       </div>
 
       {orderError && (

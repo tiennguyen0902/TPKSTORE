@@ -256,10 +256,20 @@ const MainApp: React.FC = () => {
     navigate("/checkout");
   };
 
+  // Nếu phiên đăng nhập đang được đồng bộ và chưa có thông tin user, hiển thị loading nhẹ nhàng tránh giật màn hình
+  if (isLoading && !user) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-4 font-sans">
+        <div className="w-10 h-10 border-3 border-rose-600/20 border-t-rose-600 rounded-full animate-spin mb-3" />
+        <p className="text-xs font-semibold text-slate-500">Đang đồng bộ phiên làm việc...</p>
+      </div>
+    );
+  }
+
   const isAdminRoute = currentView.startsWith("admin_");
 
   // Route Protection: Admin & Warehouse Manager Portal
-  if (isAdminRoute && user?.role !== "ADMIN" && user?.role !== "MANAGER") {
+  if (!isLoading && isAdminRoute && user?.role !== "ADMIN" && user?.role !== "MANAGER") {
     return (
       <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
         <Navbar
@@ -302,7 +312,7 @@ const MainApp: React.FC = () => {
 
   // Route Protection: Staff POS & Warehouse Portal
   const isStaffArea = currentView === "pos_counter" || currentView === "warehouse_dashboard" || currentView === "staff_dashboard";
-  if (isStaffArea && user?.role !== "STAFF" && user?.role !== "ADMIN" && user?.role !== "MANAGER") {
+  if (!isLoading && isStaffArea && user?.role !== "STAFF" && user?.role !== "ADMIN" && user?.role !== "MANAGER") {
     return (
       <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
         <Navbar

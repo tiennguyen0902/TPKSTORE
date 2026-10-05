@@ -14,8 +14,19 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem("store_ai_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    const hasToken = !!localStorage.getItem("store_ai_access_token");
+    const hasUser = !!localStorage.getItem("store_ai_user");
+    return hasToken && !hasUser;
+  });
 
   useEffect(() => {
     const initAuth = async () => {
@@ -24,12 +35,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const res = await api.getMe();
           setUser(res.user);
+          localStorage.setItem("store_ai_user", JSON.stringify(res.user));
         } catch (err) {
           localStorage.removeItem("store_ai_access_token");
           localStorage.removeItem("store_ai_refresh_token");
+          localStorage.removeItem("store_ai_user");
           setUser(null);
         }
       } else {
+        localStorage.removeItem("store_ai_user");
         setUser(null);
       }
       setIsLoading(false);
@@ -42,6 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const data = await api.login(email, pass);
     localStorage.setItem("store_ai_access_token", data.tokens.accessToken);
     localStorage.setItem("store_ai_refresh_token", data.tokens.refreshToken);
+    localStorage.setItem("store_ai_user", JSON.stringify(data.user));
     setUser(data.user);
     return data.user;
   };
@@ -50,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const res = await api.register(data);
     localStorage.setItem("store_ai_access_token", res.tokens.accessToken);
     localStorage.setItem("store_ai_refresh_token", res.tokens.refreshToken);
+    localStorage.setItem("store_ai_user", JSON.stringify(res.user));
     setUser(res.user);
     return res.user;
   };
@@ -57,12 +73,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     localStorage.removeItem("store_ai_access_token");
     localStorage.removeItem("store_ai_refresh_token");
+    localStorage.removeItem("store_ai_user");
     setUser(null);
   };
 
   const updateUser = (updated: Partial<User>) => {
     if (user) {
-      setUser({ ...user, ...updated });
+      const updatedUser = { ...user, ...updated };
+      setUser(updatedUser);
+      localStorage.setItem("store_ai_user", JSON.stringify(updatedUser));
     }
   };
 
