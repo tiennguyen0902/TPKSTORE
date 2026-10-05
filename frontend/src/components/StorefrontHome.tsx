@@ -25,12 +25,14 @@ interface StorefrontHomeProps {
   onSelectProduct: (p: Product) => void;
   onNavigateCatalog: (categorySlug?: string) => void;
   onOpenChat: () => void;
+  onBuyProduct?: (p: Product) => void;
 }
 
 export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
   onSelectProduct,
   onNavigateCatalog,
-  onOpenChat
+  onOpenChat,
+  onBuyProduct
 }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -88,17 +90,10 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
         <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Left Hero Column */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5 text-rose-600" />
-              <span>AI-Powered Shopping Experience 2026</span>
-            </div>
-
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 leading-tight tracking-tight">
               Mua sắm <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-rose-600 to-rose-700">
-                Thông Minh
-              </span> <br />
-              cùng <span className="text-rose-600">SHOPBEE</span> 🐝
+              Thông Minh <br />
+              cùng SHOPBEE 🐝
             </h1>
 
             <p className="text-slate-600 text-sm md:text-base leading-relaxed max-w-xl font-medium">
@@ -127,7 +122,7 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
             {/* Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-slate-200">
               <div>
-                <p className="text-xl font-black text-slate-900">500+</p>
+                <p className="text-xl font-black text-slate-900">99+</p>
                 <p className="text-xs text-slate-500 font-semibold">Sản phẩm</p>
               </div>
               <div>
@@ -193,7 +188,11 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelectProduct(spotlightProduct);
+                      if (onBuyProduct) {
+                        onBuyProduct(spotlightProduct);
+                      } else {
+                        onSelectProduct(spotlightProduct);
+                      }
                     }}
                     className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/30 transition-all"
                   >
@@ -210,12 +209,12 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold mb-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-bold mb-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
               DANH MỤC SẢN PHẨM
             </div>
             <h2 className="text-xl md:text-2xl font-black text-slate-900">
-              Khám phá theo <span className="text-rose-600">danh mục</span>
+              Khám phá theo danh mục
             </h2>
           </div>
 
@@ -254,10 +253,6 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold mb-1">
-                <Sparkles className="w-3 h-3 text-rose-600" />
-                AI RECOMMENDATION ENGINE · HYBRID V2.1
-              </div>
               <h2 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-2">
                 Gợi ý dành riêng cho bạn <span className="text-xl">✨</span>
               </h2>
@@ -278,6 +273,7 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
                 key={prod.id}
                 product={prod}
                 onSelect={onSelectProduct}
+                onBuy={onBuyProduct}
               />
             ))}
           </div>
@@ -312,6 +308,7 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
               key={prod.id}
               product={prod}
               onSelect={onSelectProduct}
+              onBuy={onBuyProduct}
             />
           ))}
         </div>

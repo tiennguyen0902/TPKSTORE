@@ -33,10 +33,10 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const { items, subtotal, shippingFee, isFreeShipping, total, clearCart } = useCart();
   const { user } = useAuth();
 
-  const isStaff = user?.role === "STAFF" || user?.role === "MANAGER" || user?.role === "ADMIN";
+  const isStaff = user?.role === "STAFF" || user?.role === "ADMIN";
   const [isCounterMode, setIsCounterMode] = useState(isStaff);
 
-  const [customerName, setCustomerName] = useState(isStaff ? "Khách hàng vãng lai" : (user?.fullName || "Lê Hoàng Nam"));
+  const [customerName, setCustomerName] = useState(isStaff ? "Khách lẻ" : (user?.fullName || "Lê Hoàng Nam"));
   const [phone, setPhone] = useState(isStaff ? "" : (user?.phone || "0912345678"));
   const [shippingAddress, setShippingAddress] = useState(isStaff ? "Mua trực tiếp tại quầy - TPKSTORE" : (user?.address || "Số 45 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội"));
   const [note, setNote] = useState("Giao hàng giờ hành chính");
@@ -63,7 +63,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       } else {
         setLookupCustomerInfo({ isNew: true });
         if (!customerName || customerName.includes("Staff") || customerName.includes("Admin")) {
-          setCustomerName("Khách hàng vãng lai");
+          setCustomerName("Khách lẻ");
         }
       }
     } catch {
@@ -213,7 +213,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-blue-800 font-medium mt-0.5">
-                Lên đơn cho khách vãng lai chỉ với <strong className="text-blue-950">Số điện thoại</strong> (tự động miễn phí giao hàng, kích hoạt bảo hành điện tử và tích điểm).
+                Lên đơn cho khách lẻ chỉ với <strong className="text-blue-950">Số điện thoại</strong> (tự động miễn phí giao hàng, kích hoạt bảo hành điện tử và tích điểm).
               </p>
             </div>
           </div>
@@ -226,7 +226,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 const checked = e.target.checked;
                 setIsCounterMode(checked);
                 if (checked) {
-                  setCustomerName("Khách hàng vãng lai");
+                  setCustomerName("Khách lẻ");
                   setPhone("");
                   setShippingAddress("Mua trực tiếp tại quầy - TPKSTORE");
                   setNote("Khách mua trực tiếp tại quầy");
@@ -348,7 +348,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                     type="text"
                     value={customerName}
                     onChange={(e) => { setCustomerName(e.target.value); clearFieldError("customerName"); }}
-                    placeholder="Nguyễn Văn A (hoặc Khách hàng vãng lai)"
+                    placeholder="Nguyễn Văn A (hoặc Khách lẻ)"
                     className={`w-full bg-white border rounded-xl px-3 py-2.5 pl-9 text-slate-900 focus:outline-none transition-colors ${
                       fieldErrors.customerName 
                         ? "border-rose-500 focus:border-rose-600 focus:ring-4 focus:ring-rose-500/10" 

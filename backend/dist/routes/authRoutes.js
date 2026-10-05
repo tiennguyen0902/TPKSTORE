@@ -59,6 +59,16 @@ router.post("/register", async (req, res) => {
         return res.status(500).json({ error: "Lỗi hệ thống khi đăng ký: " + err.message });
     }
 });
+const loginAttemptsMap = new Map();
+// Định kỳ dọn dẹp các bản ghi hết hạn sau mỗi 5 phút
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, record] of loginAttemptsMap.entries()) {
+        if (record.lockedUntil && record.lockedUntil <= now) {
+            loginAttemptsMap.delete(key);
+        }
+    }
+}, 5 * 60 * 1000);
 // POST /api/auth/login
 router.post("/login", async (req, res) => {
     try {
@@ -66,19 +76,66 @@ router.post("/login", async (req, res) => {
         if (!email || !password) {
             return res.status(400).json({ error: "Vui lòng nhập đầy đủ Email và Mật khẩu." });
         }
+        const normalizedEmail = email.trim().toLowerCase();
+        const now = Date.now();
+        // 1. Kiểm tra tài khoản có đang bị tạm khóa 15 phút do nhập sai 5 lần liên tiếp hay không
+        const attempt = loginAttemptsMap.get(normalizedEmail);
+        if (attempt && attempt.lockedUntil) {
+            if (attempt.lockedUntil > now) {
+                const remainingMs = attempt.lockedUntil - now;
+                const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+                return res.status(429).json({
+                    error: `Tài khoản đã bị tạm khóa 15 phút do nhập sai mật khẩu 5 lần liên tiếp. Vui lòng thử lại sau ${remainingMinutes} phút.`
+                });
+            }
+            else {
+                // Đã hết thời gian khóa 15 phút -> giải phóng khóa
+                loginAttemptsMap.delete(normalizedEmail);
+            }
+        }
         const user = await db_1.db.user.findFirst({
-            where: { email: { equals: email, mode: "insensitive" } }
+            where: { email: { equals: normalizedEmail, mode: "insensitive" } }
         });
         if (!user) {
-            return res.status(401).json({ error: "Tài khoản hoặc mật khẩu không chính xác." });
+            const cur = loginAttemptsMap.get(normalizedEmail) || { failedCount: 0 };
+            cur.failedCount += 1;
+            if (cur.failedCount >= 5) {
+                cur.lockedUntil = Date.now() + 15 * 60 * 1000; // Khóa 15 phút
+                loginAttemptsMap.set(normalizedEmail, cur);
+                return res.status(429).json({
+                    error: "Bạn đã nhập sai thông tin 5 lần liên tiếp. Tài khoản đã bị tạm khóa trong 15 phút để bảo đảm an toàn."
+                });
+            }
+            loginAttemptsMap.set(normalizedEmail, cur);
+            const remaining = 5 - cur.failedCount;
+            return res.status(401).json({
+                error: `Tài khoản hoặc mật khẩu không chính xác. Bạn còn ${remaining} lần thử trước khi bị khóa tạm thời 15 phút.`
+            });
         }
         if (!user.isActive) {
             return res.status(403).json({ error: "Tài khoản đã bị tạm khóa. Vui lòng liên hệ Admin." });
         }
         const isMatch = await bcryptjs_1.default.compare(password, user.passwordHash);
         if (!isMatch) {
-            return res.status(401).json({ error: "Tài khoản hoặc mật khẩu không chính xác." });
+            const cur = loginAttemptsMap.get(normalizedEmail) || { failedCount: 0 };
+            cur.failedCount += 1;
+            if (cur.failedCount >= 5) {
+                cur.lockedUntil = Date.now() + 15 * 60 * 1000; // Khóa 15 phút
+                loginAttemptsMap.set(normalizedEmail, cur);
+                return res.status(429).json({
+                    error: "Bạn đã nhập sai mật khẩu 5 lần liên tiếp. Tài khoản đã bị tạm khóa trong 15 phút để bảo đảm an toàn."
+                });
+            }
+            else {
+                loginAttemptsMap.set(normalizedEmail, cur);
+                const remaining = 5 - cur.failedCount;
+                return res.status(401).json({
+                    error: `Mật khẩu không chính xác. Bạn còn ${remaining} lần thử trước khi tài khoản bị khóa tạm thời 15 phút.`
+                });
+            }
         }
+        // Đăng nhập thành công -> Xóa bộ đếm sai mật khẩu
+        loginAttemptsMap.delete(normalizedEmail);
         const tokens = await (0, auth_1.generateTokens)(user);
         return res.json({
             message: "Đăng nhập thành công!",
@@ -190,24 +247,66 @@ router.put("/profile", auth_1.authenticateToken, async (req, res) => {
 });
 // PUT /api/auth/change-password
 router.put("/change-password", auth_1.authenticateToken, async (req, res) => {
-    const user = req.user;
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-        return res.status(400).json({ error: "Vui lòng nhập mật khẩu hiện tại và mật khẩu mới." });
+    try {
+        const user = req.user;
+        const { currentPassword, newPassword, currentRefreshToken } = req.body;
+        // 1. Bắt buộc nhập mật khẩu hiện tại
+        if (!currentPassword || typeof currentPassword !== "string" || !currentPassword.trim()) {
+            return res.status(400).json({ error: "Bắt buộc phải nhập mật khẩu hiện tại." });
+        }
+        // 2. Mật khẩu mới tối thiểu 8 ký tự, có cả chữ và số
+        if (!newPassword || typeof newPassword !== "string") {
+            return res.status(400).json({ error: "Vui lòng nhập mật khẩu mới." });
+        }
+        if (newPassword.length < 8) {
+            return res.status(400).json({ error: "Mật khẩu mới phải có tối thiểu 8 ký tự." });
+        }
+        const hasLetter = /[a-zA-Z]/.test(newPassword);
+        const hasNumber = /[0-9]/.test(newPassword);
+        if (!hasLetter || !hasNumber) {
+            return res.status(400).json({ error: "Mật khẩu mới phải chứa ít nhất một chữ cái và một chữ số." });
+        }
+        if (currentPassword === newPassword) {
+            return res.status(400).json({ error: "Mật khẩu mới không được trùng với mật khẩu hiện tại." });
+        }
+        // 3. Xác thực mật khẩu hiện tại
+        const isMatch = await bcryptjs_1.default.compare(currentPassword, user.passwordHash);
+        if (!isMatch) {
+            return res.status(400).json({ error: "Mật khẩu hiện tại không chính xác." });
+        }
+        // 4. Mã hóa và lưu mật khẩu mới
+        const newHash = await bcryptjs_1.default.hash(newPassword, 10);
+        const updatedUser = await db_1.db.user.update({
+            where: { id: user.id },
+            data: { passwordHash: newHash }
+        });
+        // 5. Đổi xong thu hồi các phiên đăng nhập khác
+        if (currentRefreshToken) {
+            const currentTokenHash = crypto_1.default.createHash("sha256").update(currentRefreshToken).digest("hex");
+            // Thu hồi tất cả các phiên đăng nhập của tài khoản này, NGOẠI TRỪ phiên hiện tại
+            await db_1.db.refreshToken.deleteMany({
+                where: {
+                    userId: user.id,
+                    tokenHash: { not: currentTokenHash }
+                }
+            });
+        }
+        else {
+            // Nếu không truyền refreshToken hiện tại, thu hồi toàn bộ token cũ
+            await db_1.db.refreshToken.deleteMany({
+                where: { userId: user.id }
+            });
+        }
+        // Sinh cặp token mới cho phiên làm việc hiện tại
+        const newTokens = await (0, auth_1.generateTokens)(updatedUser);
+        return res.json({
+            message: "Đổi mật khẩu thành công! Toàn bộ các phiên đăng nhập trên thiết bị khác đã được thu hồi an toàn.",
+            tokens: newTokens
+        });
     }
-    if (newPassword.length < 6) {
-        return res.status(400).json({ error: "Mật khẩu mới phải có tối thiểu 6 ký tự." });
+    catch (err) {
+        return res.status(500).json({ error: "Lỗi hệ thống khi đổi mật khẩu: " + err.message });
     }
-    const isMatch = await bcryptjs_1.default.compare(currentPassword, user.passwordHash);
-    if (!isMatch) {
-        return res.status(400).json({ error: "Mật khẩu hiện tại không chính xác." });
-    }
-    const newHash = await bcryptjs_1.default.hash(newPassword, 10);
-    await db_1.db.user.update({
-        where: { id: user.id },
-        data: { passwordHash: newHash }
-    });
-    return res.json({ message: "Đổi mật khẩu thành công!" });
 });
 // Bộ nhớ lưu mã OTP khôi phục mật khẩu trong phiên (email -> { otp, expiresAt })
 const otpStore = new Map();
@@ -252,8 +351,13 @@ router.post("/reset-password", async (req, res) => {
         if (!email || !otp || !newPassword) {
             return res.status(400).json({ error: "Vui lòng nhập đầy đủ Email, mã OTP và Mật khẩu mới." });
         }
-        if (newPassword.length < 6) {
-            return res.status(400).json({ error: "Mật khẩu mới phải có tối thiểu 6 ký tự." });
+        if (newPassword.length < 8) {
+            return res.status(400).json({ error: "Mật khẩu mới phải có tối thiểu 8 ký tự." });
+        }
+        const hasLetter = /[a-zA-Z]/.test(newPassword);
+        const hasNumber = /[0-9]/.test(newPassword);
+        if (!hasLetter || !hasNumber) {
+            return res.status(400).json({ error: "Mật khẩu mới phải chứa cả chữ cái và số." });
         }
         const normalizedEmail = email.trim().toLowerCase();
         const storedOtp = otpStore.get(normalizedEmail);
@@ -278,15 +382,66 @@ router.post("/reset-password", async (req, res) => {
             where: { id: user.id },
             data: { passwordHash: newHash }
         });
+        // Thu hồi toàn bộ các phiên đăng nhập cũ
+        await db_1.db.refreshToken.deleteMany({
+            where: { userId: user.id }
+        });
+        // Xóa bộ đếm khóa tạm thời (nếu có)
+        loginAttemptsMap.delete(normalizedEmail);
         // Huỷ mã OTP sau khi sử dụng thành công
         otpStore.delete(normalizedEmail);
         console.log(`[AUTH] Đặt lại mật khẩu thành công cho tài khoản: ${normalizedEmail}`);
         return res.json({
-            message: "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới ngay bây giờ."
+            message: "Đặt lại mật khẩu thành công! Tất cả các phiên đăng nhập cũ đã được thu hồi. Bạn có thể đăng nhập ngay."
         });
     }
     catch (err) {
         return res.status(500).json({ error: "Lỗi hệ thống khi đặt lại mật khẩu: " + err.message });
+    }
+});
+// POST /api/auth/upload-avatar (Upload ảnh đại diện từ file, base64, tối đa 3MB)
+router.post("/upload-avatar", auth_1.authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { base64, mimeType } = req.body;
+        if (!base64 || !mimeType) {
+            return res.status(400).json({ error: "Vui lòng cung cấp dữ liệu ảnh (base64) và loại file (mimeType)." });
+        }
+        // Kiểm tra loại file hợp lệ
+        const allowedMimeTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+        if (!allowedMimeTypes.includes(mimeType.toLowerCase())) {
+            return res.status(400).json({ error: "Chỉ chấp nhận file ảnh định dạng JPEG, PNG, GIF hoặc WebP." });
+        }
+        // Kiểm tra kích thước (base64 ~4/3 bytes so với binary gốc)
+        const base64Data = base64.replace(/^data:[^;]+;base64,/, "");
+        const fileSizeBytes = Math.ceil((base64Data.length * 3) / 4);
+        const maxSizeBytes = 3 * 1024 * 1024; // 3MB
+        if (fileSizeBytes > maxSizeBytes) {
+            return res.status(400).json({ error: `Kích thước ảnh vượt quá giới hạn 3MB (file hiện tại: ${(fileSizeBytes / 1024 / 1024).toFixed(2)}MB).` });
+        }
+        // Tạo data URI để lưu vào DB
+        const dataUri = `data:${mimeType};base64,${base64Data}`;
+        const updatedUser = await db_1.db.user.update({
+            where: { id: userId },
+            data: { avatar: dataUri }
+        });
+        return res.json({
+            message: "Cập nhật ảnh đại diện thành công!",
+            avatar: updatedUser.avatar,
+            user: {
+                id: updatedUser.id,
+                email: updatedUser.email,
+                fullName: updatedUser.fullName,
+                role: updatedUser.role,
+                canChatAi: updatedUser.canChatAi !== false,
+                phone: updatedUser.phone,
+                address: updatedUser.address,
+                avatar: updatedUser.avatar
+            }
+        });
+    }
+    catch (err) {
+        return res.status(500).json({ error: "Lỗi hệ thống khi cập nhật avatar: " + err.message });
     }
 });
 exports.default = router;

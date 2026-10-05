@@ -26,8 +26,9 @@ import { AdminSettings } from "./components/AdminSettings";
 import { StaffDashboard } from "./components/StaffDashboard";
 import { StockTicketsView } from "./components/StockTicketsView";
 import { CounterPosView } from "./components/CounterPosView";
+import { LoginModal } from "./components/LoginModal";
 import { Product } from "./types";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, CheckCircle2 } from "lucide-react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { api } from "./services/api";
 
@@ -126,6 +127,48 @@ const MainApp: React.FC = () => {
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [postAuthTarget, setPostAuthTarget] = useState<string | null>(null);
   const [authBanner, setAuthBanner] = useState<string>("");
+
+  // Quản lý Modal Popup đăng nhập khi mua hàng
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [loginModalProduct, setLoginModalProduct] = useState<Product | null>(null);
+  const [toastNotification, setToastNotification] = useState<string | null>(null);
+
+  // Mở popup đăng nhập và lưu lại sản phẩm khách đang chọn mua
+  const handleTriggerLoginModal = (targetProduct?: Product | null) => {
+    const prod = targetProduct || activeProduct || null;
+    setLoginModalProduct(prod);
+    setIsLoginModalOpen(true);
+  };
+
+  // Đăng nhập thành công: hiển thị thông báo "Đăng nhập thành công !" toàn hệ thống
+  const showLoginSuccessToast = () => {
+    setToastNotification("Đăng nhập thành công !");
+    setTimeout(() => setToastNotification(null), 3000);
+  };
+
+  // Đăng nhập thành công từ Popup: quay lại đúng sản phẩm đã chọn mua
+  const handleLoginModalSuccess = (loggedInUser: any) => {
+    setIsLoginModalOpen(false);
+    showLoginSuccessToast();
+
+    if (loginModalProduct) {
+      // Đảm bảo quay lại đúng sản phẩm của khách hàng đã chọn mua
+      setActiveProduct(loginModalProduct);
+      const identifier = loginModalProduct.slug || loginModalProduct.id;
+      navigate(`/products/${identifier}`);
+    } else if (currentView === "cart") {
+      navigate("/checkout");
+    }
+  };
+
+  // Xử lý khi khách bấm nút "Mua ngay" trên thẻ sản phẩm hoặc banner
+  const handleBuyProduct = (product: Product) => {
+    if (!user) {
+      handleTriggerLoginModal(product);
+      return;
+    }
+    handleSelectProduct(product);
+  };
 
   // Helper chuyển trang tương ứng với URL
   const handleNavigateView = (view: string) => {
@@ -236,6 +279,9 @@ const MainApp: React.FC = () => {
           navigate("/login");
         }
       }
+      if (user && user.role === "MANAGER" && currentView === "admin_dashboard") {
+        handleNavigateView("admin_stock_tickets");
+      }
     }
   }, [user, isLoading, currentView, postAuthTarget]);
 
@@ -245,12 +291,10 @@ const MainApp: React.FC = () => {
     if (el) el.click();
   };
 
-  // Bấm đến bước mua hàng / thanh toán: ĐẾN BƯỚC NÀY MỚI BẮT ĐĂNG NHẬP
+  // Bấm đến bước mua hàng / thanh toán: Bật popup đăng nhập nếu chưa đăng nhập
   const handleProceedToBuy = () => {
     if (!user) {
-      setPostAuthTarget("checkout");
-      setAuthBanner("Vui lòng đăng nhập tài khoản để tiến hành mua hàng và thanh toán đơn hàng!");
-      navigate("/login");
+      handleTriggerLoginModal(activeProduct);
       return;
     }
     navigate("/checkout");
@@ -267,6 +311,53 @@ const MainApp: React.FC = () => {
   }
 
   const isAdminRoute = currentView.startsWith("admin_");
+
+  // Giới hạn quyền hạn Quản lý kho (MANAGER): Chỉ có quyền quản lý kho và duyệt nhập xuất kho
+  const isManagerRestrictedView = !isLoading && user?.role === "MANAGER" && (
+    currentView === "pos_counter" ||
+    (isAdminRoute && currentView !== "admin_inventory" && currentView !== "admin_stock_tickets")
+  );
+
+  if (isManagerRestrictedView) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
+        <Navbar
+          currentView={currentView}
+          setCurrentView={handleNavigateView}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={handleSelectCategory}
+        />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <div className="max-w-md w-full p-8 rounded-3xl bg-white border border-slate-200 text-center space-y-4 shadow-xl">
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto">
+              <ShieldAlert className="w-7 h-7" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">Giới Hạn Quyền Quản Lý Kho</h2>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Tài khoản Quản lý kho (MANAGER) chỉ có quyền quản lý kho hàng và duyệt phiếu nhập/xuất kho, không có quyền thao tác bán hàng tại quầy (POS) hoặc các chức năng quản trị khác.
+            </p>
+            <div className="pt-2 flex justify-center gap-3">
+              <button
+                onClick={() => navigate("/warehouse")}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition-colors"
+              >
+                Quản lý kho hàng
+              </button>
+              <button
+                onClick={() => navigate("/admin/stock-tickets")}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-md shadow-rose-600/30 transition-colors"
+              >
+                Duyệt xuất / nhập kho
+              </button>
+            </div>
+          </div>
+        </main>
+        <Footer onNavigateCategory={handleSelectCategory} />
+      </div>
+    );
+  }
 
   // Route Protection: Admin & Warehouse Manager Portal
   if (!isLoading && isAdminRoute && user?.role !== "ADMIN" && user?.role !== "MANAGER") {
@@ -403,6 +494,7 @@ const MainApp: React.FC = () => {
                   navigate("/");
                 }}
                 onSuccess={() => {
+                  showLoginSuccessToast();
                   const target = postAuthTarget || "storefront";
                   setPostAuthTarget(null);
                   setAuthBanner("");
@@ -417,6 +509,7 @@ const MainApp: React.FC = () => {
                 onSelectProduct={handleSelectProduct}
                 onNavigateCatalog={handleSelectCategory}
                 onOpenChat={handleOpenChat}
+                onBuyProduct={handleBuyProduct}
               />
             )}
 
@@ -427,6 +520,7 @@ const MainApp: React.FC = () => {
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 onSelectProduct={handleSelectProduct}
+                onBuyProduct={handleBuyProduct}
               />
             )}
 
@@ -481,12 +575,43 @@ const MainApp: React.FC = () => {
             product={activeProduct}
             onClose={handleCloseProductModal}
             onSelectProduct={handleSelectProduct}
+            onRequireLogin={(prod) => {
+              handleTriggerLoginModal(prod);
+            }}
             onGoToCheckout={() => {
+              if (!user) {
+                handleTriggerLoginModal(activeProduct);
+                return;
+              }
               setActiveProduct(null);
-              handleProceedToBuy();
+              navigate("/checkout");
             }}
           />
         </ErrorBoundary>
+      )}
+
+      {/* Global Login Popup Modal: Hiển thị popup đăng nhập khi bấm mua hàng */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        pendingProduct={loginModalProduct}
+        onSuccess={handleLoginModalSuccess}
+      />
+
+      {/* Floating Toast Notification */}
+      {toastNotification && (
+        <div className="fixed bottom-6 right-6 z-[80] p-4 bg-slate-900 text-white rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-in slide-in-from-bottom-5 duration-300 max-w-md">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <p className="text-xs font-semibold leading-relaxed">{toastNotification}</p>
+          <button
+            onClick={() => setToastNotification(null)}
+            className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors ml-auto text-base"
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );

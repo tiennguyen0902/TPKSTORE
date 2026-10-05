@@ -1,7 +1,7 @@
 # 🐝 SHOPBEE / STORE AI — HỆ THỐNG QUẢN TRỊ BÁN HÀNG TÍCH HỢP TRÍ TUỆ NHÂN TẠO
 
 > **Đồ án Chuyên ngành Công nghệ Thông tin / Kỹ thuật Phần mềm**  
-> **Đề tài:** Hệ thống Quản trị Bán hàng & Thương mại Điện tử Đa kênh Tích hợp Trí tuệ Nhân tạo Đa phương thức (Multimodal Local AI & Cloud), Bán Hàng Tại Quầy (POS) Cho Khách Vãng Lai, Quản Lý Lợi Nhuận, Trợ Lý RAG Bán Hàng, Phân Quyền RBAC 4 Tầng và Quản Lý Kho Hàng 2 Lớp.  
+> **Đề tài:** Hệ thống Quản trị Bán hàng & Thương mại Điện tử Đa kênh Tích hợp Trí tuệ Nhân tạo Đa phương thức (Multimodal Local AI & Cloud), Bán Hàng Tại Quầy (POS) Cho Khách Lẻ, Quản Lý Lợi Nhuận, Trợ Lý RAG Bán Hàng, Phân Quyền RBAC 4 Tầng và Quản Lý Kho Hàng 2 Lớp.  
 > **Nhóm thực hiện:**  
 > • **Thang Quốc Khải** *(Architecture & AI Microservices & Backend Lead)*  
 > • **Nguyễn Đình Tiến** *(Frontend Lead & UI/UX Design)*  
@@ -23,7 +23,7 @@
 1. [Tổng Quan Hệ Thống & Kiến Trúc 5 Tầng](#1-tổng-quan-hệ-thống--kiến-trúc-5-tầng)
 2. [Cấu Trúc Thư Mục](#2-cấu-trúc-thư-mục)
 3. [Các Tính Năng Nổi Bật & Nghiệp Vụ Bán Lẻ Thực Tế](#3-các-tính-năng-nổi-bật--nghiệp-vụ-bán-lẻ-thực-tế)
-   - [3.1. Nghiệp Vụ Bán Hàng Tại Quầy (POS Mode) & Quản Lý Khách Vãng Lai](#31-nghiệp-vụ-bán-hàng-tại-quầy-pos-mode--quản-lý-khách-vãng-lai)
+   - [3.1. Nghiệp Vụ Bán Hàng Tại Quầy (POS Mode) & Quản Lý Khách Lẻ](#31-nghiệp-vụ-bán-hàng-tại-quầy-pos-mode--quản-lý-khách-lẻ)
    - [3.2. Quản Lý Lợi Nhuận, Doanh Thu & Giá Vốn Sản Phẩm (Cost & Profit Margin)](#32-quản-lý-lợi-nhuận-doanh-thu--giá-vốn-sản-phẩm-cost--profit-margin)
    - [3.3. Phân Quyền Đa Tầng (RBAC 4 Cấp Độ Độc Lập)](#33-phân-quyền-đa-tầng-rbac-4-cấp-độ-độc-lập)
    - [3.4. Sản Phẩm Công Nghệ Thực Tế Đa Biến Thể (Màu Sắc & Dung Lượng Chuẩn Hãng)](#34-sản-phẩm-công-nghệ-thực-tế-đa-biến-thể-màu-sắc--dung-lượng-chuẩn-hãng)
@@ -126,7 +126,7 @@ TPKSTORE/                               ← Root thư mục dự án
 │           ├── 📄 orderRoutes.ts       ← Đơn hàng trực tuyến & POS bán tại quầy, phiếu bảo hành
 │           ├── 📄 paymentRoutes.ts     ← Cổng thanh toán VNPAY Sandbox & MoMo
 │           ├── 📄 aiRoutes.ts          ← Động cơ AI: Local AI (Ollama), Gemini 3.x+, Voice & Vision RAG
-│           ├── 📄 userRoutes.ts        ← Tra cứu SĐT khách vãng lai, tạo nhanh khách tại quầy, cấp quyền AI
+│           ├── 📄 userRoutes.ts        ← Tra cứu SĐT khách lẻ, tạo nhanh khách tại quầy, cấp quyền AI
 │           └── 📄 settingsRoutes.ts    ← Cấu hình hệ thống & tham số kết nối Local AI / Gemini
 │
 ├── 🎨 frontend/                        ← Giao diện Người dùng SPA (React 19 / Vite / TypeScript)
@@ -188,7 +188,7 @@ TPKSTORE/                               ← Root thư mục dự án
 
 ## 3. Các Tính Năng Nổi Bật & Nghiệp Vụ Bán Lẻ Thực Tế
 
-### 3.1. Nghiệp Vụ Bán Hàng Tại Quầy (POS Mode) & Quản Lý Khách Vãng Lai
+### 3.1. Nghiệp Vụ Bán Hàng Tại Quầy (POS Mode) & Quản Lý Khách Lẻ
 Trong thực tế bán lẻ thiết bị công nghệ, **90% khách hàng ghé cửa hàng trực tiếp không có tài khoản web**, nhân viên chỉ xin **Số điện thoại** để kích hoạt bảo hành điện tử và tích điểm thành viên:
 
 * **Tra cứu & Tạo nhanh bằng Số điện thoại (Zero-friction)**:
@@ -235,7 +235,7 @@ Hệ thống thiết lập hàng rào bảo mật nghiêm ngặt theo 4 vai trò
    - **Chế độ Chỉ Xem (Read-only)** đối với danh mục sản phẩm: Không có quyền thêm/sửa/xóa sản phẩm để đảm bảo an toàn dữ liệu kinh doanh.
    - Truy cập giao diện POS để hỗ trợ bán hàng khi quầy đông khách.
 3. 👷 **STAFF (Nhân viên vận hành & tư vấn bán hàng)**:
-   - **Bán hàng tại quầy POS**: Tìm kiếm sản phẩm, nhập SĐT khách vãng lai, xuất hóa đơn, tích điểm và cấp bảo hành điện tử.
+   - **Bán hàng tại quầy POS**: Tìm kiếm sản phẩm, nhập SĐT khách lẻ, xuất hóa đơn, tích điểm và cấp bảo hành điện tử.
    - Tiếp nhận và xử lý đơn hàng trực tuyến của khách hàng.
    - Lập phiếu đề xuất Nhập kho (`IMPORT`) hoặc Xuất kho (`EXPORT`) gửi Manager duyệt.
    - Tra cứu nhanh tồn kho tức thì phục vụ tư vấn khách.
@@ -459,7 +459,7 @@ Tất cả tài khoản demo đều có mật khẩu chung là: `Password123@` v
 | :--- | :--- | :--- | :--- |
 | 👑 **ADMIN** | `admin@example.com` | `Password123@` | **Toàn quyền Quản trị Tối cao:**<br>• Độc quyền thêm/sửa/xóa sản phẩm & cấu hình màu sắc<br>• Báo cáo Doanh thu, Giá vốn (COGS) & Lợi nhuận gộp (Profit)<br>• Cấu hình mô hình AI Local & Gemini Cloud<br>• Sử dụng Bàn Bán Hàng Tại Quầy (POS Mode)<br>• Architecture Studio & AI Security Auditor |
 | 👔 **MANAGER** | `manager@example.com` | `Password123@` | **Quản Lý Kho Hàng & Giám Sát Quầy:**<br>• Kiểm soát toàn bộ xuất - nhập kho (Inbound / Outbound)<br>• Phê duyệt / Từ chối phiếu xuất nhập kho của từng Staff<br>• Theo dõi cảnh báo cạn kho & tồn kho an toàn AI<br>• Hỗ trợ Bán hàng tại quầy POS khi đông khách<br>• *Khóa chỉ xem sản phẩm (không sửa/xóa danh mục)* |
-| 👷 **STAFF 1** | `staff@example.com` | `Password123@` | **Nhân Viên Tư Vấn & Bán Hàng Tại Quầy (POS):**<br>• **Bàn Bán Hàng POS tại quầy**: Tra cứu SĐT khách vãng lai, xuất hóa đơn, tích điểm & in phiếu bảo hành 12-24 tháng<br>• Tiếp nhận và xử lý đơn đặt hàng trực tuyến<br>• Lập phiếu đề xuất Nhập/Xuất kho chờ Manager duyệt<br>• Tra cứu tồn kho sản phẩm tức thì phục vụ tư vấn |
+| 👷 **STAFF 1** | `staff@example.com` | `Password123@` | **Nhân Viên Tư Vấn & Bán Hàng Tại Quầy (POS):**<br>• **Bàn Bán Hàng POS tại quầy**: Tra cứu SĐT khách lẻ, xuất hóa đơn, tích điểm & in phiếu bảo hành 12-24 tháng<br>• Tiếp nhận và xử lý đơn đặt hàng trực tuyến<br>• Lập phiếu đề xuất Nhập/Xuất kho chờ Manager duyệt<br>• Tra cứu tồn kho sản phẩm tức thì phục vụ tư vấn |
 | 👷 **STAFF 2** | `staff2@example.com` | `Password123@` | **Nhân Viên Bán Hàng & Vận Hành 2** *(tương tự Staff 1)* |
 | 🛒 **CUSTOMER** | `customer@example.com` | `Password123@` | **Khách Hàng Mua Sắm Trực Tuyến:**<br>• Tìm kiếm thông minh, lọc danh mục theo ngân sách<br>• Đặt hàng thanh toán COD, VNPAY Sandbox, Ví MoMo<br>• Tra cứu thời hạn bảo hành điện tử theo SĐT<br>• Trợ lý AI Bán hàng: Nói bằng giọng nói, dán ảnh sản phẩm |
 
@@ -471,7 +471,7 @@ Tất cả tài khoản demo đều có mật khẩu chung là: `Password123@` v
 | :--- | :--- | :--- |
 | **Thang Quốc Khải** | **Team Leader & AI Architect** | • Thiết kế Kiến trúc Phân tầng 5 lớp (5-Tier Layered Architecture)<br>• Tích hợp AI Microservices, Local AI Ollama & Trợ lý Đa phương thức (Voice & Vision RAG)<br>• Xây dựng Backend Core API, Phân quyền RBAC 4 Tầng & Mô-đun Quản lý Lợi nhuận (Cost/Profit) |
 | **Nguyễn Đình Tiến** | **Frontend Lead & UI/UX** | • Thiết kế toàn bộ Giao diện UI/UX Dark Mode Glassmorphism<br>• Xây dựng Giao diện Bán Hàng Tại Quầy POS (`CounterPosView`) & Chế độ POS Checkout<br>• Widget Trợ lý AI tích hợp Web Speech API & Multimodal Image I/O |
-| **Nguyễn Hồng Phúc** | **Database & QA Lead** | • Thiết kế CSDL PostgreSQL (Prisma ORM) & Quy trình kiểm soát kho 2 lớp<br>• Xây dựng luồng tạo nhanh Khách hàng vãng lai bằng SĐT & Tích điểm/Bảo hành<br>• Xây dựng bộ kiểm thử tự động 8/8 test cases đạt chuẩn 100% PASS |
+| **Nguyễn Hồng Phúc** | **Database & QA Lead** | • Thiết kế CSDL PostgreSQL (Prisma ORM) & Quy trình kiểm soát kho 2 lớp<br>• Xây dựng luồng tạo nhanh Khách lẻ bằng SĐT & Tích điểm/Bảo hành<br>• Xây dựng bộ kiểm thử tự động 8/8 test cases đạt chuẩn 100% PASS |
 
 ---
 

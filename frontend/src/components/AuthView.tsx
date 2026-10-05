@@ -317,10 +317,12 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
             </div>
           )}
 
-          {messageBanner && (
-            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5 shadow-sm">
-              <Sparkles className="w-4 h-4 text-rose-600 shrink-0" />
-              <span className="font-medium">{messageBanner}</span>
+          {(messageBanner || authMode === "login") && (
+            <div className="py-2.5 px-4 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-center gap-2 shadow-xs text-center w-full">
+              <Sparkles className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <span className="font-semibold whitespace-normal sm:whitespace-nowrap">
+                {messageBanner || "Vui lòng đăng nhập tài khoản để tiến hành mua hàng và thanh toán!"}
+              </span>
             </div>
           )}
 
@@ -340,14 +342,14 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
           </div>
 
           {successMsg && (
-            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 shadow-sm animate-in fade-in font-medium">
+            <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 shadow-sm animate-in fade-in font-medium">
               <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
               <span>{successMsg}</span>
             </div>
           )}
 
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 animate-in fade-in font-medium">
+            <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 animate-in fade-in font-medium">
               <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
               <span>{errorMsg}</span>
             </div>
@@ -364,7 +366,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
                     placeholder="me@example.com"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
-                    className={`w-full bg-slate-50 border rounded-xl px-3 py-2.5 pl-9 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white transition-colors ${
+                    className={`w-full bg-slate-50 border rounded-2xl px-3.5 py-2.5 pl-9 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white transition-colors ${
                       fieldErrors.email 
                         ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
                         : "border-slate-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
@@ -397,7 +399,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
-                    className={`w-full bg-slate-50 border rounded-xl px-3 py-2.5 pl-9 pr-9 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white transition-colors ${
+                    className={`w-full bg-slate-50 border rounded-2xl px-3.5 py-2.5 pl-9 pr-9 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white transition-colors ${
                       fieldErrors.password 
                         ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
                         : "border-slate-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
@@ -423,7 +425,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition-all flex items-center justify-center gap-2"
               >
                 <span>{isLoading ? "Đang xác thực..." : "Đăng nhập"}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -747,7 +749,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
             </form>
           )}
 
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 flex items-center gap-2">
+          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>Kết nối bảo mật SSL. Thông tin của bạn được mã hóa và bảo vệ an toàn.</span>
           </div>

@@ -35,7 +35,7 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
         return res.status(400).json({ error: "Vui lòng nhập Số điện thoại khách hàng để kích hoạt bảo hành điện tử và tích điểm." });
       }
       if (!orderCustomerName) {
-        orderCustomerName = "Khách hàng vãng lai";
+        orderCustomerName = "Khách lẻ";
       }
       if (!orderAddress) {
         orderAddress = "Mua trực tiếp tại quầy - TPKSTORE";
@@ -69,7 +69,7 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
     const newOrder = await db.$transaction(async (tx) => {
       let targetUserId = userId;
 
-      // Nếu là đơn hàng tại quầy / do nhân viên tư vấn, liên kết hoặc tạo nhanh tài khoản Khách hàng vãng lai theo SĐT
+      // Nếu là đơn hàng tại quầy / do nhân viên tư vấn, liên kết hoặc tạo nhanh tài khoản Khách lẻ theo SĐT
       if (isCounter || (isStaffOrAdmin && orderPhone)) {
         const cleanPhone = orderPhone.replace(/\D/g, "");
         const existingCustomer = await tx.user.findFirst({
@@ -84,20 +84,20 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
 
         if (existingCustomer) {
           targetUserId = existingCustomer.id;
-          if (orderCustomerName && orderCustomerName !== "Khách hàng vãng lai" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách hàng vãng lai")) {
+          if (orderCustomerName && orderCustomerName !== "Khách lẻ" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách lẻ")) {
             await tx.user.update({
               where: { id: existingCustomer.id },
               data: { fullName: orderCustomerName }
             });
           }
         } else {
-          // Tự động tạo hồ sơ khách hàng vãng lai tại quầy
+          // Tự động tạo hồ sơ khách lẻ tại quầy
           const guestEmail = `kh_${cleanPhone || Date.now()}@tpkstore.vn`;
           const defaultPasswordHash = bcrypt.hashSync("WalkInCustomer123@", 10);
           const newCust = await tx.user.create({
             data: {
               email: guestEmail,
-              fullName: orderCustomerName || "Khách hàng vãng lai",
+              fullName: orderCustomerName || "Khách lẻ",
               phone: orderPhone,
               address: orderAddress,
               passwordHash: defaultPasswordHash,
@@ -206,8 +206,8 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
   }
 });
 
-// POST /api/orders/pos (Specialized POS Counter Order for Staff, Manager & Admin)
-router.post("/pos", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
+// POST /api/orders/pos (Specialized POS Counter Order for Staff & Admin)
+router.post("/pos", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { 
       customerName, 
@@ -231,11 +231,11 @@ router.post("/pos", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]),
 
     const trimmedPhone = String(phone).trim();
     const cleanPhone = trimmedPhone.replace(/\D/g, "");
-    const orderCustomerName = (customerName && String(customerName).trim()) || "Khách hàng vãng lai";
+    const orderCustomerName = (customerName && String(customerName).trim()) || "Khách lẻ";
     const orderAddress = (shippingAddress && String(shippingAddress).trim()) || "Mua trực tiếp tại quầy - TPKSTORE";
 
     const newOrder = await db.$transaction(async (tx) => {
-      // 1. Tìm hoặc tạo hồ sơ khách hàng vãng lai
+      // 1. Tìm hoặc tạo hồ sơ khách lẻ
       let targetUserId = "";
       const existingCustomer = await tx.user.findFirst({
         where: {
@@ -249,7 +249,7 @@ router.post("/pos", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]),
 
       if (existingCustomer) {
         targetUserId = existingCustomer.id;
-        if (orderCustomerName !== "Khách hàng vãng lai" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách hàng vãng lai")) {
+        if (orderCustomerName !== "Khách lẻ" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách lẻ")) {
           await tx.user.update({
             where: { id: existingCustomer.id },
             data: { fullName: orderCustomerName }

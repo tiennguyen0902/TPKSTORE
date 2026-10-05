@@ -52,13 +52,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
-      {/* Main Navigation Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
+      {/* Main Navigation Bar - Full thanh ngang bên trên kéo dài */}
+      <div className="w-full px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-3 lg:gap-6">
           {/* Logo */}
           <div 
             onClick={() => navigate("/")}
-            className="flex items-center gap-3 cursor-pointer select-none group"
+            className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
           >
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-600 to-rose-700 flex items-center justify-center shadow-md shadow-rose-600/30 group-hover:scale-105 transition-transform">
               <span className="text-xl font-black text-white tracking-tighter">🐝</span>
@@ -73,7 +73,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Category Quick Links (Storefront) */}
-          <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-600">
+          <nav className="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-600 shrink-0">
             <button 
               onClick={() => handleCategoryClick("dien-thoai-tablet")}
               className={`hover:text-rose-600 transition-colors ${selectedCategory === "dien-thoai-tablet" && currentView === "catalog" ? "text-rose-600 font-bold" : ""}`}
@@ -100,9 +100,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Search Bar - Mở rộng tối đa (max-w-3xl) không gian tìm kiếm rộng rãi */}
-          <div className="flex-1 max-w-2xl lg:max-w-3xl xl:max-w-4xl relative hidden md:block mx-2">
-            <div className="relative flex items-center">
+          {/* Search Bar - Hoàn lại giao diện như cũ và làm ngắn lại chiều rộng (max-w-sm lg:max-w-md) */}
+          <div className="flex-1 max-w-xs md:max-w-sm lg:max-w-md relative hidden md:block mx-2 lg:mx-3">
+            <div className="relative flex items-center w-full">
               <input
                 type="text"
                 placeholder="Tìm kiếm điện thoại, laptop, phụ kiện AI..."
@@ -118,12 +118,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Action Icons */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
 
             {/* Cart Button with Count Badge */}
             <button 
               onClick={() => navigate("/cart")}
-              className={`relative p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 transition-all hover:scale-105 ${
+              className={`relative p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 transition-all hover:scale-105 shrink-0 ${
                 currentView === "cart" ? "ring-2 ring-rose-500 text-rose-600 bg-rose-50" : ""
               }`}
             >
@@ -135,27 +135,43 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* User Profile Menu */}
-            <div className="relative">
+            {/* User Profile Menu - Mở rộng không gian rộng rãi, thoáng đãng không bị xô đẩy */}
+            <div className="relative shrink-0">
               {user ? (
                 <button 
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="flex items-center gap-2 p-1.5 pl-2 pr-3 rounded-full bg-slate-100 border border-slate-200 hover:border-rose-400 transition-all"
+                  className="flex items-center gap-3 h-11 px-4 py-2 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 hover:border-rose-400 transition-all shrink-0 group shadow-xs"
                 >
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-rose-600 to-rose-800 flex items-center justify-center text-white text-xs font-bold shadow-inner">
-                    {user.fullName.charAt(0)}
-                  </div>
-                  <span className="text-xs font-semibold text-slate-800 max-w-[90px] truncate hidden sm:inline">
-                    {user.fullName.split(" ")[0]}
+                  {/* Avatar */}
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.fullName}
+                      className="w-8 h-8 rounded-full object-cover border border-rose-200 shrink-0 shadow-inner"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-600 to-rose-800 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-inner">
+                      {user.fullName?.charAt(0) || "U"}
+                    </div>
+                  )}
+
+                  {/* Tên người dùng hiển thị đầy đủ và rộng rãi */}
+                  <span className="text-sm font-bold text-slate-800 max-w-[150px] sm:max-w-[200px] truncate">
+                    {user.fullName}
                   </span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
-                    user.role === "ADMIN" ? "bg-rose-100 text-rose-700 border border-rose-200" :
-                    user.role === "MANAGER" ? "bg-amber-100 text-amber-800 border border-amber-200" :
-                    user.role === "STAFF" ? "bg-blue-100 text-blue-800 border border-blue-200" : "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                  }`}>
-                    {user.role === "MANAGER" ? "MANAGER" : user.role}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+
+                  {/* Huy hiệu vai trò (nếu có) */}
+                  {user.role && user.role !== "CUSTOMER" && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase shrink-0 ${
+                      user.role === "ADMIN" ? "bg-rose-100 text-rose-700 border border-rose-200" :
+                      user.role === "MANAGER" ? "bg-amber-100 text-amber-800 border border-amber-200" :
+                      "bg-blue-100 text-blue-800 border border-blue-200"
+                    }`}>
+                      {user.role === "MANAGER" ? "MANAGER" : user.role}
+                    </span>
+                  )}
+
+                  <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 transition-transform duration-200 ${showUserDropdown ? "rotate-180" : ""}`} />
                 </button>
               ) : (
                 <button 
@@ -195,18 +211,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <UserIcon className="w-3.5 h-3.5 text-emerald-500" /> Quản lý thông tin cá nhân
                     </button>
 
-                    {/* Quyền Quản lý kho MANAGER */}
+                    {/* Quyền Quản lý kho MANAGER (Chỉ quản lý kho và duyệt nhập xuất kho) */}
                     {user.role === "MANAGER" && (
                       <>
                         <button 
-                          onClick={() => { navigate("/pos"); setShowUserDropdown(false); }}
-                          className="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
-                        >
-                          <Store className="w-3.5 h-3.5 text-emerald-600" /> Bàn Tư Vấn Bán Quầy (POS)
-                        </button>
-                        <button 
                           onClick={() => { navigate("/warehouse"); setShowUserDropdown(false); }}
-                          className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold"
+                          className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
                         >
                           <Boxes className="w-3.5 h-3.5 text-blue-600" /> Cổng Quản Lý Kho Hàng
                         </button>

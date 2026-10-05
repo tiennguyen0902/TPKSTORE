@@ -23,7 +23,7 @@ router.post("/", auth_1.authenticateToken, async (req, res) => {
                 return res.status(400).json({ error: "Vui lòng nhập Số điện thoại khách hàng để kích hoạt bảo hành điện tử và tích điểm." });
             }
             if (!orderCustomerName) {
-                orderCustomerName = "Khách hàng vãng lai";
+                orderCustomerName = "Khách lẻ";
             }
             if (!orderAddress) {
                 orderAddress = "Mua trực tiếp tại quầy - TPKSTORE";
@@ -55,7 +55,7 @@ router.post("/", auth_1.authenticateToken, async (req, res) => {
         // Use transaction for atomic stock decrement + order creation
         const newOrder = await db_1.db.$transaction(async (tx) => {
             let targetUserId = userId;
-            // Nếu là đơn hàng tại quầy / do nhân viên tư vấn, liên kết hoặc tạo nhanh tài khoản Khách hàng vãng lai theo SĐT
+            // Nếu là đơn hàng tại quầy / do nhân viên tư vấn, liên kết hoặc tạo nhanh tài khoản Khách lẻ theo SĐT
             if (isCounter || (isStaffOrAdmin && orderPhone)) {
                 const cleanPhone = orderPhone.replace(/\D/g, "");
                 const existingCustomer = await tx.user.findFirst({
@@ -69,7 +69,7 @@ router.post("/", auth_1.authenticateToken, async (req, res) => {
                 });
                 if (existingCustomer) {
                     targetUserId = existingCustomer.id;
-                    if (orderCustomerName && orderCustomerName !== "Khách hàng vãng lai" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách hàng vãng lai")) {
+                    if (orderCustomerName && orderCustomerName !== "Khách lẻ" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách lẻ")) {
                         await tx.user.update({
                             where: { id: existingCustomer.id },
                             data: { fullName: orderCustomerName }
@@ -77,13 +77,13 @@ router.post("/", auth_1.authenticateToken, async (req, res) => {
                     }
                 }
                 else {
-                    // Tự động tạo hồ sơ khách hàng vãng lai tại quầy
+                    // Tự động tạo hồ sơ khách lẻ tại quầy
                     const guestEmail = `kh_${cleanPhone || Date.now()}@tpkstore.vn`;
                     const defaultPasswordHash = bcryptjs_1.default.hashSync("WalkInCustomer123@", 10);
                     const newCust = await tx.user.create({
                         data: {
                             email: guestEmail,
-                            fullName: orderCustomerName || "Khách hàng vãng lai",
+                            fullName: orderCustomerName || "Khách lẻ",
                             phone: orderPhone,
                             address: orderAddress,
                             passwordHash: defaultPasswordHash,
@@ -178,8 +178,8 @@ router.post("/", auth_1.authenticateToken, async (req, res) => {
         return res.status(400).json({ error: err.message });
     }
 });
-// POST /api/orders/pos (Specialized POS Counter Order for Staff, Manager & Admin)
-router.post("/pos", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER", "STAFF"]), async (req, res) => {
+// POST /api/orders/pos (Specialized POS Counter Order for Staff & Admin)
+router.post("/pos", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "STAFF"]), async (req, res) => {
     try {
         const { customerName, phone, shippingAddress, note, paymentMethod, items, discountAmount = 0, paymentStatus = "COMPLETED", status = "DELIVERED" } = req.body;
         if (!phone || !String(phone).trim()) {
@@ -190,10 +190,10 @@ router.post("/pos", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "M
         }
         const trimmedPhone = String(phone).trim();
         const cleanPhone = trimmedPhone.replace(/\D/g, "");
-        const orderCustomerName = (customerName && String(customerName).trim()) || "Khách hàng vãng lai";
+        const orderCustomerName = (customerName && String(customerName).trim()) || "Khách lẻ";
         const orderAddress = (shippingAddress && String(shippingAddress).trim()) || "Mua trực tiếp tại quầy - TPKSTORE";
         const newOrder = await db_1.db.$transaction(async (tx) => {
-            // 1. Tìm hoặc tạo hồ sơ khách hàng vãng lai
+            // 1. Tìm hoặc tạo hồ sơ khách lẻ
             let targetUserId = "";
             const existingCustomer = await tx.user.findFirst({
                 where: {
@@ -206,7 +206,7 @@ router.post("/pos", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "M
             });
             if (existingCustomer) {
                 targetUserId = existingCustomer.id;
-                if (orderCustomerName !== "Khách hàng vãng lai" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách hàng vãng lai")) {
+                if (orderCustomerName !== "Khách lẻ" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách lẻ")) {
                     await tx.user.update({
                         where: { id: existingCustomer.id },
                         data: { fullName: orderCustomerName }

@@ -8,9 +8,10 @@ import { handleImageError } from "../utils/imageFallback";
 interface ProductCardProps {
   product: Product;
   onSelect: (product: Product) => void;
+  onBuy?: (product: Product) => void;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect, onBuy }) => {
   const { user } = useAuth();
   const { addToCart } = useCart();
 
@@ -111,16 +112,31 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
             )}
           </div>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              addToCart(product, 1);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-md shadow-rose-600/20 active:scale-95 transition-all"
-          >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Thêm</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                addToCart(product, 1);
+              }}
+              title="Thêm vào giỏ hàng"
+              className="p-1.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-rose-600 border border-slate-200 transition-colors"
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onBuy) {
+                  onBuy(product);
+                } else {
+                  onSelect(product);
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-bold shadow-md shadow-rose-600/20 active:scale-95 transition-all"
+            >
+              Mua ngay
+            </button>
+          </div>
         </div>
       </div>
     </div>

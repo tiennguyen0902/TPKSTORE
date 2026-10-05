@@ -87,3 +87,101 @@ body {
 .animate-pulse-slow {
   animation: pulseSlow 3s ease-in-out infinite;
 }
+
+/* Hide scrollbar utility class */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* =========================================================
+   PRINT STYLESHEET (Phiếu bảo hành & Hóa đơn quầy POS)
+   - Đảm bảo CHỈ xuất duy nhất 1 trang hóa đơn gọn gàng
+   - Ẩn toàn bộ giao diện xung quanh (Navbar, footer, catalog 50 sp)
+   - Ẩn các nút bấm thao tác (In hóa đơn, Tạo đơn tiếp theo)
+   ========================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Ẩn toàn bộ giao diện màn hình POS ngoài lề */
+  nav,
+  footer,
+  aside,
+  header,
+  .pos-main-screen,
+  .print\:hidden,
+  .print-hidden {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  #root {
+    display: block !important;
+    background: transparent !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Biến backdrop modal thành khung phẳng nền trắng */
+  .pos-receipt-backdrop {
+    position: static !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    inset: auto !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Định dạng phiếu in nằm trọn trong 1 trang duy nhất */
+  #printable-pos-receipt,
+  .pos-printable-receipt {
+    position: static !important;
+    width: 100% !important;
+    max-width: 175mm !important;
+    margin: 0 auto !important;
+    padding: 6mm 8mm !important;
+    border: 1px dashed #64748b !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Product } from "../types";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 import { getProductSpecifications, SpecGroup } from "../data/productSpecs";
 import { getProductVariants, ProductVariantGroup, ColorVariant, OptionItem } from "../data/productVariants";
@@ -32,6 +33,7 @@ interface ProductModalProps {
   onClose: () => void;
   onSelectProduct: (p: Product) => void;
   onGoToCheckout?: () => void;
+  onRequireLogin?: (product: Product) => void;
 }
 
 export function getSafeStock(stockVal: any): number {
@@ -102,8 +104,10 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   product,
   onClose,
   onSelectProduct,
-  onGoToCheckout
+  onGoToCheckout,
+  onRequireLogin
 }) => {
+  const { user } = useAuth();
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState<string>("");
@@ -185,7 +189,18 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       originalPrice: currentOriginalPrice || product.originalPrice,
       name: variantSummary ? `${product.name} (${variantSummary})` : product.name
     };
+    // Luôn lưu vào giỏ hàng sản phẩm cùng phiên bản và số lượng khách đã chọn
     await addToCart(productWithVariant, quantity);
+
+    if (!user) {
+      // Nếu khách chưa đăng nhập: giữ nguyên popup sản phẩm và hiển thị popup đăng nhập
+      if (onRequireLogin) {
+        onRequireLogin(product);
+      }
+      return;
+    }
+
+    // Nếu đã đăng nhập: đóng modal chi tiết và chuyển sang thanh toán
     onClose();
     onGoToCheckout?.();
   };
@@ -201,8 +216,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-5xl max-h-[92vh] bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-y-auto flex flex-col my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-md overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden animate-in fade-in duration-200">
+      <div className="relative w-full max-w-5xl max-h-[92vh] bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden flex flex-col my-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -245,7 +260,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
             {/* Gallery thumbnails */}
             {safeImages.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+              <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {safeImages.map((img, idx) => (
                   <button
                     key={idx}
@@ -614,6 +629,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   <span>{safeStock <= 0 ? "Hết hàng" : "Mua ngay (Giao 2h)"}</span>
                 </button>
               </div>
+
+
 
               {addedToast && (
                 <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs text-emerald-800 font-bold animate-in fade-in flex items-center justify-center gap-1.5 shadow-xs">

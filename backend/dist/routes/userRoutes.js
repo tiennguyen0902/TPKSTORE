@@ -150,7 +150,7 @@ router.post("/quick-customer", auth_1.authenticateToken, (0, auth_1.authorize)([
         const newCustomer = await db_1.db.user.create({
             data: {
                 email: guestEmail,
-                fullName: (fullName && String(fullName).trim()) || "Khách hàng vãng lai",
+                fullName: (fullName && String(fullName).trim()) || "Khách lẻ",
                 phone: trimmedPhone,
                 address: (address && String(address).trim()) || "Mua tại quầy - TPKSTORE",
                 passwordHash: defaultPasswordHash,
@@ -161,7 +161,7 @@ router.post("/quick-customer", auth_1.authenticateToken, (0, auth_1.authorize)([
         });
         return res.status(201).json({
             isNew: true,
-            message: "Tạo hồ sơ khách hàng vãng lai thành công!",
+            message: "Tạo hồ sơ khách lẻ thành công!",
             customer: newCustomer
         });
     }

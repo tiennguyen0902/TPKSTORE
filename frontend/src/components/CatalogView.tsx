@@ -11,6 +11,7 @@ interface CatalogViewProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   onSelectProduct: (p: Product) => void;
+  onBuyProduct?: (p: Product) => void;
 }
 
 export const CatalogView: React.FC<CatalogViewProps> = ({
@@ -18,7 +19,8 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   onCategoryChange,
   searchQuery,
   setSearchQuery,
-  onSelectProduct
+  onSelectProduct,
+  onBuyProduct
 }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -297,6 +299,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                     key={prod.id}
                     product={prod}
                     onSelect={onSelectProduct}
+                    onBuy={onBuyProduct}
                   />
                 ))}
               </div>

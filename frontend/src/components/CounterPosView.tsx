@@ -29,7 +29,9 @@ import {
   X,
   Zap,
   Check,
-  Boxes
+  Boxes,
+  Loader2,
+  ExternalLink
 } from "lucide-react";
 import { Product, Category } from "../types";
 import { api } from "../services/api";
@@ -81,7 +83,53 @@ export const CounterPosView: React.FC<CounterPosViewProps> = ({ onNavigateWareho
   const [warrantySlip, setWarrantySlip] = useState<any>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
-  // 5. Staff AI Sales Copilot State
+  // 5. Live QR Payment State for MoMo & VNPay (Chờ thanh toán -> Truy vấn -> Xuất hóa đơn)
+  const [showPosQrModal, setShowPosQrModal] = useState(false);
+  const [pendingQrOrder, setPendingQrOrder] = useState<any>(null);
+  const [pendingWarrantySlip, setPendingWarrantySlip] = useState<any>(null);
+  const [isManualConfirming, setIsManualConfirming] = useState(false);
+  const [qrPaymentSuccess, setQrPaymentSuccess] = useState(false);
+  const [momoPaymentData, setMomoPaymentData] = useState<{ payUrl?: string; deeplink?: string; qrCodeUrl?: string } | null>(null);
+
+  // Helper format trạng thái đơn hàng tiếng Việt
+  const renderOrderStatus = (status: string) => {
+    const s = (status || "").toUpperCase();
+    if (s === "DELIVERED" || s === "COMPLETED") {
+      return (
+        <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200">
+          Đã giao
+        </span>
+      );
+    }
+    if (s === "PENDING") {
+      return (
+        <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-200">
+          Chưa giao
+        </span>
+      );
+    }
+    if (s === "PROCESSING" || s === "SHIPPED" || s === "CONFIRMED") {
+      return (
+        <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold border border-blue-200">
+          Đang giao
+        </span>
+      );
+    }
+    if (s === "CANCELLED") {
+      return (
+        <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold border border-rose-200">
+          Đã hủy
+        </span>
+      );
+    }
+    return (
+      <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200">
+        Chưa giao
+      </span>
+    );
+  };
+
+  // 6. Staff AI Sales Copilot State
   const [showAiAdvisorModal, setShowAiAdvisorModal] = useState(false);
   const [aiAdvisorQuery, setAiAdvisorQuery] = useState("");
   const [isAiAdvising, setIsAiAdvising] = useState(false);
@@ -178,7 +226,7 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
           found: false
         });
         if (!customerName) {
-          setCustomerName("Khách hàng vãng lai");
+          setCustomerName("Khách lẻ");
         }
       }
     } catch (err) {
@@ -252,6 +300,109 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
   const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const finalTotal = Math.max(0, subtotal - discountAmount);
 
+  // Polling tự động truy vấn trạng thái thanh toán từ Ví MoMo / VNPay
+  useEffect(() => {
+    if (!showPosQrModal || !pendingQrOrder || qrPaymentSuccess) return;
+
+    let isMounted = true;
+    const interval = setInterval(async () => {
+      try {
+        const orderData = await api.getOrder(pendingQrOrder.id);
+        if (orderData && (orderData.paymentStatus === "COMPLETED" || orderData.status === "DELIVERED" || orderData.status === "CONFIRMED")) {
+          clearInterval(interval);
+          if (isMounted) {
+            setQrPaymentSuccess(true);
+            if (orderData.status !== "DELIVERED") {
+              try {
+                await api.updateOrderStatus(orderData.id, "DELIVERED", "COMPLETED");
+              } catch (e) {
+                console.warn("Status update warning:", e);
+              }
+            }
+            setTimeout(() => {
+              setShowPosQrModal(false);
+              setCompletedOrder({ ...orderData, paymentStatus: "COMPLETED", status: "DELIVERED" });
+              setWarrantySlip(pendingWarrantySlip);
+              setShowReceiptModal(true);
+              setQrPaymentSuccess(false);
+              setPendingQrOrder(null);
+            }, 1200);
+          }
+        }
+      } catch (err) {
+        console.warn("Polling order status error:", err);
+      }
+    }, 2000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [showPosQrModal, pendingQrOrder, qrPaymentSuccess, pendingWarrantySlip]);
+
+  // Thu ngân xác nhận thanh toán trực tiếp khi khách chuyển khoản thành công
+  const handleCashierConfirmPayment = async () => {
+    if (!pendingQrOrder || isManualConfirming) return;
+    setIsManualConfirming(true);
+    try {
+      if (pendingQrOrder.paymentMethod === "MOMO") {
+        try {
+          await api.confirmMomoPayment(pendingQrOrder.id, 0);
+        } catch (e) {
+          console.warn("Momo direct confirm error:", e);
+        }
+      } else if (pendingQrOrder.paymentMethod === "VNPAY") {
+        try {
+          await api.confirmVnpayIpn(pendingQrOrder.id, "00");
+        } catch (e) {
+          console.warn("VNPay IPN confirm error:", e);
+        }
+      }
+      await api.updateOrderStatus(pendingQrOrder.id, "DELIVERED", "COMPLETED");
+      setQrPaymentSuccess(true);
+      setTimeout(() => {
+        setShowPosQrModal(false);
+        setCompletedOrder({
+          ...pendingQrOrder,
+          paymentStatus: "COMPLETED",
+          status: "DELIVERED"
+        });
+        setWarrantySlip(pendingWarrantySlip);
+        setShowReceiptModal(true);
+        setQrPaymentSuccess(false);
+        setPendingQrOrder(null);
+        setIsManualConfirming(false);
+      }, 1000);
+    } catch (err: any) {
+      console.error("Manual payment confirm failed:", err);
+      setIsManualConfirming(false);
+    }
+  };
+
+  // Hủy giao dịch QR và hoàn trả tồn kho nếu khách đổi ý
+  const handleCancelQrPayment = async () => {
+    if (!pendingQrOrder) {
+      setShowPosQrModal(false);
+      return;
+    }
+    try {
+      await api.cancelOrder(pendingQrOrder.id);
+      const prodRes = await api.getProducts({
+        category: selectedCategory !== "all" ? selectedCategory : undefined,
+        search: productSearch || undefined,
+        limit: 50
+      });
+      setProducts(prodRes.products || []);
+    } catch (err) {
+      console.warn("Cancel order error:", err);
+    } finally {
+      setShowPosQrModal(false);
+      setPendingQrOrder(null);
+      setMomoPaymentData(null);
+      setQrPaymentSuccess(false);
+    }
+  };
+
   // Submit in-store counter order
   const handleCreatePosOrder = async () => {
     if (!customerPhone.trim()) {
@@ -274,13 +425,14 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
     setOrderError("");
 
     try {
+      const isOnlineQr = paymentMethod === "MOMO" || paymentMethod === "VNPAY";
       const res = await api.createPosOrder({
-        customerName: customerName.trim() || "Khách hàng vãng lai",
+        customerName: customerName.trim() || "Khách lẻ",
         phone: customerPhone.trim(),
         shippingAddress: "Mua trực tiếp tại quầy - TPKSTORE",
         paymentMethod,
-        paymentStatus: "COMPLETED",
-        status: "DELIVERED",
+        paymentStatus: isOnlineQr ? "PENDING" : "COMPLETED",
+        status: isOnlineQr ? "PENDING" : "DELIVERED",
         discountAmount,
         note: consultantNote.trim() || "Khách mua trực tiếp tại quầy",
         items: cartItems.map(item => ({
@@ -289,10 +441,6 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
         }))
       });
 
-      setCompletedOrder(res.order);
-      setWarrantySlip(res.warrantyInfo);
-      setShowReceiptModal(true);
-
       // Refresh product stock
       const prodRes = await api.getProducts({
         category: selectedCategory !== "all" ? selectedCategory : undefined,
@@ -300,6 +448,33 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
         limit: 50
       });
       setProducts(prodRes.products || []);
+
+      if (isOnlineQr) {
+        setPendingQrOrder(res.order);
+        setPendingWarrantySlip(res.warrantyInfo);
+        setShowPosQrModal(true);
+        setQrPaymentSuccess(false);
+
+        if (paymentMethod === "MOMO") {
+          try {
+            const cleanId = res.order.id.replace(/^#+/, "");
+            const momoRes = await api.createMomoUrl(
+              res.order.id,
+              res.order.finalAmount,
+              `Thanh toan POS don hang ${cleanId} - TPKSTORE`
+            );
+            if (momoRes.payUrl) {
+              setMomoPaymentData(momoRes);
+            }
+          } catch (e) {
+            console.warn("MoMo init url warning:", e);
+          }
+        }
+      } else {
+        setCompletedOrder(res.order);
+        setWarrantySlip(res.warrantyInfo);
+        setShowReceiptModal(true);
+      }
     } catch (err: any) {
       setOrderError(err.message || "Lập đơn hàng tại quầy thất bại.");
     } finally {
@@ -317,10 +492,17 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
     setConsultantNote("");
     setOrderError("");
     setShowReceiptModal(false);
+    setShowPosQrModal(false);
+    setPendingQrOrder(null);
+    setPendingWarrantySlip(null);
+    setMomoPaymentData(null);
+    setQrPaymentSuccess(false);
   };
 
   return (
     <div className="space-y-6 pb-16">
+      {/* Khung giao diện POS chính (được ẩn hoàn toàn khi in để tránh tràn 8 trang) */}
+      <div className="pos-main-screen space-y-6">
       {/* Top Banner: Sales Consultation & Retail POS */}
       <div className="relative overflow-hidden p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-white via-white to-slate-50/70 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow">
         {/* Decorative background glows */}
@@ -649,10 +831,10 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
               <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
                 <div className="flex items-center gap-1.5 font-bold text-amber-800">
                   <UserPlus className="w-4 h-4 text-amber-600" />
-                  <span>Khách Hàng Vãng Lai Mới (Tạo nhanh hồ sơ tại quầy)</span>
+                  <span>Khách Lẻ Mới (Tạo nhanh hồ sơ tại quầy)</span>
                 </div>
                 <p className="text-[11px] text-amber-700 leading-relaxed">
-                  Số điện thoại này chưa có trên hệ thống. Hệ thống sẽ <strong>tự động tạo hồ sơ khách hàng vãng lai</strong> để lưu lịch sử bảo hành và tích điểm sau khi hoàn tất đơn!
+                  Số điện thoại này chưa có trên hệ thống. Hệ thống sẽ <strong>tự động tạo hồ sơ khách lẻ</strong> để lưu lịch sử bảo hành và tích điểm sau khi hoàn tất đơn!
                 </p>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
@@ -851,40 +1033,58 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
               type="button"
               onClick={handleCreatePosOrder}
               disabled={isSubmittingOrder || cartItems.length === 0}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-rose-600 via-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-extrabold text-sm shadow-lg shadow-rose-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className={`w-full py-3.5 rounded-2xl text-white font-extrabold text-sm shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
+                paymentMethod === "MOMO"
+                  ? "bg-gradient-to-r from-[#a50064] via-[#d82d8b] to-[#a50064] hover:opacity-90 shadow-pink-600/30"
+                  : paymentMethod === "VNPAY"
+                  ? "bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 hover:opacity-90 shadow-blue-600/30"
+                  : "bg-gradient-to-r from-rose-600 via-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 shadow-rose-600/30"
+              }`}
             >
               {isSubmittingOrder ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  Đang xử lý xuất đơn...
+                  Đang khởi tạo giao dịch...
+                </>
+              ) : paymentMethod === "MOMO" ? (
+                <>
+                  <QrCode className="w-4 h-4" />
+                  <span>XUẤT MÃ QR VÍ MOMO ({finalTotal.toLocaleString("vi-VN")} đ)</span>
+                </>
+              ) : paymentMethod === "VNPAY" ? (
+                <>
+                  <QrCode className="w-4 h-4" />
+                  <span>XUẤT MÃ VNPAY-QR ({finalTotal.toLocaleString("vi-VN")} đ)</span>
                 </>
               ) : (
                 <>
                   <ShieldCheck className="w-4 h-4" />
-                  <span>XUẤT ĐƠN & KÍCH HOẠT BẢO HÀNH</span>
+                  <span>XUẤT ĐƠN &amp; KÍCH HOẠT BẢO HÀNH</span>
                 </>
               )}
             </button>
           </div>
         </div>
       </div>
+      {/* Đóng thẻ .pos-main-screen để ẩn toàn bộ màn hình khi in */}
+      </div>
 
-      {/* MODAL 1: Printable Retail Receipt & Electronic Warranty Slip */}
+      {/* MODAL 1: Printable Retail Receipt & Electronic Warranty Slip (Tối ưu 1 trang in duy nhất, ẩn các nút bấm) */}
       {showReceiptModal && completedOrder && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+        <div className="pos-receipt-backdrop fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div id="printable-pos-receipt" className="pos-printable-receipt bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="text-center pb-4 border-b border-dashed border-slate-300">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-600 to-rose-700 text-white flex items-center justify-center font-black text-2xl mx-auto shadow-md shadow-rose-600/30 mb-2">
+            <div className="text-center pb-3 border-b border-dashed border-slate-300">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-600 to-rose-700 text-white flex items-center justify-center font-black text-xl mx-auto shadow-md shadow-rose-600/30 mb-1.5">
                 🐝
               </div>
-              <h2 className="text-lg font-black text-slate-900 tracking-wider">TPKSTORE / SHOPBEE AI</h2>
-              <p className="text-[11px] text-slate-500 font-medium">HÓA ĐƠN BÁN LẺ & PHIẾU BẢO HÀNH ĐIỆN TỬ</p>
+              <h2 className="text-base font-black text-slate-900 tracking-wider">TPKSTORE / SHOPBEE AI</h2>
+              <p className="text-[11px] text-slate-600 font-bold">HÓA ĐƠN BÁN LẺ &amp; PHIẾU BẢO HÀNH ĐIỆN TỬ</p>
               <p className="text-[10px] text-slate-400">Tòa nhà Keangnam Landmark 72, Hà Nội • Hotline: 1900 6868</p>
             </div>
 
             {/* Order Metadata */}
-            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-200">
               <div>
                 <p className="text-slate-400 text-[10px]">MÃ ĐƠN HÀNG:</p>
                 <p className="font-extrabold text-slate-900">{completedOrder.id}</p>
@@ -904,7 +1104,7 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
             </div>
 
             {/* Items Table */}
-            <div className="space-y-2 text-xs">
+            <div className="space-y-1.5 text-xs">
               <div className="flex font-bold text-slate-400 uppercase text-[10px] border-b pb-1">
                 <span className="flex-1">Sản Phẩm</span>
                 <span className="w-12 text-center">SL</span>
@@ -922,7 +1122,7 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
             </div>
 
             {/* Totals */}
-            <div className="space-y-1 text-xs pt-2 border-t border-slate-200">
+            <div className="space-y-1 text-xs pt-1.5 border-t border-slate-200">
               <div className="flex justify-between text-slate-600">
                 <span>Tổng tiền hàng:</span>
                 <span>{completedOrder.totalAmount?.toLocaleString("vi-VN")} đ</span>
@@ -940,7 +1140,7 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
             </div>
 
             {/* Warranty & Loyalty Points Notification */}
-            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1.5">
+            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
               <div className="flex items-center gap-1.5 font-bold text-amber-800">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span>CHÍNH SÁCH BẢO HÀNH ĐIỆN TỬ</span>
@@ -952,12 +1152,12 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
               </p>
             </div>
 
-            {/* Modal Actions */}
-            <div className="pt-2 flex gap-3">
+            {/* Modal Actions - ĐÃ ĐƯỢC ẨN HOÀN TOÀN KHI IN ĐỂ KHÔNG IN THỪA 2 NÚT BẤM */}
+            <div className="pt-2 flex gap-3 print:hidden print-hidden">
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-sm"
               >
                 <Printer className="w-4 h-4" />
                 In Hóa Đơn / Phiếu Bảo Hành
@@ -975,13 +1175,174 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
         </div>
       )}
 
+      {/* MODAL 4: Live QR Payment for MoMo & VNPay (Chờ khách quét mã -> Truy vấn thanh toán thành công -> Mới xuất hóa đơn) */}
+      {showPosQrModal && pendingQrOrder && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className={`p-4 text-white flex items-center justify-between ${
+              pendingQrOrder.paymentMethod === "MOMO"
+                ? "bg-gradient-to-r from-[#a50064] via-[#d82d8b] to-[#a50064]"
+                : "bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800"
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-md p-1 shrink-0">
+                  {pendingQrOrder.paymentMethod === "MOMO" ? (
+                    <div className="w-full h-full rounded-lg bg-[#a50064] flex items-center justify-center text-white font-black text-[9px] tracking-tighter">
+                      MOMO
+                    </div>
+                  ) : (
+                    <div className="w-full h-full rounded-lg bg-blue-700 flex items-center justify-center text-white font-black text-[9px] tracking-tighter">
+                      VNPAY
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-white text-xs uppercase tracking-wide">
+                      {pendingQrOrder.paymentMethod === "MOMO" ? "Thanh Toán Ví MoMo QR" : "Thanh Toán VNPAY-QR"}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-white/20 text-white">
+                      POS Live
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-white/80">
+                    Mã đơn hàng: <span className="font-mono font-bold text-white">{pendingQrOrder.id}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelQrPayment}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                title="Hủy thanh toán QR"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Total Amount Ribbon */}
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+              <div>
+                <span className="text-slate-500 block text-[11px] font-medium">Khách hàng: <strong>{pendingQrOrder.customerName}</strong> ({pendingQrOrder.phone})</span>
+                <span className="text-lg font-black text-rose-600">
+                  {pendingQrOrder.finalAmount?.toLocaleString("vi-VN")} đ
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 font-mono text-[11px] shadow-2xs">
+                <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                <span>Chờ thanh toán</span>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 text-center space-y-4">
+              {qrPaymentSuccess ? (
+                <div className="py-6 space-y-3 animate-in zoom-in duration-200">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20">
+                    <CheckCircle2 className="w-10 h-10" />
+                  </div>
+                  <h4 className="text-base font-black text-emerald-900">
+                    ĐÃ THANH TOÁN THÀNH CÔNG!
+                  </h4>
+                  <p className="text-xs text-slate-600 font-medium">
+                    Hệ thống đã nhận được tiền từ {pendingQrOrder.paymentMethod === "MOMO" ? "Ví MoMo" : "VNPAY"}.
+                    <br />
+                    Đang tự động chuyển tiếp sang Phiếu Bảo Hành &amp; Hóa Đơn...
+                  </p>
+                  <RefreshCw className="w-5 h-5 text-emerald-600 animate-spin mx-auto mt-2" />
+                </div>
+              ) : (
+                <>
+                  {/* Dynamic QR Code Card */}
+                  <div className="p-4 bg-white rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center shadow-xs">
+                    <div className="relative p-2 bg-white rounded-xl shadow-xs border border-slate-100">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                          pendingQrOrder.paymentMethod === "MOMO"
+                            ? (momoPaymentData?.payUrl || momoPaymentData?.deeplink || `https://momo.vn/pay?orderId=${pendingQrOrder.id}&amount=${pendingQrOrder.finalAmount}`)
+                            : `VNPAYQR://order?orderId=${pendingQrOrder.id}&amount=${pendingQrOrder.finalAmount}&store=TPKSTORE`
+                        )}`}
+                        alt="POS Payment QR Code"
+                        className="w-48 h-48 rounded-lg object-contain mx-auto"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-10 h-10 rounded-xl bg-white shadow-md p-1 flex items-center justify-center border border-slate-200">
+                          {pendingQrOrder.paymentMethod === "MOMO" ? (
+                            <div className="w-full h-full rounded bg-[#a50064] text-white flex items-center justify-center font-black text-[8px]">
+                              MOMO
+                            </div>
+                          ) : (
+                            <div className="w-full h-full rounded bg-blue-700 text-white flex items-center justify-center font-black text-[8px]">
+                              VNPAY
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-xs font-bold text-slate-800">
+                      Khách hàng dùng ứng dụng {pendingQrOrder.paymentMethod === "MOMO" ? "Ví MoMo" : "Ngân hàng (VNPay-QR)"} quét mã
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Mã QR chứa chính xác số tiền {pendingQrOrder.finalAmount?.toLocaleString("vi-VN")} đ và mã đơn hàng
+                    </p>
+                  </div>
+
+                  {/* Realtime Polling Status */}
+                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs flex items-center justify-center gap-2">
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                    </span>
+                    <span className="text-[11px] font-semibold text-amber-800">
+                      Đang liên tục truy vấn kết quả thanh toán từ Cổng...
+                    </span>
+                  </div>
+
+                  {/* Cashier Controls */}
+                  <div className="space-y-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={isManualConfirming}
+                      onClick={handleCashierConfirmPayment}
+                      className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {isManualConfirming ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          Đang xác nhận với hệ thống...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Khách Đã Chuyển Khoản Thành Công (Xác nhận &amp; Xuất hóa đơn)</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCancelQrPayment}
+                      className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors"
+                    >
+                      Hủy giao dịch QR / Chọn lại phương thức
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL 2: Recent Orders & Warranty History of Customer */}
       {showRecentOrdersModal && customerInfo && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Lịch Sử Mua Hàng & Bảo Hành</h3>
+                <h3 className="text-sm font-bold text-slate-900">Lịch Sử Mua Hàng &amp; Bảo Hành</h3>
                 <p className="text-xs text-slate-500">Khách hàng: {customerInfo.fullName} • {customerInfo.phone}</p>
               </div>
               <button
@@ -998,9 +1359,7 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
                 <div key={ord.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-extrabold text-slate-900">{ord.id}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                      {ord.status}
-                    </span>
+                    {renderOrderStatus(ord.status)}
                   </div>
                   <p className="text-[11px] text-slate-500">
                     Ngày mua: {new Date(ord.createdAt).toLocaleDateString("vi-VN")} • Tổng tiền: {ord.finalAmount?.toLocaleString("vi-VN")} đ

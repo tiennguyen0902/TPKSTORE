@@ -6,8 +6,7 @@ import {
   ShoppingBag, 
   ArrowLeft, 
   ArrowRight, 
-  ShieldCheck, 
-  CheckCircle2 
+  ShieldCheck 
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 
@@ -26,15 +25,11 @@ export const CartView: React.FC<CartViewProps> = ({
     subtotal, 
     shippingFee, 
     isFreeShipping, 
-    freeShippingThreshold, 
     total, 
     updateQuantity, 
     removeItem, 
     clearCart 
   } = useCart();
-
-  const remainingForFreeShip = Math.max(0, freeShippingThreshold - subtotal);
-  const freeShipProgress = Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100));
 
   if (items.length === 0) {
     return (
@@ -75,30 +70,6 @@ export const CartView: React.FC<CartViewProps> = ({
           <Trash2 className="w-3.5 h-3.5" />
           <span>Xóa tất cả</span>
         </button>
-      </div>
-
-      {/* Free Shipping Progress Bar */}
-      <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
-        <div className="flex items-center justify-between text-xs font-medium">
-          <span className="text-slate-700">
-            {isFreeShipping ? (
-              <span className="text-emerald-600 font-bold flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" /> Bạn đã đủ điều kiện MIỄN PHÍ VẬN CHUYỂN!
-              </span>
-            ) : (
-              <span>
-                Mua thêm <span className="text-rose-600 font-bold">{remainingForFreeShip.toLocaleString("vi-VN")} đ</span> để được <strong className="text-emerald-600">Free Ship</strong>
-              </span>
-            )}
-          </span>
-          <span className="text-slate-500 font-bold">{freeShipProgress}%</span>
-        </div>
-        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-rose-500 to-emerald-500 transition-all duration-500"
-            style={{ width: `${freeShipProgress}%` }}
-          />
-        </div>
       </div>
 
       {/* Main Grid: Items List + Order Summary */}

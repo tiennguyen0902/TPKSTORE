@@ -31,14 +31,14 @@ router.get("/", async (req, res) => {
                 }
             }
             catch (err) {
-                // Token không hợp lệ hoặc hết hạn => coi như khách vãng lai
+                // Token không hợp lệ hoặc hết hạn => coi như khách lẻ
             }
         }
         // Nếu là Admin / Manager: Trả về đầy đủ cấu hình để giao diện quản trị hiển thị & cập nhật
         if (isAdmin) {
             return res.json(settings);
         }
-        // Khách vãng lai / Khách hàng: TUYỆT ĐỐI KHÔNG để lộ API Key và bí mật thanh toán
+        // Khách lẻ / Khách hàng: TUYỆT ĐỐI KHÔNG để lộ API Key và bí mật thanh toán
         const publicSettings = {
             id: settings.id,
             storeName: settings.storeName,

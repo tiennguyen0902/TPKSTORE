@@ -158,14 +158,54 @@ export const api = {
   },
 
   async changePassword(currentPassword: string, newPassword: string) {
+    const currentRefreshToken = localStorage.getItem("store_ai_refresh_token");
     const res = await fetch(`${API_BASE}/auth/change-password`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...getAuthHeader() },
-      body: JSON.stringify({ currentPassword, newPassword })
+      body: JSON.stringify({ currentPassword, newPassword, currentRefreshToken })
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "Đổi mật khẩu thất bại");
+    if (json.tokens?.accessToken) {
+      localStorage.setItem("store_ai_access_token", json.tokens.accessToken);
+    }
+    if (json.tokens?.refreshToken) {
+      localStorage.setItem("store_ai_refresh_token", json.tokens.refreshToken);
+    }
     return json;
+  },
+
+  async uploadAvatar(file: File): Promise<{ message: string; avatar: string; user: any }> {
+    return new Promise((resolve, reject) => {
+      // Kiểm tra kích thước phía client trước khi upload
+      if (file.size > 3 * 1024 * 1024) {
+        reject(new Error("Ảnh phải có kích thước nhỏ hơn 3MB."));
+        return;
+      }
+      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+      if (!allowedTypes.includes(file.type)) {
+        reject(new Error("Chỉ chấp nhận file ảnh định dạng JPEG, PNG, GIF hoặc WebP."));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const base64 = e.target?.result as string;
+          const res = await fetch(`${API_BASE}/auth/upload-avatar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeader() },
+            body: JSON.stringify({ base64, mimeType: file.type })
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error || "Upload avatar thất bại");
+          resolve(json);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error("Đọc file ảnh thất bại."));
+      reader.readAsDataURL(file);
+    });
   },
 
   async forgotPassword(email: string): Promise<{ message: string; otp?: string; email: string }> {
@@ -371,7 +411,7 @@ export const api = {
       body: JSON.stringify(data)
     });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Lỗi tạo hồ sơ khách hàng vãng lai");
+    if (!res.ok) throw new Error(json.error || "Lỗi tạo hồ sơ khách lẻ");
     return json;
   },
 
@@ -409,7 +449,7 @@ export const api = {
     items: { productId: string; quantity: number }[];
     discountAmount?: number;
     paymentStatus?: "COMPLETED" | "PENDING";
-    status?: "DELIVERED" | "CONFIRMED";
+    status?: "DELIVERED" | "CONFIRMED" | "PENDING";
   }) {
     const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
     const res = await fetch(`${API_BASE}/orders/pos`, {
@@ -439,12 +479,21 @@ export const api = {
     return res.json();
   },
 
-  async updateOrderStatus(orderId: string, status: string) {
+  async getOrder(orderId: string): Promise<Order> {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}`, {
+      headers: { ...getAuthHeader() }
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Không tìm thấy đơn hàng");
+    return json;
+  },
+
+  async updateOrderStatus(orderId: string, status: string, paymentStatus?: string) {
     const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
     const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/status`, {
       method: "PUT",
       headers,
-      body: JSON.stringify({ status })
+      body: JSON.stringify({ status, paymentStatus })
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "Cập nhật trạng thái thất bại");
