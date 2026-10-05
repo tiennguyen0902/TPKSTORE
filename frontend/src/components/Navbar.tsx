@@ -100,8 +100,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Search Bar - Bo tròn to sâu (rounded-full) và rộng rãi */}
-          <div className="flex-1 max-w-lg lg:max-w-xl relative hidden md:block">
+          {/* Search Bar - Mở rộng tối đa (max-w-3xl) không gian tìm kiếm rộng rãi */}
+          <div className="flex-1 max-w-2xl lg:max-w-3xl xl:max-w-4xl relative hidden md:block mx-2">
             <div className="relative flex items-center">
               <input
                 type="text"
@@ -119,35 +119,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-3">
-            {/* Quick Staff Action Buttons: Separated POS & Warehouse */}
-            {user && (user.role === "STAFF" || user.role === "ADMIN" || user.role === "MANAGER") && (
-              <div className="hidden sm:flex items-center gap-2">
-                <button
-                  onClick={() => navigate("/pos")}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition-all shadow-xs ${
-                    currentView === "pos_counter"
-                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
-                      : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300"
-                  }`}
-                  title="Bàn làm việc tư vấn khách hàng và lập đơn tại quầy (POS)"
-                >
-                  <Store className="w-4 h-4" />
-                  <span>Tư Vấn Bán Quầy (POS)</span>
-                </button>
-                <button
-                  onClick={() => navigate("/warehouse")}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition-all shadow-xs ${
-                    currentView === "warehouse_dashboard" || currentView === "staff_dashboard"
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                      : "bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-300"
-                  }`}
-                  title="Cổng quản lý và vận hành kho hàng (Warehouse Portal)"
-                >
-                  <Boxes className="w-4 h-4" />
-                  <span>Quản Lý Kho</span>
-                </button>
-              </div>
-            )}
 
             {/* Cart Button with Count Badge */}
             <button 
