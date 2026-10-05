@@ -124,10 +124,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={() => navigate(user.role === "STAFF" ? "/staff" : "/admin/pos")}
                 className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition-all shadow-xs"
-                title="Bán hàng nhanh cho khách tại quầy (POS)"
+                title="Bàn làm việc tư vấn khách hàng và lập đơn tại quầy (POS)"
               >
                 <Store className="w-4 h-4 text-blue-600" />
-                <span>Bán Tại Quầy (POS)</span>
+                <span>Tư Vấn & Bán Quầy (POS)</span>
               </button>
             )}
 
@@ -213,7 +213,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onClick={() => { navigate("/admin/pos"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
                         >
-                          <Store className="w-3.5 h-3.5 text-blue-600" /> Bán Hàng Tại Quầy (POS)
+                          <Store className="w-3.5 h-3.5 text-blue-600" /> Tư Vấn Khách Hàng & Bán Quầy (POS)
                         </button>
                         <button 
                           onClick={() => { navigate("/admin/stock-tickets"); setShowUserDropdown(false); }}
@@ -231,7 +231,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onClick={() => { navigate("/admin/pos"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
                         >
-                          <Store className="w-3.5 h-3.5 text-blue-600" /> Bán Hàng Tại Quầy (POS)
+                          <Store className="w-3.5 h-3.5 text-blue-600" /> Tư Vấn Khách Hàng & Bán Quầy (POS)
                         </button>
                         <button 
                           onClick={() => { navigate("/admin/dashboard"); setShowUserDropdown(false); }}
@@ -248,7 +248,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         onClick={() => { navigate("/staff"); setShowUserDropdown(false); }}
                         className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
                       >
-                        <Store className="w-3.5 h-3.5 text-blue-600" /> Bán Hàng Tại Quầy (POS) & Vận Hành
+                        <Store className="w-3.5 h-3.5 text-blue-600" /> Tư Vấn Khách Hàng & Bán Quầy (POS)
                       </button>
                     )}
                   </div>

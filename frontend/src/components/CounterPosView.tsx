@@ -22,7 +22,13 @@ import {
   History,
   Clock,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Bot,
+  MessageSquare,
+  Send,
+  X,
+  Zap,
+  Check
 } from "lucide-react";
 import { Product, Category } from "../types";
 import { api } from "../services/api";
@@ -69,6 +75,53 @@ export const CounterPosView: React.FC = () => {
   const [completedOrder, setCompletedOrder] = useState<any>(null);
   const [warrantySlip, setWarrantySlip] = useState<any>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+
+  // 5. Staff AI Sales Copilot State
+  const [showAiAdvisorModal, setShowAiAdvisorModal] = useState(false);
+  const [aiAdvisorQuery, setAiAdvisorQuery] = useState("");
+  const [isAiAdvising, setIsAiAdvising] = useState(false);
+  const [addedProductToast, setAddedProductToast] = useState<string | null>(null);
+  const [aiAdvisorResult, setAiAdvisorResult] = useState<{
+    reply: string;
+    suggestedProducts?: Product[];
+    query: string;
+  } | null>(null);
+
+  const handleConsultAi = async (customQuery?: string) => {
+    const q = (customQuery || aiAdvisorQuery).trim();
+    if (!q || isAiAdvising) return;
+
+    setIsAiAdvising(true);
+    setAiAdvisorQuery(q);
+    try {
+      const res = await api.chatWithAi(
+        `[VAI TRÒ: BẠN LÀ TRỢ LÝ AI TƯ VẤN BÁN HÀNG CHO NHÂN VIÊN TẠI QUẦY CỬA HÀNG TPKSTORE/SHOPBEE]. 
+Khách hàng đang đứng tại quầy và có nhu cầu sau: "${q}". 
+Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viên bán hàng (gồm: lời chào, gợi ý dòng máy phù hợp nhất trong kho, nêu 2-3 điểm mạnh cốt lõi, tư vấn thêm bảo hành điện tử chính hãng 12-24 tháng và ưu đãi). Đừng nói dông dài.`,
+        [],
+        "local"
+      );
+
+      setAiAdvisorResult({
+        query: q,
+        reply: res.reply || "Dạ, hệ thống đã phân tích nhu cầu của khách hàng. Dưới đây là các sản phẩm phù hợp đang có sẵn trong kho hàng showroom:",
+        suggestedProducts: res.suggestedProducts || []
+      });
+    } catch (err) {
+      console.warn("AI consult error:", err);
+      const matched = products.filter(p => 
+        q.toLowerCase().split(" ").some(word => word.length > 2 && (p.name.toLowerCase().includes(word) || p.category?.name?.toLowerCase()?.includes(word)))
+      ).slice(0, 4);
+
+      setAiAdvisorResult({
+        query: q,
+        reply: `Dạ em chào anh/chị! Với nhu cầu "${q}", showroom TPKSTORE xin tư vấn cho anh/chị các mẫu máy bán chạy hàng đầu sau đây. Tất cả sản phẩm đều được kích hoạt bảo hành điện tử chính hãng theo số điện thoại của anh/chị ạ:`,
+        suggestedProducts: matched.length > 0 ? matched : products.slice(0, 3)
+      });
+    } finally {
+      setIsAiAdvising(false);
+    }
+  };
 
   // Load products & categories
   useEffect(() => {
@@ -271,22 +324,57 @@ export const CounterPosView: React.FC = () => {
             <span>QUẦY BÁN LẺ & TƯ VẤN KHÁCH HÀNG (RETAIL POS)</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Lập Đơn Bán Hàng Tại Quầy Cho Khách Vãng Lai
+            Bàn Làm Việc Tư Vấn & Bán Hàng Tại Quầy
           </h1>
           <p className="text-xs text-slate-500 mt-1 font-medium max-w-2xl">
-            Tối ưu cho 90% khách hàng không có tài khoản web: Chỉ cần nhập <strong className="text-slate-800">Số điện thoại</strong> để kích hoạt bảo hành điện tử chính hãng và tích điểm thưởng ngay tức thì.
+            Tối ưu cho 90% khách hàng không có tài khoản web: Tra cứu SĐT tích điểm & bảo hành, sử dụng <strong className="text-purple-600 font-bold">Trợ Lý AI Tư Vấn Bán Hàng</strong> để gợi ý cấu hình và chốt đơn nhanh chóng.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-rose-600/20">
-            {user?.fullName?.charAt(0) || "S"}
-          </div>
-          <div className="text-xs">
-            <p className="font-bold text-slate-900">{user?.fullName || "Nhân viên bán hàng"}</p>
-            <p className="text-[11px] text-slate-500 font-medium">Vai trò: <span className="text-rose-600 font-bold">{user?.role || "STAFF"}</span> • Ca trực quầy</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowAiAdvisorModal(true)}
+            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-600/25 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 border border-purple-400/30"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+            <span>AI Tư Vấn Bán Hàng</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-[10px] uppercase font-black tracking-wider">Copilot</span>
+          </button>
+
+          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-2 rounded-2xl shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-rose-600/20">
+              {user?.fullName?.charAt(0) || "S"}
+            </div>
+            <div className="text-xs">
+              <p className="font-bold text-slate-900">{user?.fullName || "Nhân viên bán hàng"}</p>
+              <p className="text-[11px] text-slate-500 font-medium">Vai trò: <span className="text-rose-600 font-bold">{user?.role || "STAFF"}</span> • Ca trực quầy</p>
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* Consultation Quick Helper Strip */}
+      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 border border-purple-200/70 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-purple-600/30">
+            <Bot className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="font-bold text-purple-950">Chức Năng Tư Vấn Bán Hàng Trực Tiếp:</span>
+            <span className="text-purple-800 ml-1.5">
+              Tra cứu khách cũ/bảo hành bằng SĐT ở cột phải, hoặc bấm <strong>"AI Tư Vấn Bán Hàng"</strong> để nhận kịch bản tư vấn theo nhu cầu & so sánh sản phẩm.
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowAiAdvisorModal(true)}
+          className="px-3 py-1.5 rounded-xl bg-white border border-purple-300 text-purple-700 hover:bg-purple-600 hover:text-white font-bold text-[11px] transition-all shrink-0 flex items-center gap-1.5 shadow-2xs"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Mở Cửa Sổ Tư Vấn AI</span>
+        </button>
       </div>
 
       {orderError && (
@@ -908,6 +996,198 @@ export const CounterPosView: React.FC = () => {
             >
               Đóng
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Staff AI Sales Copilot (Trợ lý AI tư vấn chốt đơn cho nhân viên) */}
+      {showAiAdvisorModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-purple-600/30">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-extrabold text-slate-900">
+                      Trợ Lý AI Đồng Hành Tư Vấn Khách Hàng
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-black uppercase">
+                      Sales Copilot
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Gợi ý cấu hình máy, kịch bản tư vấn theo tầm tiền, so sánh đối đầu & kiểm tra tồn kho
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiAdvisorModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Quick Consultation Presets */}
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                <Zap className="w-3 h-3 text-amber-500" />
+                <span>Nhu cầu khách hàng ghé quầy phổ biến:</span>
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  "Điện thoại chụp ảnh đẹp & pin trâu 15-20tr",
+                  "So sánh Galaxy Z Fold6 vs iPhone 16 Pro Max",
+                  "Laptop mỏng nhẹ văn phòng & đồ họa dưới 25tr",
+                  "Chính sách bảo hành 1 đổi 1 & kích hoạt qua SĐT",
+                  "Gợi ý phụ kiện sạc nhanh & tai nghe mua kèm"
+                ].map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleConsultAi(preset)}
+                    className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 text-[11px] font-semibold border border-purple-200/70 transition-all text-left flex items-center gap-1"
+                  >
+                    <span>💬</span>
+                    <span>{preset}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Nhập nhu cầu hoặc băn khoăn của khách ghé showroom..."
+                value={aiAdvisorQuery}
+                onChange={(e) => setAiAdvisorQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleConsultAi();
+                }}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:bg-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+              />
+              <button
+                type="button"
+                disabled={isAiAdvising || !aiAdvisorQuery.trim()}
+                onClick={() => handleConsultAi()}
+                className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-purple-600/25 flex items-center gap-1.5 transition-all"
+              >
+                {isAiAdvising ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                <span>Tư Vấn</span>
+              </button>
+            </div>
+
+            {/* AI Result Area */}
+            {isAiAdvising && (
+              <div className="p-8 text-center space-y-3 bg-purple-50/50 rounded-2xl border border-purple-100">
+                <RefreshCw className="w-7 h-7 text-purple-600 animate-spin mx-auto" />
+                <p className="text-xs font-bold text-purple-900">AI Copilot đang phân tích kho hàng & soạn kịch bản tư vấn...</p>
+                <p className="text-[11px] text-purple-600">Đang chọn lọc các dòng máy còn hàng tại showroom TPKSTORE</p>
+              </div>
+            )}
+
+            {aiAdvisorResult && !isAiAdvising && (
+              <div className="space-y-4 pt-1">
+                {/* Sales Talk Script */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
+                    <MessageSquare className="w-4 h-4 text-purple-600" />
+                    <span>Kịch bản gợi ý nhân viên nói với khách:</span>
+                  </div>
+                  <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line pl-1 border-l-2 border-purple-400">
+                    {aiAdvisorResult.reply}
+                  </div>
+                </div>
+
+                {/* Suggested In-Stock Products */}
+                {aiAdvisorResult.suggestedProducts && aiAdvisorResult.suggestedProducts.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                      <span>Sản phẩm phù hợp có sẵn trong kho:</span>
+                      <span className="text-[11px] text-slate-500 font-normal">Bấm "Thêm vào đơn" để chốt nhanh</span>
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {aiAdvisorResult.suggestedProducts.map((p) => {
+                        const isAdded = addedProductToast === p.name;
+                        return (
+                          <div 
+                            key={p.id}
+                            className="p-3 rounded-2xl border border-slate-200 bg-white hover:border-purple-300 transition-all flex flex-col justify-between gap-2 shadow-xs"
+                          >
+                            <div className="flex gap-2.5 items-center">
+                              <img 
+                                src={p.thumbnail || p.images?.[0] || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&auto=format&fit=crop&q=80"}
+                                alt={p.name}
+                                className="w-12 h-12 rounded-xl object-contain bg-slate-50 border border-slate-100 shrink-0 p-1"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-xs font-bold text-slate-900 truncate" title={p.name}>
+                                  {p.name}
+                                </h4>
+                                <p className="text-xs font-black text-rose-600 mt-0.5">
+                                  {p.price.toLocaleString("vi-VN")} đ
+                                </p>
+                                <span className={`text-[10px] font-bold ${p.stock > 0 ? "text-emerald-600" : "text-red-500"}`}>
+                                  {p.stock > 0 ? `Còn ${p.stock} máy tại kho` : "Hết hàng"}
+                                </span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={p.stock <= 0}
+                              onClick={() => {
+                                handleAddToCart(p);
+                                setAddedProductToast(p.name);
+                                setTimeout(() => setAddedProductToast(null), 2500);
+                              }}
+                              className={`w-full py-1.5 px-3 rounded-xl font-bold text-[11px] transition-all flex items-center justify-center gap-1.5 ${
+                                isAdded 
+                                  ? "bg-emerald-600 text-white"
+                                  : "bg-purple-50 hover:bg-purple-600 hover:text-white text-purple-700 border border-purple-200"
+                              }`}
+                            >
+                              {isAdded ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Đã thêm vào giỏ quầy!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>Thêm Vào Đơn Quầy</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowAiAdvisorModal(false)}
+                className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+              >
+                Đóng Cửa Sổ Tư Vấn
+              </button>
+            </div>
           </div>
         </div>
       )}

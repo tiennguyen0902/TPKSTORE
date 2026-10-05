@@ -31,10 +31,10 @@ export const StaffDashboard: React.FC = () => {
               <span>STAFF OPERATIONS & WAREHOUSE PORTAL</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Cổng Vận Hành, Bán Hàng Tại Quầy & Kho Hàng
+              Cổng Vận Hành, Tư Vấn Khách Hàng & Kho Hàng
             </h1>
             <p className="text-xs text-slate-500 mt-0.5 font-medium">
-              Tư vấn lập đơn bán lẻ cho khách vãng lai, quản lý xuất nhập kho và theo dõi cảnh báo tồn kho
+              Bàn làm việc tư vấn sản phẩm, lập đơn bán lẻ cho khách vãng lai, quản lý xuất nhập kho và theo dõi cảnh báo tồn kho
             </p>
           </div>
         </div>
@@ -51,7 +51,10 @@ export const StaffDashboard: React.FC = () => {
               }`}
             >
               <Store className="w-4 h-4" />
-              <span>Bán Hàng Tại Quầy (POS)</span>
+              <span>Tư Vấn Khách Hàng & Bán Quầy (POS)</span>
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-700/80 text-[10px] font-black uppercase text-emerald-100">
+                Chính
+              </span>
             </button>
             <button
               onClick={() => setActiveTab("tickets")}

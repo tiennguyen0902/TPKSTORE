@@ -36,7 +36,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       title: "TỔNG QUAN",
       items: [
         { id: "admin_dashboard", label: "Dashboard Kho", icon: <LayoutDashboard className="w-4 h-4" /> },
-        { id: "admin_pos", label: "Bán Hàng Tại Quầy (POS)", icon: <Store className="w-4 h-4 text-blue-500" /> }
+        { id: "admin_pos", label: "Tư Vấn Khách Hàng & POS", icon: <Store className="w-4 h-4 text-blue-500" /> }
       ]
     },
     {
@@ -60,7 +60,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       title: "TỔNG QUAN",
       items: [
         { id: "admin_dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
-        { id: "admin_pos", label: "Bán Hàng Tại Quầy (POS)", icon: <Store className="w-4 h-4 text-blue-500" /> }
+        { id: "admin_pos", label: "Tư Vấn Khách Hàng & POS", icon: <Store className="w-4 h-4 text-blue-500" /> }
       ]
     },
     {
