@@ -407,7 +407,7 @@ npm run dev
 cd frontend
 npm install
 npm run dev
-# → Giao diện website hoạt động tại: http://localhost:5173
+# → Giao diện website hoạt động tại: http://localhost:3000
 ```
 
 ---
@@ -428,7 +428,7 @@ docker-compose logs -f
 ```
 
 **Các cổng truy cập:**
-* **Giao diện Web & POS Quầy:** [http://localhost:80](http://localhost:80)
+* **Giao diện Web & POS Quầy:** [http://localhost:3000](http://localhost:3000)
 * **Backend Core API:** [http://localhost:5000/api](http://localhost:5000/api)
 * **AI Microservice Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
 
