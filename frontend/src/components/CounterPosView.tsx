@@ -28,13 +28,18 @@ import {
   Send,
   X,
   Zap,
-  Check
+  Check,
+  Boxes
 } from "lucide-react";
 import { Product, Category } from "../types";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
-export const CounterPosView: React.FC = () => {
+interface CounterPosViewProps {
+  onNavigateWarehouse?: () => void;
+}
+
+export const CounterPosView: React.FC<CounterPosViewProps> = ({ onNavigateWarehouse }) => {
   const { user } = useAuth();
 
   // 1. Data States
@@ -341,6 +346,18 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
             <span>AI Tư Vấn Bán Hàng</span>
             <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-[10px] uppercase font-black tracking-wider">Copilot</span>
           </button>
+
+          {onNavigateWarehouse && (
+            <button
+              type="button"
+              onClick={onNavigateWarehouse}
+              className="px-3.5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-xs"
+              title="Chuyển sang Cổng Quản Lý Kho Hàng"
+            >
+              <Boxes className="w-4 h-4 text-blue-600" />
+              <span>Chuyển Sang Quản Lý Kho ➔</span>
+            </button>
+          )}
 
           <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-2 rounded-2xl shrink-0">
             <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-rose-600/20">

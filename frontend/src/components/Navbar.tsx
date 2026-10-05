@@ -119,16 +119,34 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-3">
-            {/* Quick POS Button for Staff / Manager / Admin */}
+            {/* Quick Staff Action Buttons: Separated POS & Warehouse */}
             {user && (user.role === "STAFF" || user.role === "ADMIN" || user.role === "MANAGER") && (
-              <button
-                onClick={() => navigate(user.role === "STAFF" ? "/staff" : "/admin/pos")}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition-all shadow-xs"
-                title="Bàn làm việc tư vấn khách hàng và lập đơn tại quầy (POS)"
-              >
-                <Store className="w-4 h-4 text-blue-600" />
-                <span>Tư Vấn & Bán Quầy (POS)</span>
-              </button>
+              <div className="hidden sm:flex items-center gap-2">
+                <button
+                  onClick={() => navigate("/pos")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition-all shadow-xs ${
+                    currentView === "pos_counter"
+                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+                      : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300"
+                  }`}
+                  title="Bàn làm việc tư vấn khách hàng và lập đơn tại quầy (POS)"
+                >
+                  <Store className="w-4 h-4" />
+                  <span>Tư Vấn Bán Quầy (POS)</span>
+                </button>
+                <button
+                  onClick={() => navigate("/warehouse")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-bold transition-all shadow-xs ${
+                    currentView === "warehouse_dashboard" || currentView === "staff_dashboard"
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                      : "bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-300"
+                  }`}
+                  title="Cổng quản lý và vận hành kho hàng (Warehouse Portal)"
+                >
+                  <Boxes className="w-4 h-4" />
+                  <span>Quản Lý Kho</span>
+                </button>
+              </div>
             )}
 
             {/* Cart Button with Count Badge */}
@@ -210,16 +228,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {user.role === "MANAGER" && (
                       <>
                         <button 
-                          onClick={() => { navigate("/admin/pos"); setShowUserDropdown(false); }}
-                          className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
+                          onClick={() => { navigate("/pos"); setShowUserDropdown(false); }}
+                          className="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
                         >
-                          <Store className="w-3.5 h-3.5 text-blue-600" /> Tư Vấn Khách Hàng & Bán Quầy (POS)
+                          <Store className="w-3.5 h-3.5 text-emerald-600" /> 1. Bàn Tư Vấn Bán Quầy (POS)
+                        </button>
+                        <button 
+                          onClick={() => { navigate("/warehouse"); setShowUserDropdown(false); }}
+                          className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold"
+                        >
+                          <Boxes className="w-3.5 h-3.5 text-blue-600" /> 2. Cổng Quản Lý Kho Hàng
                         </button>
                         <button 
                           onClick={() => { navigate("/admin/stock-tickets"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2 font-bold"
                         >
-                          <Boxes className="w-3.5 h-3.5 text-rose-600" /> Cổng Quản Lý Kho & Duyệt Hàng
+                          <Boxes className="w-3.5 h-3.5 text-rose-600" /> 3. Duyệt Xuất / Nhập Kho
                         </button>
                       </>
                     )}
@@ -228,28 +252,42 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {user.role === "ADMIN" && (
                       <>
                         <button 
-                          onClick={() => { navigate("/admin/pos"); setShowUserDropdown(false); }}
-                          className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
+                          onClick={() => { navigate("/pos"); setShowUserDropdown(false); }}
+                          className="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
                         >
-                          <Store className="w-3.5 h-3.5 text-blue-600" /> Tư Vấn Khách Hàng & Bán Quầy (POS)
+                          <Store className="w-3.5 h-3.5 text-emerald-600" /> 1. Bàn Tư Vấn Bán Quầy (POS)
+                        </button>
+                        <button 
+                          onClick={() => { navigate("/warehouse"); setShowUserDropdown(false); }}
+                          className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold"
+                        >
+                          <Boxes className="w-3.5 h-3.5 text-blue-600" /> 2. Cổng Quản Lý Kho Hàng
                         </button>
                         <button 
                           onClick={() => { navigate("/admin/dashboard"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2 font-bold"
                         >
-                          <Shield className="w-3.5 h-3.5 text-rose-600" /> Bảng Điều Khiển Admin
+                          <Shield className="w-3.5 h-3.5 text-rose-600" /> 3. Bảng Điều Khiển Admin
                         </button>
                       </>
                     )}
 
                     {/* Quyền STAFF vận hành */}
                     {user.role === "STAFF" && (
-                      <button 
-                        onClick={() => { navigate("/staff"); setShowUserDropdown(false); }}
-                        className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
-                      >
-                        <Store className="w-3.5 h-3.5 text-blue-600" /> Tư Vấn Khách Hàng & Bán Quầy (POS)
-                      </button>
+                      <>
+                        <button 
+                          onClick={() => { navigate("/pos"); setShowUserDropdown(false); }}
+                          className="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
+                        >
+                          <Store className="w-3.5 h-3.5 text-emerald-600" /> 1. Bàn Tư Vấn Bán Quầy (POS)
+                        </button>
+                        <button 
+                          onClick={() => { navigate("/warehouse"); setShowUserDropdown(false); }}
+                          className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold"
+                        >
+                          <Boxes className="w-3.5 h-3.5 text-blue-600" /> 2. Cổng Quản Lý Kho Hàng
+                        </button>
+                      </>
                     )}
                   </div>
 

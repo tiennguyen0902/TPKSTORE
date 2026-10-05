@@ -39,7 +39,9 @@ const VIEW_TO_PATH: Record<string, string> = {
   my_orders: "/my-orders",
   profile: "/profile",
   auth: "/login",
-  staff_dashboard: "/staff",
+  pos_counter: "/pos",
+  warehouse_dashboard: "/warehouse",
+  staff_dashboard: "/warehouse",
   admin_dashboard: "/admin/dashboard",
   admin_pos: "/admin/pos",
   admin_products: "/admin/products",
@@ -91,11 +93,12 @@ function parseUrl(pathname: string, search: string): ParsedRoute {
   if (path === "/my-orders" || path === "/orders") return { view: "my_orders" };
   if (path === "/profile") return { view: "profile" };
   if (path === "/login" || path === "/auth") return { view: "auth" };
-  if (path === "/staff") return { view: "staff_dashboard" };
+  if (path === "/pos" || path === "/ban-hang-pos") return { view: "pos_counter" };
+  if (path === "/warehouse" || path === "/staff" || path === "/kho") return { view: "warehouse_dashboard" };
 
   // Admin routes
   if (path === "/admin" || path === "/admin/dashboard") return { view: "admin_dashboard" };
-  if (path === "/admin/pos" || path === "/pos") return { view: "admin_pos" };
+  if (path === "/admin/pos") return { view: "admin_pos" };
   if (path === "/admin/products") return { view: "admin_products" };
   if (path === "/admin/categories") return { view: "admin_categories" };
   if (path === "/admin/orders") return { view: "admin_orders" };
@@ -297,8 +300,9 @@ const MainApp: React.FC = () => {
     );
   }
 
-  // Route Protection: Staff Portal
-  if (currentView === "staff_dashboard" && user?.role !== "STAFF" && user?.role !== "ADMIN" && user?.role !== "MANAGER") {
+  // Route Protection: Staff POS & Warehouse Portal
+  const isStaffArea = currentView === "pos_counter" || currentView === "warehouse_dashboard" || currentView === "staff_dashboard";
+  if (isStaffArea && user?.role !== "STAFF" && user?.role !== "ADMIN" && user?.role !== "MANAGER") {
     return (
       <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
         <Navbar
@@ -316,7 +320,7 @@ const MainApp: React.FC = () => {
             </div>
             <h2 className="text-lg font-bold text-slate-900">Yêu Cầu Quyền Nhân Viên Vận Hành</h2>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Cổng vận hành yêu cầu tài khoản Nhân viên (STAFF), Quản lý (MANAGER) hoặc Quản trị viên (ADMIN).
+              Khu vực yêu cầu tài khoản Nhân viên (STAFF), Quản lý kho (MANAGER) hoặc Quản trị viên (ADMIN).
             </p>
             <div className="pt-2 flex justify-center gap-3">
               <button
@@ -352,7 +356,7 @@ const MainApp: React.FC = () => {
           <main className="flex-1 overflow-y-auto bg-[#f8fafc] p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
               {currentView === "admin_dashboard" && <AdminDashboard onNavigateTab={handleNavigateView} />}
-              {currentView === "admin_pos" && <CounterPosView />}
+              {currentView === "admin_pos" && <CounterPosView onNavigateWarehouse={() => navigate("/admin/stock-tickets")} />}
               {currentView === "admin_stock_tickets" && <StockTicketsView embeddedRole={user?.role as any} />}
               {currentView === "admin_products" && <AdminProducts />}
               {currentView === "admin_categories" && <AdminCategories />}
@@ -438,7 +442,13 @@ const MainApp: React.FC = () => {
 
             {currentView === "profile" && <ProfileView />}
 
-            {currentView === "staff_dashboard" && <StaffDashboard />}
+            {currentView === "pos_counter" && (
+              <CounterPosView onNavigateWarehouse={() => navigate("/warehouse")} />
+            )}
+
+            {(currentView === "warehouse_dashboard" || currentView === "staff_dashboard") && (
+              <StaffDashboard onNavigatePos={() => navigate("/pos")} />
+            )}
           </main>
 
           <Footer onNavigateCategory={handleSelectCategory} />
