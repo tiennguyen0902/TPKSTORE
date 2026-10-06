@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Grid, ShoppingBag, Package, User } from "lucide-react";
+import { Home, Grid, ShoppingBag, User, Bot, Sparkles } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 
@@ -25,12 +25,19 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentView })
   const isOrders = currentView === "my_orders" || location.pathname === "/my-orders";
   const isProfile = currentView === "profile" || currentView === "auth" || location.pathname === "/profile" || location.pathname === "/login";
 
+  const handleOpenAi = () => {
+    window.dispatchEvent(new CustomEvent("open-ai-chat"));
+  };
+
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1 flex items-center justify-around select-none">
+    <nav 
+      className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] px-1.5 py-1 flex items-center justify-around select-none"
+      style={{ paddingBottom: "max(4px, env(safe-area-inset-bottom, 0px))" }}
+    >
       {/* 1. Trang chủ */}
       <button
         onClick={() => navigate("/")}
-        className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
+        className={`flex-1 flex flex-col items-center justify-center py-1 rounded-xl transition-all ${
           isHome ? "text-rose-600 font-bold scale-105" : "text-slate-500 hover:text-slate-900"
         }`}
       >
@@ -41,7 +48,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentView })
       {/* 2. Sản phẩm */}
       <button
         onClick={() => navigate("/products")}
-        className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
+        className={`flex-1 flex flex-col items-center justify-center py-1 rounded-xl transition-all ${
           isCatalog ? "text-rose-600 font-bold scale-105" : "text-slate-500 hover:text-slate-900"
         }`}
       >
@@ -49,10 +56,25 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentView })
         <span className="text-[10px] mt-0.5 tracking-tight">Sản phẩm</span>
       </button>
 
-      {/* 3. Giỏ hàng */}
+      {/* 3. Nút Trợ lý AI trung tâm nổi bật (Signature Center FAB - Không bao giờ bị khuất) */}
+      <button
+        onClick={handleOpenAi}
+        className="flex-1 flex flex-col items-center justify-center relative -top-3 group transition-transform active:scale-95"
+        title="Trợ lý AI Thông Minh"
+      >
+        <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-rose-600 via-rose-600 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-rose-600/40 border-2 border-white ring-2 ring-rose-500/20 group-hover:scale-110 transition-transform">
+          <Bot className="w-6 h-6 animate-pulse" />
+        </div>
+        <span className="text-[10px] font-extrabold text-rose-600 -mt-0.5 tracking-tight flex items-center gap-0.5">
+          <Sparkles className="w-2.5 h-2.5 text-amber-500" />
+          Hỏi AI
+        </span>
+      </button>
+
+      {/* 4. Giỏ hàng */}
       <button
         onClick={() => navigate("/cart")}
-        className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
+        className={`flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl transition-all ${
           isCart ? "text-rose-600 font-bold scale-105" : "text-slate-500 hover:text-slate-900"
         }`}
       >
@@ -67,26 +89,17 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentView })
         <span className="text-[10px] mt-0.5 tracking-tight">Giỏ hàng</span>
       </button>
 
-      {/* 4. Đơn hàng */}
+      {/* 5. Tài khoản / Đơn hàng */}
       <button
-        onClick={() => navigate(user ? "/my-orders" : "/login")}
-        className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-          isOrders ? "text-rose-600 font-bold scale-105" : "text-slate-500 hover:text-slate-900"
+        onClick={() => navigate(user ? (isOrders ? "/my-orders" : "/profile") : "/login")}
+        className={`flex-1 flex flex-col items-center justify-center py-1 rounded-xl transition-all ${
+          isProfile || isOrders ? "text-rose-600 font-bold scale-105" : "text-slate-500 hover:text-slate-900"
         }`}
       >
-        <Package className={`w-5 h-5 ${isOrders ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
-        <span className="text-[10px] mt-0.5 tracking-tight">Đơn hàng</span>
-      </button>
-
-      {/* 5. Tài khoản */}
-      <button
-        onClick={() => navigate(user ? "/profile" : "/login")}
-        className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-          isProfile ? "text-rose-600 font-bold scale-105" : "text-slate-500 hover:text-slate-900"
-        }`}
-      >
-        <User className={`w-5 h-5 ${isProfile ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
-        <span className="text-[10px] mt-0.5 tracking-tight">Tài khoản</span>
+        <User className={`w-5 h-5 ${isProfile || isOrders ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
+        <span className="text-[10px] mt-0.5 tracking-tight">
+          {user ? (isOrders ? "Đơn hàng" : "Tài khoản") : "Đăng nhập"}
+        </span>
       </button>
     </nav>
   );

@@ -16,7 +16,8 @@ import {
   Laptop,
   Headphones,
   Watch,
-  Tag
+  Tag,
+  Sparkles
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
@@ -143,6 +144,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {/* AI Assistant Quick Mobile Button */}
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent("open-ai-chat"))}
+              className="md:hidden p-2 rounded-xl text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors shrink-0 flex items-center gap-1"
+              title="Chat với Trợ lý AI"
+              aria-label="Trợ lý AI"
+            >
+              <Sparkles className="w-5 h-5 text-rose-600" />
+            </button>
+
             {/* Mobile Search Toggle Button */}
             <button 
               onClick={() => setShowMobileSearch(!showMobileSearch)}

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { 
   Bot, 
   X, 
@@ -44,6 +45,8 @@ export const FloatingChatWidget: React.FC<{
   onRequireAuth?: () => void;
 }> = ({ onSelectProduct, onRequireAuth }) => {
   const { user } = useAuth();
+  const location = useLocation();
+  const isCartPage = location.pathname === "/cart";
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -52,6 +55,20 @@ export const FloatingChatWidget: React.FC<{
   const [isListening, setIsListening] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
+
+  // Lắng nghe sự kiện toàn cục để mở hộp thoại Chat AI từ Navbar hoặc MobileBottomNav
+  useEffect(() => {
+    const handleOpenAiChat = () => setIsOpen(true);
+    const handleToggleAiChat = () => setIsOpen(prev => !prev);
+
+    window.addEventListener("open-ai-chat", handleOpenAiChat);
+    window.addEventListener("toggle-ai-chat", handleToggleAiChat);
+
+    return () => {
+      window.removeEventListener("open-ai-chat", handleOpenAiChat);
+      window.removeEventListener("toggle-ai-chat", handleToggleAiChat);
+    };
+  }, []);
 
   const { addToCart } = useCart();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -354,23 +371,32 @@ export const FloatingChatWidget: React.FC<{
   const isChatRestricted = Boolean(user && (user as any).canChatAi === false);
 
   return (
-    <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50">
+    <>
       {/* Floating Toggle Button */}
       {!isOpen && (
-        <button
-          id="floating-chat-button"
-          title="Chat AI & Voice & Vision"
-          onClick={() => setIsOpen(true)}
-          className="group relative flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-rose-600 via-rose-600 to-rose-800 text-white shadow-2xl shadow-rose-500/50 hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-rose-400/40"
+        <div 
+          className={`fixed ${isCartPage ? "bottom-36" : "bottom-24"} sm:bottom-6 right-3.5 sm:right-6 z-[60]`}
+          style={{
+            bottom: isCartPage 
+              ? "calc(9rem + env(safe-area-inset-bottom, 0px))" 
+              : "calc(5.75rem + env(safe-area-inset-bottom, 0px))"
+          }}
         >
-          <Bot className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-emerald-500 border-2 border-[#0b0f19] rounded-full animate-ping" />
-          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-emerald-500 border-2 border-[#0b0f19] rounded-full" />
-          <span className="hidden sm:flex absolute right-16 px-3 py-1.5 rounded-xl bg-slate-900/90 text-white text-xs font-semibold whitespace-nowrap shadow-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none items-center gap-1.5">
-            <Mic className="w-3.5 h-3.5 text-rose-400" />
-            <span>Chat AI Voice & Hình Ảnh Local</span>
-          </span>
-        </button>
+          <button
+            id="floating-chat-button"
+            title="Chat AI & Voice & Vision"
+            onClick={() => setIsOpen(true)}
+            className="group relative flex items-center justify-center w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-rose-600 via-rose-600 to-rose-800 text-white shadow-2xl shadow-rose-600/50 hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-white/90 ring-4 ring-rose-500/20"
+          >
+            <Bot className="w-6 h-6 sm:w-7 sm:h-7" />
+            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-emerald-500 border-2 border-[#0b0f19] rounded-full animate-ping" />
+            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-emerald-500 border-2 border-[#0b0f19] rounded-full" />
+            <span className="hidden sm:flex absolute right-16 px-3 py-1.5 rounded-xl bg-slate-900/90 text-white text-xs font-semibold whitespace-nowrap shadow-lg border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none items-center gap-1.5">
+              <Mic className="w-3.5 h-3.5 text-rose-400" />
+              <span>Chat AI Voice & Hình Ảnh Local</span>
+            </span>
+          </button>
+        </div>
       )}
 
       {/* Expandable Chat Dialog */}
@@ -379,7 +405,7 @@ export const FloatingChatWidget: React.FC<{
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           onPaste={handlePaste}
-          className="fixed inset-x-0 bottom-0 sm:inset-auto sm:bottom-24 sm:right-6 z-50 w-full sm:w-[420px] max-w-full sm:max-w-[calc(100vw-2rem)] h-[90vh] sm:h-[620px] rounded-t-3xl sm:rounded-3xl flex flex-col bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 duration-200"
+          className="fixed inset-x-0 bottom-0 sm:inset-auto sm:bottom-24 sm:right-6 z-[70] w-full sm:w-[420px] max-w-full sm:max-w-[calc(100vw-2rem)] h-[90vh] sm:h-[620px] rounded-t-3xl sm:rounded-3xl flex flex-col bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 duration-200"
         >
           {/* Header */}
           <div className="p-3.5 bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-md">
@@ -759,6 +785,6 @@ export const FloatingChatWidget: React.FC<{
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
