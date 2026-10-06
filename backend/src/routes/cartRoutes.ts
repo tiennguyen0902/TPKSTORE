@@ -197,10 +197,28 @@ router.delete("/items/:id", authenticateToken, async (req: AuthenticatedRequest,
   try {
     const userId = req.user!.id;
     const cart = await getOrCreateUserCart(userId);
+    const targetId = req.params.id;
 
-    await db.cartItem.deleteMany({
-      where: { id: req.params.id, cartId: cart.id }
+    // Tìm chính xác cartItem thuộc cart của người dùng (hỗ trợ cả tìm theo item.id hoặc productId)
+    const existing = await db.cartItem.findFirst({
+      where: {
+        cartId: cart.id,
+        OR: [
+          { id: targetId },
+          { productId: targetId }
+        ]
+      }
     });
+
+    if (existing) {
+      await db.cartItem.delete({
+        where: { id: existing.id }
+      });
+    } else {
+      await db.cartItem.deleteMany({
+        where: { id: targetId, cartId: cart.id }
+      });
+    }
 
     return res.json({ message: "Đã xóa sản phẩm khỏi giỏ hàng." });
   } catch (err: any) {

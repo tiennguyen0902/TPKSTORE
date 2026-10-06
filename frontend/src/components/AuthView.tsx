@@ -18,6 +18,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { api } from "../services/api";
 
 interface AuthViewProps {
@@ -30,6 +31,7 @@ type AuthMode = "login" | "register" | "forgot_password" | "reset_password";
 
 export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, messageBanner }) => {
   const { login, register } = useAuth();
+  const { showToast } = useToast();
   const [authMode, setAuthMode] = useState<AuthMode>("login");
 
   // Form states
@@ -103,6 +105,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
     setIsLoading(true);
     try {
       const loggedUser = await login(email, password);
+      showToast("Đăng nhập thành công !", "success");
       onSuccess(loggedUser?.role);
     } catch (err: any) {
       setErrorMsg(err.message || "Đăng nhập không thành công.");
@@ -151,6 +154,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
         fullName,
         phone: phoneNumber
       });
+      showToast("Đăng ký tài khoản thành công !", "success");
       onSuccess(newUser?.role);
     } catch (err: any) {
       setErrorMsg(err.message || "Đăng ký không thành công.");

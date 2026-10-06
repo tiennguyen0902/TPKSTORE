@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { api } from "../services/api";
 import { VnpayModal } from "./VnpayModal";
 import { MomoModal } from "./MomoModal";
@@ -32,6 +33,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 }) => {
   const { items, subtotal, shippingFee, isFreeShipping, total, clearCart } = useCart();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   const isStaff = user?.role === "STAFF" || user?.role === "ADMIN";
   const [isCounterMode, setIsCounterMode] = useState(isStaff);
@@ -154,6 +156,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         setShowMomoModal(true);
       } else {
         await clearCart();
+        showToast(`Đặt hàng thành công! Cảm ơn bạn đã mua sắm tại TPKSTORE.`, "success");
         onOrderSuccess(orderId);
       }
     } catch (err: any) {
@@ -171,12 +174,14 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     }
     await clearCart();
     setShowVnpayModal(false);
+    showToast(`Thanh toán VNPAY & Đặt hàng thành công! Mã đơn: ${pendingOrderId}`, "success");
     onOrderSuccess(pendingOrderId);
   };
 
   const handleMomoSuccess = async () => {
     await clearCart();
     setShowMomoModal(false);
+    showToast(`Thanh toán MoMo & Đặt hàng thành công! Mã đơn: ${pendingOrderId}`, "success");
     onOrderSuccess(pendingOrderId);
   };
 

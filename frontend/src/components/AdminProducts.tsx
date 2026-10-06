@@ -245,7 +245,8 @@ export const AdminProducts: React.FC = () => {
       alert("Quyền hạn bị từ chối: Quản lý sản phẩm chỉ dành riêng cho tài khoản Quản trị viên (ADMIN).");
       return;
     }
-    if (!window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này?")) return;
+    const targetProd = products.find(p => p.id === id);
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${targetProd ? targetProd.name : id}"?`)) return;
     try {
       await api.deleteProduct(id);
       setToastMsg("Đã xóa sản phẩm thành công!");
@@ -286,13 +287,28 @@ export const AdminProducts: React.FC = () => {
     setFormErrorMsg("");
     const errors: Record<string, string> = {};
 
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       errors.name = "Vui lòng nhập tên sản phẩm.";
+    } else {
+      // Ràng buộc kiểm tra trùng tên sản phẩm
+      const isDupName = products.some(p => 
+        (!editingProduct || p.id !== editingProduct.id) &&
+        p.name.trim().toLowerCase() === trimmedName.toLowerCase()
+      );
+      if (isDupName) {
+        errors.name = `Tên sản phẩm "${trimmedName}" đã tồn tại trong hệ thống. Vui lòng chọn tên khác!`;
+      }
     }
 
     const currentCategoryId = categoryId || (categories[0]?.id ?? "");
     if (!currentCategoryId) {
       errors.categoryId = "Vui lòng chọn danh mục cho sản phẩm.";
+    } else {
+      const catExists = categories.some(c => c.id === currentCategoryId);
+      if (!catExists) {
+        errors.categoryId = "Danh mục đã chọn không hợp lệ hoặc đã bị xóa.";
+      }
     }
 
     const parsedPrice = parseFloat(price);

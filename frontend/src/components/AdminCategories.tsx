@@ -83,11 +83,15 @@ export const AdminCategories: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa danh mục này?")) return;
+  const handleDelete = async (cat: Category) => {
+    if ((cat.productCount || 0) > 0) {
+      alert(`Không thể xóa danh mục "${cat.name}" vì đang có ${cat.productCount} sản phẩm trực thuộc.\n\nVui lòng chuyển danh mục cho các sản phẩm này hoặc xóa sản phẩm trước khi xóa danh mục!`);
+      return;
+    }
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa danh mục "${cat.name}"?`)) return;
     try {
-      await api.deleteCategory(id);
-      setToastMsg("Đã xóa danh mục thành công!");
+      await api.deleteCategory(cat.id);
+      setToastMsg(`Đã xóa danh mục "${cat.name}" thành công!`);
       fetchCategories();
       setTimeout(() => setToastMsg(""), 3000);
     } catch (err: any) {
@@ -100,8 +104,36 @@ export const AdminCategories: React.FC = () => {
     setFormErrorMsg("");
 
     const errors: Record<string, string> = {};
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       errors.name = "Vui lòng nhập tên danh mục.";
+    } else {
+      // Kiểm tra trùng tên danh mục
+      const isDupName = categories.some(c => 
+        (!editingCategory || c.id !== editingCategory.id) &&
+        c.name.trim().toLowerCase() === trimmedName.toLowerCase()
+      );
+      if (isDupName) {
+        errors.name = `Tên danh mục "${trimmedName}" đã tồn tại. Vui lòng chọn tên khác!`;
+      }
+    }
+
+    const autoSlug = (slug.trim() || trimmedName.toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+    );
+
+    if (autoSlug) {
+      const isDupSlug = categories.some(c => 
+        (!editingCategory || c.id !== editingCategory.id) &&
+        c.slug.trim().toLowerCase() === autoSlug.toLowerCase()
+      );
+      if (isDupSlug) {
+        errors.slug = `Đường dẫn (slug) "${autoSlug}" đã tồn tại. Vui lòng chọn slug khác!`;
+      }
     }
 
     if (Object.keys(errors).length > 0) {
@@ -111,8 +143,7 @@ export const AdminCategories: React.FC = () => {
     setCategoryErrors({});
 
     try {
-      const autoSlug = slug.trim() || name.trim().toLowerCase().replace(/[^a-z0-9]/g, "-");
-      const payload = { name: name.trim(), slug: autoSlug, description: description.trim(), icon };
+      const payload = { name: trimmedName, slug: autoSlug, description: description.trim(), icon };
 
       if (editingCategory) {
         await api.updateCategory(editingCategory.id, payload);
@@ -185,13 +216,19 @@ export const AdminCategories: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => handleOpenEdit(cat)}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-700 hover:text-slate-900"
+                  title="Chỉnh sửa danh mục"
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => handleDelete(cat.id)}
-                  className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400"
+                  onClick={() => handleDelete(cat)}
+                  title={cat.productCount && cat.productCount > 0 ? `Đang có ${cat.productCount} sản phẩm trực thuộc - Không thể xóa` : "Xóa danh mục"}
+                  className={`p-1.5 rounded-lg transition-colors ${
+                    cat.productCount && cat.productCount > 0
+                      ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600"
+                      : "bg-red-500/10 hover:bg-red-500/20 text-red-500"
+                  }`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -208,7 +245,11 @@ export const AdminCategories: React.FC = () => {
 
             <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
               <span className="text-slate-500">Số lượng sản phẩm:</span>
-              <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+              <span className={`font-bold px-2 py-0.5 rounded-md ${
+                cat.productCount && cat.productCount > 0
+                  ? "text-emerald-700 bg-emerald-50 border border-emerald-200"
+                  : "text-slate-400 bg-slate-100"
+              }`}>
                 {cat.productCount || 0} sản phẩm
               </span>
             </div>
@@ -266,9 +307,19 @@ export const AdminCategories: React.FC = () => {
                   type="text"
                   placeholder="tu-dong-tao-neu-de-trong"
                   value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono focus:outline-none focus:border-rose-500"
+                  onChange={(e) => { setSlug(e.target.value); clearCategoryError("slug"); }}
+                  className={`w-full bg-slate-50 border rounded-xl px-3 py-2 text-slate-900 font-mono focus:outline-none transition-colors ${
+                    categoryErrors.slug 
+                      ? "border-rose-500 focus:border-rose-600 focus:ring-2 focus:ring-rose-500/20" 
+                      : "border-slate-300 focus:border-rose-500"
+                  }`}
                 />
+                {categoryErrors.slug && (
+                  <p className="mt-1 text-[11px] text-rose-600 flex items-center gap-1 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{categoryErrors.slug}</span>
+                  </p>
+                )}
               </div>
 
               <div>

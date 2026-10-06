@@ -272,8 +272,34 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
     });
   };
 
+  const [posInputQuantities, setPosInputQuantities] = useState<Record<string, string>>({});
+
+  const handleSetExactQuantity = (productId: string, exactQty: number) => {
+    setOrderError("");
+    setCartItems(prev => {
+      return prev
+        .map(item => {
+          if (item.product.id === productId) {
+            if (exactQty <= 0) return null;
+            if (exactQty > item.product.stock) {
+              setOrderError(`Kho chỉ còn ${item.product.stock} sản phẩm.`);
+              return { ...item, quantity: item.product.stock };
+            }
+            return { ...item, quantity: exactQty };
+          }
+          return item;
+        })
+        .filter(Boolean) as { product: Product; quantity: number }[];
+    });
+  };
+
   const handleUpdateQuantity = (productId: string, delta: number) => {
     setOrderError("");
+    setPosInputQuantities(prev => {
+      const next = { ...prev };
+      delete next[productId];
+      return next;
+    });
     setCartItems(prev => {
       return prev
         .map(item => {
@@ -906,21 +932,54 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
 
                     {/* Quantity controls */}
                     <div className="flex items-center gap-2 shrink-0">
-                      <div className="flex items-center border border-slate-200 rounded-xl bg-white overflow-hidden shadow-2xs">
+                      <div className="flex items-center border border-slate-300 rounded-xl bg-white overflow-hidden shadow-2xs hover:border-slate-400 focus-within:border-rose-500 focus-within:ring-2 focus-within:ring-rose-500/20 transition-all">
                         <button
                           type="button"
                           onClick={() => handleUpdateQuantity(item.product.id, -1)}
-                          className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100"
+                          title="Giảm số lượng (-)"
+                          className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className="w-8 text-center font-bold text-slate-900 text-xs">
-                          {item.quantity}
-                        </span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          aria-label="Số lượng POS"
+                          value={posInputQuantities[item.product.id] !== undefined ? posInputQuantities[item.product.id] : item.quantity}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, "");
+                            setPosInputQuantities(prev => ({ ...prev, [item.product.id]: val }));
+                          }}
+                          onBlur={() => {
+                            const raw = posInputQuantities[item.product.id];
+                            if (raw !== undefined) {
+                              const parsed = parseInt(raw, 10);
+                              if (isNaN(parsed) || parsed < 1) {
+                                handleSetExactQuantity(item.product.id, 1);
+                              } else {
+                                handleSetExactQuantity(item.product.id, parsed);
+                              }
+                              setPosInputQuantities(prev => {
+                                const next = { ...prev };
+                                delete next[item.product.id];
+                                return next;
+                              });
+                            }
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          className="w-9 text-center font-bold text-slate-900 text-xs bg-slate-50 border-x border-slate-200 py-1 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
                         <button
                           type="button"
                           onClick={() => handleUpdateQuantity(item.product.id, 1)}
-                          className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100"
+                          title="Tăng số lượng (+)"
+                          className="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none"
                         >
                           <Plus className="w-3 h-3" />
                         </button>

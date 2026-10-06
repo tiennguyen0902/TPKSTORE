@@ -115,38 +115,67 @@ router.get("/:idOrSlug", async (req, res) => {
         return res.status(500).json({ error: "Lỗi truy vấn: " + err.message });
     }
 });
+function generateSlug(str) {
+    return str
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
 // POST /api/products (Admin & Manager)
 router.post("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER"]), async (req, res) => {
     try {
         const { name, description, price, originalPrice, stock, categoryId, thumbnail, images, isFeatured, isNew } = req.body;
-        if (!name || price === undefined || stock === undefined || !categoryId) {
+        if (!name || typeof name !== "string" || !name.trim()) {
+            return res.status(400).json({ error: "Tên sản phẩm không được để trống." });
+        }
+        const trimmedName = name.trim();
+        if (price === undefined || stock === undefined || !categoryId) {
             return res.status(400).json({ error: "Vui lòng điền đầy đủ Tên, Giá bán, Tồn kho và Danh mục." });
         }
-        if (price < 0 || stock < 0) {
-            return res.status(400).json({ error: "Giá bán và số lượng tồn kho không được âm." });
+        const parsedPrice = parseFloat(price);
+        const parsedStock = parseInt(stock);
+        if (isNaN(parsedPrice) || parsedPrice <= 0) {
+            return res.status(400).json({ error: "Giá bán sản phẩm phải lớn hơn 0 VND." });
         }
-        // Generate unique slug
-        let baseSlug = name
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/đ/g, "d")
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "");
-        let slug = baseSlug;
-        let count = 1;
-        while (await db_1.db.product.findUnique({ where: { slug } })) {
-            slug = `${baseSlug}-${count++}`;
+        if (isNaN(parsedStock) || parsedStock < 0) {
+            return res.status(400).json({ error: "Số lượng tồn kho không được âm." });
+        }
+        // 1. Ràng buộc: Kiểm tra Danh mục có tồn tại hay không
+        const categoryExists = await db_1.db.category.findUnique({ where: { id: categoryId } });
+        if (!categoryExists) {
+            return res.status(400).json({ error: "Danh mục sản phẩm được chọn không tồn tại hoặc đã bị xóa." });
+        }
+        // 2. Ràng buộc: Kiểm tra trùng Tên sản phẩm (không phân biệt hoa/thường)
+        const allProducts = await db_1.db.product.findMany();
+        const duplicateName = allProducts.find((p) => p.name.trim().toLowerCase() === trimmedName.toLowerCase());
+        if (duplicateName) {
+            return res.status(400).json({
+                error: `Tên sản phẩm "${trimmedName}" đã tồn tại trong hệ thống (Mã: ${duplicateName.id}). Vui lòng không thêm trùng tên!`
+            });
+        }
+        // 3. Ràng buộc: Kiểm tra trùng Slug sản phẩm
+        const slug = generateSlug(trimmedName);
+        if (!slug) {
+            return res.status(400).json({ error: "Không thể tạo đường dẫn (slug) hợp lệ từ tên sản phẩm." });
+        }
+        const duplicateSlug = allProducts.find((p) => p.slug.trim().toLowerCase() === slug.toLowerCase());
+        if (duplicateSlug) {
+            return res.status(400).json({
+                error: `Đường dẫn (slug) "${slug}" đã bị trùng với sản phẩm "${duplicateSlug.name}". Vui lòng đổi tên khác!`
+            });
         }
         const defaultThumb = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
         const newProduct = await db_1.db.product.create({
             data: {
-                name,
+                name: trimmedName,
                 slug,
-                description: description || "",
-                price: parseFloat(price),
+                description: (description || "").trim(),
+                price: parsedPrice,
                 originalPrice: originalPrice ? parseFloat(originalPrice) : null,
-                stock: parseInt(stock),
+                stock: parsedStock,
                 thumbnail: thumbnail || defaultThumb,
                 images: Array.isArray(images) && images.length > 0 ? images : [thumbnail || defaultThumb],
                 rating: 5.0,
@@ -174,25 +203,63 @@ router.put("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MA
             return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
         }
         const { name, description, price, originalPrice, stock, categoryId, thumbnail, images, isFeatured, isNew } = req.body;
-        if (price !== undefined && price < 0) {
-            return res.status(400).json({ error: "Giá bán không được âm." });
-        }
-        if (stock !== undefined && stock < 0) {
-            return res.status(400).json({ error: "Số lượng tồn kho không được âm." });
-        }
         const updateData = {};
-        if (name)
-            updateData.name = name;
-        if (description !== undefined)
-            updateData.description = description;
-        if (price !== undefined)
-            updateData.price = parseFloat(price);
-        if (originalPrice !== undefined)
-            updateData.originalPrice = originalPrice ? parseFloat(originalPrice) : null;
-        if (stock !== undefined)
-            updateData.stock = parseInt(stock);
-        if (categoryId)
+        const allProducts = await db_1.db.product.findMany();
+        // 1. Ràng buộc: Kiểm tra trùng Tên sản phẩm & cập nhật Slug nếu đổi tên
+        if (name !== undefined) {
+            if (typeof name !== "string" || !name.trim()) {
+                return res.status(400).json({ error: "Tên sản phẩm không được để trống." });
+            }
+            const trimmedName = name.trim();
+            const duplicateName = allProducts.find((p) => p.id !== req.params.id && p.name.trim().toLowerCase() === trimmedName.toLowerCase());
+            if (duplicateName) {
+                return res.status(400).json({
+                    error: `Tên sản phẩm "${trimmedName}" đã bị trùng với sản phẩm khác (Mã: ${duplicateName.id}). Vui lòng chọn tên khác!`
+                });
+            }
+            updateData.name = trimmedName;
+            const newSlug = generateSlug(trimmedName);
+            if (newSlug) {
+                const duplicateSlug = allProducts.find((p) => p.id !== req.params.id && p.slug.trim().toLowerCase() === newSlug.toLowerCase());
+                if (duplicateSlug) {
+                    return res.status(400).json({
+                        error: `Đường dẫn (slug) "${newSlug}" đã bị trùng với sản phẩm "${duplicateSlug.name}".`
+                    });
+                }
+                updateData.slug = newSlug;
+            }
+        }
+        // 2. Ràng buộc: Kiểm tra Danh mục mới có tồn tại hay không
+        if (categoryId !== undefined) {
+            if (!categoryId) {
+                return res.status(400).json({ error: "Danh mục sản phẩm không được để trống." });
+            }
+            const categoryExists = await db_1.db.category.findUnique({ where: { id: categoryId } });
+            if (!categoryExists) {
+                return res.status(400).json({ error: "Danh mục sản phẩm được chọn không tồn tại hoặc đã bị xóa." });
+            }
             updateData.categoryId = categoryId;
+        }
+        if (price !== undefined) {
+            const parsedPrice = parseFloat(price);
+            if (isNaN(parsedPrice) || parsedPrice <= 0) {
+                return res.status(400).json({ error: "Giá bán sản phẩm phải lớn hơn 0 VND." });
+            }
+            updateData.price = parsedPrice;
+        }
+        if (originalPrice !== undefined) {
+            updateData.originalPrice = originalPrice ? parseFloat(originalPrice) : null;
+        }
+        if (stock !== undefined) {
+            const parsedStock = parseInt(stock);
+            if (isNaN(parsedStock) || parsedStock < 0) {
+                return res.status(400).json({ error: "Số lượng tồn kho không được âm." });
+            }
+            updateData.stock = parsedStock;
+        }
+        if (description !== undefined) {
+            updateData.description = String(description).trim();
+        }
         // Always keep thumbnail and primary image in images[0] strictly synchronized
         if (Array.isArray(images)) {
             const sanitizedImages = images.filter((img) => typeof img === "string" && img.trim().length > 0);
@@ -254,8 +321,22 @@ router.delete("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", 
         if (!existing) {
             return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
         }
+        // 1. Ràng buộc toàn vẹn dữ liệu: Không cho phép xóa sản phẩm đã có trong đơn hàng lịch sử
+        const orderItemCount = await db_1.db.orderItem.count({ where: { productId: req.params.id } });
+        if (orderItemCount > 0) {
+            return res.status(400).json({
+                error: `Không thể xóa sản phẩm "${existing.name}" vì sản phẩm này đã xuất hiện trong ${orderItemCount} đơn hàng lịch sử. Để bảo toàn hóa đơn và dữ liệu kế toán, bạn chỉ nên cập nhật tồn kho về 0!`
+            });
+        }
+        // 2. Dọn dẹp giỏ hàng chứa sản phẩm này (nếu có) trước khi xóa
+        try {
+            await db_1.db.cartItem.deleteMany({ where: { productId: req.params.id } });
+        }
+        catch (e) {
+            // Bỏ qua lỗi nếu bảng trống hoặc không có ràng buộc
+        }
         await db_1.db.product.delete({ where: { id: req.params.id } });
-        return res.json({ message: "Xóa sản phẩm thành công!" });
+        return res.json({ message: `Đã xóa sản phẩm "${existing.name}" thành công!` });
     }
     catch (err) {
         return res.status(500).json({ error: "Lỗi xóa sản phẩm: " + err.message });

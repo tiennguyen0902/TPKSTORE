@@ -110,6 +110,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const { user } = useAuth();
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
+  const [quantityInput, setQuantityInput] = useState<string>("");
   const [selectedImage, setSelectedImage] = useState<string>("");
   const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
   const [addedToast, setAddedToast] = useState(false);
@@ -586,19 +587,63 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               {/* Quantity Selector */}
               <div className="flex items-center gap-4 mt-5 mb-4">
                 <span className="text-xs font-bold text-slate-800">Số lượng mua:</span>
-                <div className="flex items-center border border-slate-300 rounded-xl bg-white overflow-hidden shadow-sm">
+                <div className="flex items-center border border-slate-300 rounded-xl bg-white overflow-hidden shadow-2xs hover:border-slate-400 focus-within:border-rose-500 focus-within:ring-2 focus-within:ring-rose-500/20 transition-all">
                   <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    type="button"
+                    onClick={() => {
+                      const next = Math.max(1, quantity - 1);
+                      setQuantity(next);
+                      setQuantityInput("");
+                    }}
                     disabled={quantity <= 1}
-                    className="p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors"
+                    title="Giảm số lượng (-)"
+                    className="p-2 px-3 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors cursor-pointer select-none"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
-                  <span className="w-12 text-center text-xs font-black text-slate-900">{quantity}</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    aria-label="Số lượng mua"
+                    value={quantityInput !== "" ? quantityInput : quantity}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      setQuantityInput(val);
+                      if (val) {
+                        const parsed = parseInt(val, 10);
+                        if (!isNaN(parsed) && parsed >= 1) {
+                          setQuantity(Math.min(safeStock, parsed));
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!quantityInput || parseInt(quantityInput, 10) < 1) {
+                        setQuantity(1);
+                      } else if (parseInt(quantityInput, 10) > safeStock) {
+                        alert(`Số lượng trong kho chỉ còn tối đa ${safeStock} sản phẩm.`);
+                        setQuantity(safeStock);
+                      }
+                      setQuantityInput("");
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }}
+                    className="w-12 text-center text-xs font-black text-slate-900 bg-slate-50 border-x border-slate-200 py-1.5 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
                   <button
-                    onClick={() => setQuantity(Math.min(safeStock, quantity + 1))}
+                    type="button"
+                    onClick={() => {
+                      const next = Math.min(safeStock, quantity + 1);
+                      setQuantity(next);
+                      setQuantityInput("");
+                    }}
                     disabled={quantity >= safeStock}
-                    className="p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors"
+                    title="Tăng số lượng (+)"
+                    className="p-2 px-3 text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 transition-colors cursor-pointer select-none"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>

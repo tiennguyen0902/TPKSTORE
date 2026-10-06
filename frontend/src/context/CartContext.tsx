@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { CartItem, Product } from "../types";
 import { api } from "../services/api";
 import { useAuth } from "./AuthContext";
+import { useToast } from "./ToastContext";
 
 interface CartContextType {
   items: CartItem[];
@@ -23,6 +24,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const freeShippingThreshold = 500000;
@@ -83,10 +85,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
   const addToCart = async (product: Product, quantity: number = 1) => {
+    const qtyText = quantity > 1 ? `${quantity}x ` : "";
     if (user) {
       try {
         await api.addToCart(product.id, quantity);
         await refreshCart();
+        showToast(`Đã thêm ${qtyText}"${product.name}" vào giỏ hàng thành công!`, "success");
         return;
       } catch (err) {
         console.warn("Server add to cart failed, using local update:", err);
@@ -101,7 +105,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updated = prev.map(i => i.productId === product.id ? { ...i, quantity: i.quantity + quantity } : i);
       } else {
         const newItem: CartItem = {
-          id: `ci_${Date.now()}`,
+          id: `ci_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
           cartId: "local_cart",
           productId: product.id,
           product,
@@ -112,9 +116,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem("store_ai_local_cart", JSON.stringify(updated));
       return updated;
     });
+
+    showToast(`Đã thêm ${qtyText}"${product.name}" vào giỏ hàng thành công!`, "success");
   };
 
   const updateQuantity = async (cartItemId: string, quantity: number) => {
+    if (!cartItemId) return;
+
     if (user) {
       try {
         await api.updateCartQuantity(cartItemId, quantity);
@@ -128,9 +136,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setItems(prev => {
       let updated;
       if (quantity <= 0) {
-        updated = prev.filter(i => i.id !== cartItemId);
+        updated = prev.filter(i => i && i.id !== cartItemId && i.productId !== cartItemId);
       } else {
-        updated = prev.map(i => i.id === cartItemId ? { ...i, quantity } : i);
+        updated = prev.map(i => (i && (i.id === cartItemId || i.productId === cartItemId)) ? { ...i, quantity } : i);
       }
       localStorage.setItem("store_ai_local_cart", JSON.stringify(updated));
       return updated;
@@ -138,6 +146,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeItem = async (cartItemId: string) => {
+    if (!cartItemId) return;
+
     if (user) {
       try {
         await api.removeCartItem(cartItemId);
@@ -149,7 +159,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setItems(prev => {
-      const updated = prev.filter(i => i.id !== cartItemId);
+      const updated = prev.filter(i => i && i.id !== cartItemId && i.productId !== cartItemId);
       localStorage.setItem("store_ai_local_cart", JSON.stringify(updated));
       return updated;
     });

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
+import { ToastProvider, useToast } from "./context/ToastContext";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
 import { FloatingChatWidget } from "./components/FloatingChatWidget";
@@ -131,7 +132,7 @@ const MainApp: React.FC = () => {
   // Quản lý Modal Popup đăng nhập khi mua hàng
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [loginModalProduct, setLoginModalProduct] = useState<Product | null>(null);
-  const [toastNotification, setToastNotification] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   // Mở popup đăng nhập và lưu lại sản phẩm khách đang chọn mua
   const handleTriggerLoginModal = (targetProduct?: Product | null) => {
@@ -140,10 +141,9 @@ const MainApp: React.FC = () => {
     setIsLoginModalOpen(true);
   };
 
-  // Đăng nhập thành công: hiển thị thông báo "Đăng nhập thành công !" toàn hệ thống
+  // Đăng nhập thành công: hiển thị thông báo "Đăng nhập thành công !" toàn hệ thống ở góc trái
   const showLoginSuccessToast = () => {
-    setToastNotification("Đăng nhập thành công !");
-    setTimeout(() => setToastNotification(null), 3000);
+    showToast("Đăng nhập thành công !", "success");
   };
 
   // Đăng nhập thành công từ Popup: quay lại đúng sản phẩm đã chọn mua
@@ -597,22 +597,6 @@ const MainApp: React.FC = () => {
         pendingProduct={loginModalProduct}
         onSuccess={handleLoginModalSuccess}
       />
-
-      {/* Floating Toast Notification */}
-      {toastNotification && (
-        <div className="fixed bottom-6 right-6 z-[80] p-4 bg-slate-900 text-white rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-in slide-in-from-bottom-5 duration-300 max-w-md">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-          <p className="text-xs font-semibold leading-relaxed">{toastNotification}</p>
-          <button
-            onClick={() => setToastNotification(null)}
-            className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors ml-auto text-base"
-          >
-            ✕
-          </button>
-        </div>
-      )}
     </div>
   );
 };
@@ -621,9 +605,11 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <CartProvider>
-          <MainApp />
-        </CartProvider>
+        <ToastProvider>
+          <CartProvider>
+            <MainApp />
+          </CartProvider>
+        </ToastProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

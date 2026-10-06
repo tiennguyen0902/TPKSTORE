@@ -456,11 +456,17 @@ function createModelProxy(modelName: string) {
                 return where.OR.some((cond: any) => {
                   if (cond.id && item.id === cond.id) return true;
                   if (cond.slug && item.slug === cond.slug) return true;
+                  if (cond.name && item.name?.toLowerCase() === String(cond.name).toLowerCase()) return true;
                   return false;
                 });
               });
             } else {
-              p = fallback.products.find(item => item.id === where.id || item.slug === where.slug || item.id === where.idOrSlug);
+              p = fallback.products.find(item => 
+                (where.id && item.id === where.id) || 
+                (where.slug && item.slug === where.slug) || 
+                (where.idOrSlug && (item.id === where.idOrSlug || item.slug === where.idOrSlug)) ||
+                (where.name && item.name?.toLowerCase() === String(where.name).toLowerCase())
+              );
             }
             if (!p) return null;
             const cat = fallback.categories.find(c => c.id === p.categoryId);
@@ -526,7 +532,15 @@ function createModelProxy(modelName: string) {
             }));
           }
           if (method === "findFirst" || method === "findUnique") {
-            return fallback.categories.find(c => c.id === options.where?.id || c.slug === options.where?.slug) || null;
+            const where = options.where || {};
+            return fallback.categories.find(c => 
+              (where.id && c.id === where.id) || 
+              (where.slug && c.slug === where.slug) ||
+              (where.name && c.name?.toLowerCase() === String(where.name).toLowerCase())
+            ) || null;
+          }
+          if (method === "count") {
+            return fallback.categories.length;
           }
           if (method === "create") {
             const c = { id: options.data.id || `cat_${uuidv4().substring(0, 8)}`, ...options.data, createdAt: new Date(), updatedAt: new Date() };
@@ -616,33 +630,81 @@ function createModelProxy(modelName: string) {
         }
 
         if (modelName === "cartItem") {
-          if (method === "findUnique") {
+          if (method === "findFirst" || method === "findUnique") {
             const key = options.where?.cartId_productId;
             if (key) {
               return fallback.cartItems.find(ci => ci.cartId === key.cartId && ci.productId === key.productId) || null;
             }
-            return fallback.cartItems.find(ci => ci.id === options.where?.id) || null;
+            const where = options.where || {};
+            return fallback.cartItems.find(ci => {
+              if (where.id && ci.id === where.id) return true;
+              if (where.productId && ci.productId === where.productId && (!where.cartId || ci.cartId === where.cartId)) return true;
+              if (where.cartId && ci.cartId === where.cartId && !where.id && !where.productId) return true;
+              return false;
+            }) || null;
           }
           if (method === "create") {
             const item = { id: `ci_${uuidv4().substring(0, 8)}`, ...options.data, createdAt: new Date(), updatedAt: new Date() };
             fallback.cartItems.push(item);
+            fallback.saveToFile();
             return item;
           }
           if (method === "update") {
             const idx = fallback.cartItems.findIndex(ci => ci.id === options.where?.id);
             if (idx !== -1) {
               fallback.cartItems[idx] = { ...fallback.cartItems[idx], ...options.data, updatedAt: new Date() };
+              fallback.saveToFile();
               return fallback.cartItems[idx];
             }
             return null;
           }
           if (method === "delete") {
+            const beforeLen = fallback.cartItems.length;
             fallback.cartItems = fallback.cartItems.filter(ci => ci.id !== options.where?.id);
-            return { success: true };
+            fallback.saveToFile();
+            return { count: beforeLen - fallback.cartItems.length };
           }
           if (method === "deleteMany") {
-            fallback.cartItems = fallback.cartItems.filter(ci => ci.cartId !== options.where?.cartId);
-            return { count: 1 };
+            const where = options.where || {};
+            const beforeLen = fallback.cartItems.length;
+            fallback.cartItems = fallback.cartItems.filter(ci => {
+              // Phải khớp TẤT CẢ các điều kiện trong where mới bị xóa
+              if (where.id && ci.id !== where.id) return true;
+              if (where.cartId && ci.cartId !== where.cartId) return true;
+              if (where.productId && ci.productId !== where.productId) return true;
+              // Nếu không có điều kiện nào được chỉ định thì không xóa bừa bãi
+              if (!where.id && !where.cartId && !where.productId) return true;
+              return false; // Thỏa mãn toàn bộ điều kiện -> bị xóa
+            });
+            fallback.saveToFile();
+            return { count: beforeLen - fallback.cartItems.length };
+          }
+        }
+
+        if (modelName === "orderItem") {
+          const allItems: any[] = [];
+          fallback.orders.forEach(o => {
+            if (Array.isArray(o.items)) {
+              allItems.push(...o.items);
+            }
+          });
+          if (method === "count") {
+            if (options.where?.productId) {
+              return allItems.filter(item => item.productId === options.where.productId).length;
+            }
+            return allItems.length;
+          }
+          if (method === "findFirst" || method === "findUnique") {
+            if (options.where?.productId) {
+              return allItems.find(item => item.productId === options.where.productId) || null;
+            }
+            return allItems[0] || null;
+          }
+          if (method === "findMany") {
+            if (options.where?.productId) {
+              return allItems.filter(item => item.productId === options.where.productId);
+            }
+            return allItems;
           }
         }
 

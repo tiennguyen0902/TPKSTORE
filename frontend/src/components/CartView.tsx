@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { 
   Trash2, 
   Plus, 
@@ -30,6 +30,53 @@ export const CartView: React.FC<CartViewProps> = ({
     removeItem, 
     clearCart 
   } = useCart();
+
+  const [inputQuantities, setInputQuantities] = useState<Record<string, string>>({});
+
+  const handleCommitQuantity = (itemId: string, maxStock?: number) => {
+    const rawVal = inputQuantities[itemId];
+    if (rawVal === undefined) return;
+
+    let parsed = parseInt(rawVal, 10);
+    if (isNaN(parsed) || parsed < 1) {
+      parsed = 1;
+    }
+    if (maxStock !== undefined && maxStock > 0 && parsed > maxStock) {
+      alert(`Số lượng tồn kho chỉ còn tối đa ${maxStock} sản phẩm.`);
+      parsed = maxStock;
+    }
+    updateQuantity(itemId, parsed);
+    setInputQuantities(prev => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  const handleStepQuantity = (itemId: string, currentQty: number, delta: number, maxStock?: number) => {
+    const rawVal = inputQuantities[itemId];
+    const base = rawVal !== undefined ? (parseInt(rawVal, 10) || currentQty) : currentQty;
+    const nextQty = base + delta;
+
+    if (nextQty < 1) {
+      if (window.confirm("Bạn có muốn xóa sản phẩm này khỏi giỏ hàng?")) {
+        removeItem(itemId);
+      }
+      return;
+    }
+
+    if (maxStock !== undefined && maxStock > 0 && nextQty > maxStock) {
+      alert(`Số lượng trong kho chỉ còn tối đa ${maxStock} sản phẩm.`);
+      return;
+    }
+
+    setInputQuantities(prev => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+    updateQuantity(itemId, nextQty);
+  };
 
   if (items.length === 0) {
     return (
@@ -80,6 +127,7 @@ export const CartView: React.FC<CartViewProps> = ({
             const prod = item.product;
             if (!prod) return null;
             const itemTotal = prod.price * item.quantity;
+            const prodStock = typeof prod.stock === "number" ? prod.stock : (parseInt(String(prod.stock)) || 999);
 
             return (
               <div
@@ -107,19 +155,41 @@ export const CartView: React.FC<CartViewProps> = ({
                 </div>
 
                 {/* Quantity steppers + Item Total + Delete */}
-                <div className="flex items-center justify-between w-full sm:w-auto gap-6 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
-                  {/* Quantity Stepper */}
-                  <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden">
+                <div className="flex items-center justify-between w-full sm:w-auto gap-5 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
+                  {/* Quantity Stepper with Editable Input & Plus/Minus */}
+                  <div className="flex items-center border border-slate-300 rounded-xl bg-slate-50 overflow-hidden shadow-2xs hover:border-slate-400 focus-within:border-rose-500 focus-within:ring-2 focus-within:ring-rose-500/20 transition-all">
                     <button
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                      className="p-1.5 px-2 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors"
+                      type="button"
+                      onClick={() => handleStepQuantity(item.id, item.quantity, -1, prodStock)}
+                      title="Giảm số lượng (-)"
+                      className="p-1.5 px-2.5 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors cursor-pointer select-none"
                     >
                       <Minus className="w-3 h-3" />
                     </button>
-                    <span className="w-8 text-center text-xs font-bold text-slate-900">{item.quantity}</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      aria-label="Số lượng sản phẩm"
+                      value={inputQuantities[item.id] !== undefined ? inputQuantities[item.id] : item.quantity}
+                      onChange={(e) => {
+                        const sanitized = e.target.value.replace(/[^0-9]/g, "");
+                        setInputQuantities(prev => ({ ...prev, [item.id]: sanitized }));
+                      }}
+                      onBlur={() => handleCommitQuantity(item.id, prodStock)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      className="w-10 text-center text-xs font-bold text-slate-900 bg-white border-x border-slate-200 py-1 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
                     <button
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      className="p-1.5 px-2 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors"
+                      type="button"
+                      onClick={() => handleStepQuantity(item.id, item.quantity, 1, prodStock)}
+                      title="Tăng số lượng (+)"
+                      className="p-1.5 px-2.5 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors cursor-pointer select-none"
                     >
                       <Plus className="w-3 h-3" />
                     </button>
