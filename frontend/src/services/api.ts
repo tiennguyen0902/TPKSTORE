@@ -397,7 +397,7 @@ export const api = {
     const url = buildUrl("/users/lookup");
     url.searchParams.append("phone", phone);
     const headers: Record<string, string> = { ...getAuthHeader() };
-    const res = await fetch(url.toString(), { headers });
+    const res = await fetchWithAuth(url.toString(), { headers });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "Lỗi tra cứu khách hàng");
     return json;

@@ -51,22 +51,83 @@ router.get("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAG
         return res.status(500).json({ error: "Lỗi truy vấn người dùng: " + err.message });
     }
 });
-// GET /api/users/lookup?phone=0912345678 (Staff, Manager & Admin quick lookup customer by phone)
+// GET /api/users/lookup?phone=0912345678 (Staff, Manager & Admin quick lookup customer by phone/email in DB)
 router.get("/lookup", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER", "STAFF"]), async (req, res) => {
     try {
-        const phone = req.query.phone ? String(req.query.phone).trim() : "";
-        if (!phone) {
-            return res.status(400).json({ error: "Vui lòng cung cấp số điện thoại khách hàng." });
+        const rawInput = req.query.phone ? String(req.query.phone).trim() : (req.query.search ? String(req.query.search).trim() : "");
+        if (!rawInput) {
+            return res.status(400).json({ error: "Vui lòng cung cấp số điện thoại hoặc email khách hàng cần tra cứu." });
         }
-        const cleanPhone = phone.replace(/\D/g, "");
-        const user = await db_1.db.user.findFirst({
-            where: {
-                OR: [
-                    { phone: phone },
-                    { phone: cleanPhone },
-                    ...(cleanPhone.length >= 9 ? [{ phone: { contains: cleanPhone.slice(-9) } }] : [])
-                ]
-            },
+        const cleanPhone = rawInput.replace(/\D/g, "");
+        const last9 = cleanPhone.length >= 9 ? cleanPhone.slice(-9) : cleanPhone;
+        let matchedUserId = null;
+        // 1. Tìm trực tiếp trong bảng users bằng SQL Regex (chuẩn hóa số điện thoại cả 2 phía)
+        if (cleanPhone.length >= 7) {
+            try {
+                const rows = await db_1.db.$queryRawUnsafe(`
+          SELECT id FROM users
+          WHERE 
+            phone = $1
+            OR REGEXP_REPLACE(COALESCE(phone, ''), '\\D', '', 'g') = $2
+            OR (LENGTH($3) >= 8 AND REGEXP_REPLACE(COALESCE(phone, ''), '\\D', '', 'g') LIKE '%' || $3)
+            OR email ILIKE '%' || $2 || '%'
+            OR (LENGTH($1) >= 5 AND email ILIKE '%' || $1 || '%')
+          LIMIT 1;
+        `, rawInput, cleanPhone, last9);
+                if (rows && rows.length > 0) {
+                    matchedUserId = rows[0].id;
+                }
+            }
+            catch (sqlErr) {
+                console.warn("SQL raw query fallback to Prisma findFirst:", sqlErr);
+            }
+        }
+        // 2. Dự phòng: Tìm kiếm thông qua Prisma OR
+        if (!matchedUserId) {
+            const orConditions = [
+                { phone: rawInput },
+                ...(cleanPhone ? [{ phone: cleanPhone }] : []),
+                ...(last9.length >= 8 ? [{ phone: { contains: last9 } }] : []),
+                ...(rawInput.includes("@") ? [{ email: { equals: rawInput.toLowerCase(), mode: "insensitive" } }] : []),
+                ...(cleanPhone.length >= 8 ? [{ email: { contains: cleanPhone } }] : [])
+            ];
+            const foundPrisma = await db_1.db.user.findFirst({
+                where: { OR: orConditions },
+                select: { id: true }
+            });
+            if (foundPrisma) {
+                matchedUserId = foundPrisma.id;
+            }
+        }
+        // 3. Nếu chưa thấy trong hồ sơ User, kiểm tra qua lịch sử đơn hàng cũ (Order.phone)
+        if (!matchedUserId && cleanPhone.length >= 8) {
+            try {
+                const orderRows = await db_1.db.$queryRawUnsafe(`
+          SELECT DISTINCT "userId" FROM orders
+          WHERE "userId" IS NOT NULL AND (
+            phone = $1
+            OR REGEXP_REPLACE(COALESCE(phone, ''), '\\D', '', 'g') = $2
+            OR (LENGTH($3) >= 8 AND REGEXP_REPLACE(COALESCE(phone, ''), '\\D', '', 'g') LIKE '%' || $3)
+          )
+          LIMIT 1;
+        `, rawInput, cleanPhone, last9);
+                if (orderRows && orderRows.length > 0) {
+                    matchedUserId = orderRows[0].userId;
+                }
+            }
+            catch (e) { }
+        }
+        // 4. Nếu không tìm thấy người dùng trong CSDL
+        if (!matchedUserId) {
+            return res.json({
+                found: false,
+                searchedPhone: rawInput,
+                message: "Chưa tìm thấy khách hàng với thông tin này trong CSDL người dùng."
+            });
+        }
+        // 5. Nạp đầy đủ thông tin User + Lịch sử đơn hàng + Quyền lợi tích điểm
+        const user = await db_1.db.user.findUnique({
+            where: { id: matchedUserId },
             include: {
                 orders: {
                     include: {
@@ -81,10 +142,22 @@ router.get("/lookup", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", 
         if (!user) {
             return res.json({
                 found: false,
-                message: "Khách hàng mới (chưa có thông tin tích điểm / bảo hành)"
+                searchedPhone: rawInput,
+                message: "Không tìm thấy dữ liệu người dùng."
             });
         }
-        // Calculate customer metrics for loyalty & warranty
+        // Tự động cập nhật số điện thoại cho user nếu hồ sơ đang để trống SĐT
+        if (!user.phone && cleanPhone.length >= 9) {
+            try {
+                await db_1.db.user.update({
+                    where: { id: user.id },
+                    data: { phone: cleanPhone }
+                });
+                user.phone = cleanPhone;
+            }
+            catch (err) { }
+        }
+        // Tính toán số liệu khách hàng
         const completedOrders = (user.orders || []).filter((o) => o.status !== "CANCELLED");
         const totalSpent = completedOrders.reduce((sum, o) => sum + (o.finalAmount || o.totalAmount || 0), 0);
         const loyaltyPoints = Math.floor(totalSpent / 10000); // 1 điểm / 10.000đ
@@ -93,9 +166,9 @@ router.get("/lookup", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", 
             customer: {
                 id: user.id,
                 fullName: user.fullName,
-                phone: user.phone,
+                phone: user.phone || cleanPhone || rawInput,
                 email: user.email,
-                address: user.address,
+                address: user.address || "",
                 role: user.role,
                 totalOrders: completedOrders.length,
                 totalSpent,
@@ -105,7 +178,7 @@ router.get("/lookup", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", 
         });
     }
     catch (err) {
-        return res.status(500).json({ error: "Lỗi tra cứu khách hàng: " + err.message });
+        return res.status(500).json({ error: "Lỗi truy vấn CSDL người dùng: " + err.message });
     }
 });
 // POST /api/users/quick-customer (Staff, Manager & Admin quick create walk-in customer profile)
@@ -117,12 +190,15 @@ router.post("/quick-customer", auth_1.authenticateToken, (0, auth_1.authorize)([
         }
         const trimmedPhone = String(phone).trim();
         const cleanPhone = trimmedPhone.replace(/\D/g, "");
-        // Check if customer already exists
+        const last9 = cleanPhone.length >= 9 ? cleanPhone.slice(-9) : cleanPhone;
+        // Check if customer already exists in DB
         const existing = await db_1.db.user.findFirst({
             where: {
                 OR: [
                     { phone: trimmedPhone },
-                    { phone: cleanPhone }
+                    { phone: cleanPhone },
+                    ...(last9.length >= 8 ? [{ phone: { contains: last9 } }] : []),
+                    ...(cleanPhone.length >= 8 ? [{ email: { contains: cleanPhone } }] : [])
                 ]
             }
         });

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   Store, 
   Search, 
   UserCheck, 
   UserPlus, 
   Phone, 
+  Mail,
   User as UserIcon, 
   ShieldCheck, 
   Award, 
@@ -55,17 +56,24 @@ export const CounterPosView: React.FC<CounterPosViewProps> = ({ onNavigateWareho
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [isLookingUpCustomer, setIsLookingUpCustomer] = useState(false);
+  const [lookupStatus, setLookupStatus] = useState<"idle" | "searching" | "found" | "not_found" | "error">("idle");
+  const [lookupErrorMsg, setLookupErrorMsg] = useState("");
+  const [searchMode, setSearchMode] = useState<"phone" | "email">("phone");
   const [customerInfo, setCustomerInfo] = useState<{
     found: boolean;
     id?: string;
     fullName?: string;
     phone?: string;
+    email?: string;
+    address?: string;
+    role?: string;
     loyaltyPoints?: number;
     totalOrders?: number;
     totalSpent?: number;
     recentOrders?: any[];
   } | null>(null);
   const [showRecentOrdersModal, setShowRecentOrdersModal] = useState(false);
+  const lookupTimerRef = useRef<any>(null);
 
   // 3. In-Store Counter Cart State
   const [cartItems, setCartItems] = useState<{
@@ -201,51 +209,83 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
     fetchData();
   }, [productSearch, selectedCategory]);
 
-  // Handle Customer Phone Lookup
-  const handleLookupPhone = async (phoneToLookup?: string) => {
-    const rawPhone = (phoneToLookup || customerPhone).trim();
-    if (!rawPhone || rawPhone.length < 8) return;
+  // Handle Customer Phone / Email Lookup in Database
+  const handleLookupPhone = async (inputToLookup?: string) => {
+    const rawInput = (inputToLookup !== undefined ? inputToLookup : customerPhone).trim();
+    if (!rawInput || rawInput.length < 5) {
+      setLookupStatus("idle");
+      setCustomerInfo(null);
+      return;
+    }
 
     setIsLookingUpCustomer(true);
+    setLookupStatus("searching");
+    setLookupErrorMsg("");
     setOrderError("");
+
     try {
-      const res = await api.lookupCustomer(rawPhone);
+      const res = await api.lookupCustomer(rawInput);
       if (res.found && res.customer) {
         setCustomerInfo({
           found: true,
           id: res.customer.id,
           fullName: res.customer.fullName,
           phone: res.customer.phone,
+          email: res.customer.email,
+          address: res.customer.address,
+          role: res.customer.role,
           loyaltyPoints: res.customer.loyaltyPoints || 0,
           totalOrders: res.customer.totalOrders || 0,
           totalSpent: res.customer.totalSpent || 0,
           recentOrders: res.customer.recentOrders || []
         });
         setCustomerName(res.customer.fullName || "");
+        setLookupStatus("found");
       } else {
-        setCustomerInfo({
-          found: false
-        });
-        if (!customerName) {
+        setCustomerInfo({ found: false });
+        setLookupStatus("not_found");
+        if (!customerName || customerName === "Khách lẻ") {
           setCustomerName("Khách lẻ");
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Lookup failed:", err);
+      setLookupStatus("error");
+      setLookupErrorMsg(err.message || "Lỗi kết nối truy vấn CSDL người dùng.");
       setCustomerInfo({ found: false });
     } finally {
       setIsLookingUpCustomer(false);
     }
   };
 
-  // Debounced auto-lookup when 10 digits entered
+  // Debounced auto-lookup when 9-11 digits or email entered
   useEffect(() => {
-    const clean = customerPhone.replace(/\D/g, "");
-    if (clean.length === 10) {
-      handleLookupPhone(clean);
-    } else if (clean.length === 0) {
+    const trimmed = customerPhone.trim();
+    const cleanDigits = trimmed.replace(/\D/g, "");
+
+    if (!trimmed) {
+      setLookupStatus("idle");
       setCustomerInfo(null);
+      if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
+      return;
     }
+
+    // Tự động kích hoạt tra cứu CSDL khi người dùng nhập đủ 9-11 số hoặc chứa @
+    if (trimmed.includes("@") || (cleanDigits.length >= 9 && cleanDigits.length <= 11)) {
+      if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
+      lookupTimerRef.current = setTimeout(() => {
+        handleLookupPhone(trimmed);
+      }, 500);
+    } else {
+      // Khi đang gõ chưa đủ số, giữ trạng thái idle nếu chưa từng search
+      if (lookupStatus !== "searching") {
+        setLookupStatus("idle");
+      }
+    }
+
+    return () => {
+      if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
+    };
   }, [customerPhone]);
 
   // Cart operations
@@ -805,102 +845,225 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
                 1. Thông Tin Khách Hàng Tại Quầy
               </h3>
               {customerInfo?.found && (
-                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  Khách thân thiết
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black flex items-center gap-1 shadow-xs">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Đã Có Tài Khoản CSDL
                 </span>
               )}
             </div>
 
-            {/* Phone Input with Instant Lookup */}
+            {/* Mode Switcher: Tìm bằng SĐT hoặc Email */}
+            <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchMode("phone");
+                  setLookupStatus("idle");
+                  setCustomerInfo(null);
+                }}
+                className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  searchMode === "phone" 
+                    ? "bg-white text-slate-900 shadow-xs border border-slate-200/80" 
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Phone className="w-3.5 h-3.5 text-rose-600" />
+                <span>Tra Cứu Bằng SĐT</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchMode("email");
+                  setLookupStatus("idle");
+                  setCustomerInfo(null);
+                }}
+                className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  searchMode === "email" 
+                    ? "bg-white text-slate-900 shadow-xs border border-slate-200/80" 
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Tra Cứu Bằng Email</span>
+              </button>
+            </div>
+
+            {/* Input with Instant Lookup */}
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Số Điện Thoại Khách Hàng <span className="text-rose-600">*</span>
+                {searchMode === "phone" ? "Số Điện Thoại Khách Hàng" : "Email Tài Khoản Khách Hàng"} <span className="text-rose-600">*</span>
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <input
-                    type="tel"
-                    placeholder="VD: 0912345678 (Nhập để tra cứu/tích điểm)"
+                    type={searchMode === "phone" ? "tel" : "email"}
+                    placeholder={
+                      searchMode === "phone" 
+                        ? "VD: 0912345678 (Nhập để kiểm tra CSDL user)" 
+                        : "VD: customer@example.com (Nhập email đăng ký)"
+                    }
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleLookupPhone()}
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all text-slate-900"
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all text-slate-900"
                   />
-                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  {searchMode === "phone" ? (
+                    <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  ) : (
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={() => handleLookupPhone()}
                   disabled={isLookingUpCustomer || !customerPhone.trim()}
-                  className="px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 shrink-0"
+                  className="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors disabled:opacity-50 shrink-0 flex items-center gap-1.5 shadow-sm"
                 >
-                  {isLookingUpCustomer ? "..." : "Tra cứu"}
+                  {isLookingUpCustomer ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Đang kiểm tra...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-3.5 h-3.5" />
+                      <span>Tra cứu</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
 
-            {/* Customer Recognition Badge */}
-            {customerInfo?.found ? (
-              <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+            {/* 1. Trạng thái Đang Tra Cứu CSDL */}
+            {isLookingUpCustomer && (
+              <div className="p-3.5 rounded-2xl bg-indigo-50/80 border border-indigo-200 flex items-center gap-2.5 text-indigo-700 animate-pulse">
+                <Loader2 className="w-4 h-4 text-indigo-600 animate-spin shrink-0" />
+                <span className="text-xs font-bold">Đang kết nối CSDL và tra cứu tài khoản người dùng...</span>
+              </div>
+            )}
+
+            {/* 2. Trạng thái ĐÃ TÌM THẤY TRONG CSDL */}
+            {!isLookingUpCustomer && customerInfo?.found && (
+              <div className="p-4 rounded-2xl bg-emerald-50/90 border border-emerald-300 space-y-3 shadow-xs animate-in fade-in duration-200">
+                <div className="flex items-center justify-between pb-2 border-b border-emerald-200/60">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-sm shadow-sm">
                       {customerInfo.fullName?.charAt(0) || "K"}
                     </div>
                     <div>
-                      <p className="text-xs font-extrabold text-slate-900">{customerInfo.fullName}</p>
-                      <p className="text-[11px] text-emerald-800 font-medium">SĐT: {customerInfo.phone}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-black text-slate-900">{customerInfo.fullName}</p>
+                        <span className="px-1.5 py-0.2 rounded bg-emerald-200/80 text-emerald-900 text-[9px] font-bold">
+                          {customerInfo.role || "CUSTOMER"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-emerald-800 font-semibold mt-0.5">
+                        SĐT: <strong className="text-slate-900">{customerInfo.phone}</strong>
+                      </p>
                     </div>
                   </div>
+
                   <div className="text-right">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-300">
-                      <Award className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-900 bg-emerald-200/90 px-2.5 py-1 rounded-xl border border-emerald-300/80 shadow-xs">
+                      <Award className="w-3.5 h-3.5 text-amber-600" />
                       {customerInfo.loyaltyPoints?.toLocaleString("vi-VN")} điểm
                     </span>
-                    <p className="text-[10px] text-slate-500 mt-0.5 font-medium">{customerInfo.totalOrders} đơn đã mua</p>
+                    <p className="text-[10px] text-slate-600 mt-1 font-semibold">{customerInfo.totalOrders} đơn đã mua</p>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700">
+                  {customerInfo.email && (
+                    <div className="truncate">
+                      <span className="text-slate-500">Email:</span> <strong className="text-slate-800">{customerInfo.email}</strong>
+                    </div>
+                  )}
+                  {customerInfo.address && (
+                    <div className="truncate">
+                      <span className="text-slate-500">Đ/c:</span> <strong className="text-slate-800">{customerInfo.address}</strong>
+                    </div>
+                  )}
                 </div>
 
                 {customerInfo.recentOrders && customerInfo.recentOrders.length > 0 && (
                   <div className="pt-2 border-t border-emerald-200/60 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-600">Bảo hành gần nhất: <strong className="text-slate-900">{customerInfo.recentOrders[0].id}</strong></span>
+                    <span className="text-slate-600">
+                      Đơn gần nhất: <strong className="text-slate-900">{customerInfo.recentOrders[0].id}</strong>
+                    </span>
                     <button
                       type="button"
                       onClick={() => setShowRecentOrdersModal(true)}
-                      className="text-emerald-700 hover:text-emerald-900 font-bold underline flex items-center gap-0.5"
+                      className="text-emerald-800 hover:text-emerald-950 font-bold underline flex items-center gap-1 transition-colors"
                     >
-                      <History className="w-3 h-3" />
-                      Xem lịch sử
+                      <History className="w-3.5 h-3.5" />
+                      Xem lịch sử ({customerInfo.recentOrders.length} đơn)
                     </button>
                   </div>
                 )}
               </div>
-            ) : customerPhone.length >= 9 && !isLookingUpCustomer ? (
-              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
-                <div className="flex items-center gap-1.5 font-bold text-amber-800">
-                  <UserPlus className="w-4 h-4 text-amber-600" />
-                  <span>Khách Lẻ Mới (Tạo nhanh hồ sơ tại quầy)</span>
+            )}
+
+            {/* 3. Trạng thái CHƯA TÌM THẤY TRONG CSDL */}
+            {!isLookingUpCustomer && lookupStatus === "not_found" && (
+              <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-900 text-xs space-y-3 animate-in fade-in duration-200">
+                <div className="flex items-center gap-2 font-bold text-amber-900">
+                  <UserPlus className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Chưa có tài khoản trong CSDL (Khách Lẻ Mới)</span>
                 </div>
-                <p className="text-[11px] text-amber-700 leading-relaxed">
-                  Số điện thoại này chưa có trên hệ thống. Hệ thống sẽ <strong>tự động tạo hồ sơ khách lẻ</strong> để lưu lịch sử bảo hành và tích điểm sau khi hoàn tất đơn!
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Đã truy vấn CSDL người dùng: Không tìm thấy tài khoản liên kết với thông tin <strong>"{customerPhone}"</strong>. Hệ thống sẽ <strong>tự động tạo hồ sơ khách lẻ và tích điểm</strong> cho khách sau khi xuất hóa đơn!
                 </p>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Tên Khách Hàng (Tùy chọn)
+                    Tên Khách Hàng (Tùy chọn ghi nhận hóa đơn)
                   </label>
                   <input
                     type="text"
                     placeholder="VD: Anh Minh, Chị Lan (hoặc để mặc định)"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white border border-amber-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-amber-500"
+                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                   />
                 </div>
+                <div className="pt-1 flex items-center justify-between text-[11px]">
+                  <span className="text-amber-700">Khách đã đăng ký bằng Email?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchMode("email");
+                      setCustomerPhone("");
+                      setLookupStatus("idle");
+                    }}
+                    className="text-amber-900 font-bold underline hover:text-amber-950 flex items-center gap-1"
+                  >
+                    <Mail className="w-3 h-3" />
+                    Chuyển sang tìm theo Email
+                  </button>
+                </div>
               </div>
-            ) : (
+            )}
+
+            {/* 4. Trạng thái GẶP LỖI HỆ THỐNG */}
+            {!isLookingUpCustomer && lookupStatus === "error" && (
+              <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-900 text-xs flex items-center justify-between gap-3 animate-in fade-in duration-200">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span className="font-semibold text-[11px]">{lookupErrorMsg || "Lỗi truy vấn CSDL."}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleLookupPhone()}
+                  className="px-2.5 py-1 rounded-lg bg-red-600 text-white font-bold text-[10px] hover:bg-red-700 transition-colors shrink-0"
+                >
+                  Thử lại
+                </button>
+              </div>
+            )}
+
+            {/* 5. Trạng thái Chờ Nhập (Idle) */}
+            {!isLookingUpCustomer && lookupStatus === "idle" && !customerInfo?.found && (
               <p className="text-[11px] text-slate-400 italic">
-                * Nhập 10 số điện thoại để tra cứu điểm tích lũy và lịch sử bảo hành của khách.
+                * Nhập số điện thoại (10 số) hoặc email để hệ thống tự động truy vấn CSDL, nhận diện khách hàng và tích điểm bảo hành.
               </p>
             )}
           </div>
