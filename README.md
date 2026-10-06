@@ -14,7 +14,7 @@
 [![Prisma ORM](https://img.shields.io/badge/Prisma-5.22.0-2D3748.svg)](https://www.prisma.io/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Test_Suite-18%2F18_Pass_(100%25)-success.svg)](https://github.com/tiennguyen0902/TPKSTORE)
+[![Tests](https://img.shields.io/badge/Test_Suite-20%2F20_Pass_(100%25)-success.svg)](https://github.com/tiennguyen0902/TPKSTORE)
 
 ---
 
@@ -220,29 +220,36 @@ Hệ thống giải quyết bài toán quản trị tài chính cốt lõi của
 ---
 
 ### 3.3. Phân Quyền Đa Tầng (RBAC 4 Cấp Độ Độc Lập)
-Hệ thống thiết lập hàng rào bảo mật nghiêm ngặt theo 4 vai trò độc lập:
-1. 👑 **ADMIN (Quản trị viên tối cao)**:
-   - Toàn quyền quản trị hệ thống: Báo cáo Doanh thu, Lợi nhuận, Giá vốn, Dashboard KPI.
-   - **Độc quyền** thêm mới, chỉnh sửa giá bán, cập nhật mô tả và xóa sản phẩm.
-   - Quản trị người dùng, phân vai trò, kích hoạt/hủy quyền Chat AI hàng loạt.
-   - Cấu hình mô hình AI hệ thống (Local Ollama, Google Gemini 3.x+).
-   - Truy cập giao diện Bán hàng tại quầy POS.
-2. 👔 **MANAGER (Quản lý kho hàng)**:
-   - Kiểm soát toàn bộ hoạt động xuất - nhập kho (Inbound / Outbound).
-   - Kiểm tra, đối chiếu và **phê duyệt hoặc từ chối** phiếu xuất/nhập do nhân viên lập.
-   - Lọc danh sách phiếu kho theo từng nhân viên lập phiếu.
-   - Theo dõi mức tồn kho, cảnh báo an toàn kho và dự báo cạn hàng AI.
-   - **Chế độ Chỉ Xem (Read-only)** đối với danh mục sản phẩm: Không có quyền thêm/sửa/xóa sản phẩm để đảm bảo an toàn dữ liệu kinh doanh.
-   - Truy cập giao diện POS để hỗ trợ bán hàng khi quầy đông khách.
-3. 👷 **STAFF (Nhân viên vận hành & tư vấn bán hàng)**:
-   - **Bán hàng tại quầy POS**: Tìm kiếm sản phẩm, nhập SĐT khách lẻ, xuất hóa đơn, tích điểm và cấp bảo hành điện tử.
-   - Tiếp nhận và xử lý đơn hàng trực tuyến của khách hàng.
-   - Lập phiếu đề xuất Nhập kho (`IMPORT`) hoặc Xuất kho (`EXPORT`) gửi Manager duyệt.
-   - Tra cứu nhanh tồn kho tức thì phục vụ tư vấn khách.
-4. 🛒 **CUSTOMER (Khách hàng)**:
-   - Mua sắm trực tuyến, tìm kiếm sản phẩm, đặt hàng giao tận nơi.
-   - Tra cứu lịch sử đơn hàng, xem thời hạn bảo hành điện tử theo SĐT.
-   - Trò chuyện với Trợ lý AI bằng giọng nói tiếng Việt hoặc hình ảnh.
+
+Hệ thống thiết lập hàng rào bảo mật nghiêm ngặt theo 4 vai trò độc lập với ranh giới đặc quyền chuẩn hóa:
+
+#### 👑 ADMIN (Quản trị viên tối cao)
+* **Quản lý Master Data của sản phẩm**: Toàn quyền quản trị dữ liệu gốc của sản phẩm (tên, thông số kỹ thuật, hình ảnh, biến thể).
+* **Giá**: Quản lý giá bán, giá niêm yết, giá vốn (cost) và biên lợi nhuận sản phẩm.
+* **Danh mục**: Toàn quyền CRUD các danh mục sản phẩm (Category).
+* **Tài khoản**: Quản trị tài khoản người dùng, phân quyền các vai trò trong hệ thống, cấp quyền truy cập.
+* **Doanh thu**: Giám sát doanh thu toàn bộ hệ thống, báo cáo lãi/lỗ chi tiết, phân tích dòng tiền và dự báo tài chính AI (Prophet-ARIMA).
+* **Toàn bộ hệ thống**: Cấu hình các cổng thanh toán, thiết lập AI Provider (Gemini API Cloud / Ollama Local), giám sát Architecture Studio và toàn bộ hệ thống.
+
+#### 👔 MANAGER (Quản lý kho hàng)
+* **Quản lý nghiệp vụ kho**: Điều hành toàn bộ hoạt động xuất - nhập kho và kiểm soát hàng tồn kho.
+* **Nhập kho**: Lập và thực thi các phiếu nhập kho từ nhà cung cấp.
+* **Xuất kho**: Lập các phiếu xuất kho điều chuyển, xuất mẫu hoặc xuất quầy.
+* **Duyệt yêu cầu**: Thẩm định và phê duyệt hoặc từ chối các yêu cầu xuất kho từ nhân viên bán hàng (STAFF) hoặc đề xuất từ AI.
+* **Kiểm kê**: Thực hiện kiểm đếm thực tế và đối chiếu với số liệu hệ thống.
+* **Điều chỉnh tồn**: Điều chỉnh số lượng tồn kho theo số liệu kiểm kê thực tế (`POST /api/inventory/adjustment`), tự động ghi nhật ký bất biến `StockMovement`.
+* **Cảnh báo tồn kho**: Theo dõi danh sách cảnh báo cạn kho thông minh (Smart Inventory & Safety Stock Alerts), thời gian cạn hàng dự kiến.
+* **Xem thông tin sản phẩm**: Tra cứu danh sách và chi tiết sản phẩm ở chế độ chỉ đọc (Read-only); **không có quyền** sửa tên, giá bán, danh mục hay xóa sản phẩm.
+
+#### 👷 STAFF (Nhân viên bán hàng)
+* **Bán hàng**: Thao tác giao diện Bán hàng tại quầy (POS Mode), tạo đơn hàng nhanh cho khách lẻ bằng số điện thoại, xuất hóa đơn và kích hoạt bảo hành điện tử.
+* **Xem tồn**: Tra cứu tức thì số lượng tồn kho khả dụng của từng mã sản phẩm để phục vụ bán hàng.
+* **Yêu cầu xuất kho**: Lập phiếu yêu cầu xuất kho (phiếu loại `EXPORT` ở trạng thái `PENDING`) khi cần lấy hàng từ kho; **không có quyền** tự duyệt phiếu và không có quyền lập phiếu nhập kho.
+* **Tư vấn khách**: Sử dụng Trợ lý AI Bán hàng tra cứu nhanh sản phẩm phù hợp với nhu cầu, tầm giá và sở thích của khách hàng.
+
+#### 🛒 CUSTOMER (Khách hàng)
+* **Mua hàng**: Khám phá danh mục, tìm kiếm thông minh, thêm vào giỏ hàng, đặt hàng trực tuyến (COD, VNPAY, MoMo), theo dõi trạng thái đơn hàng cá nhân.
+* **Nhận tư vấn sản phẩm**: Trò chuyện với Trợ lý AI tư vấn chọn sản phẩm (Cloud API hoặc Local AI); **hệ thống tự động ngăn chặn** các câu hỏi liên quan đến doanh thu nội bộ, lợi nhuận hoặc giá vốn cửa hàng.
 
 ---
 
@@ -354,6 +361,8 @@ All 4 roles authenticated successfully.
 [PASS] INV-03: STAFF cannot approve stock tickets (403 Forbidden)
 [PASS] INV-04: MANAGER approves EXPORT -> stock decremented & StockMovement logged
 [PASS] INV-05: MANAGER approves IMPORT -> stock incremented & StockMovement logged
+[PASS] INV-06: MANAGER inventory check & stock adjustment -> stock updated & StockMovement logged
+[PASS] INV-07: STAFF cannot perform stock adjustment (403 Forbidden)
 
 --- 3. AI Provider & Orchestration Matrix ---
 [PASS] AI-01: CUSTOMER AI advice via API Provider (200 OK)
@@ -369,7 +378,7 @@ All 4 roles authenticated successfully.
 [PASS] ORDER-01: Order creation decrements stock and writes StockMovement (SALE)
 [PASS] ORDER-02: Order cancellation restores stock and writes StockMovement (SALE_CANCEL)
 ================================================================
-TEST RESULTS: 18/18 PASSED (0 FAILED)
+TEST RESULTS: 20/20 PASSED (0 FAILED)
 ================================================================
 ```
 

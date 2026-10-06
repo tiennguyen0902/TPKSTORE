@@ -4,16 +4,37 @@ Tài liệu này hướng dẫn chi tiết cách cấu hình, vận hành kiến
 
 ---
 
-## 1. Tổng quan Kiến Trúc Phân Tầng
+## 1. Mô Hình Phân Quyền Đa Tầng (RBAC 4 Vai Trò)
 
-Hệ thống hỗ trợ 4 vai trò độc lập với Tool Registry phân quyền chặt chẽ:
+Hệ thống thiết lập ranh giới quyền hạn chuẩn hóa theo 4 vai trò độc lập:
 
-| Vai trò | Phân quyền Nghiệp Vụ | Công cụ AI cho phép | Giới hạn / Cấm |
-| :--- | :--- | :--- | :--- |
-| **ADMIN** | Quản trị toàn quyền: CRUD Sản phẩm, Danh mục, Xem doanh thu toàn cửa hàng, Quản lý tài khoản | AI Chat, Business QA, Dự báo doanh thu (`forecast`), Đề xuất nhập kho (`stock-proposal`), Cấu hình AI Provider | Không giới hạn |
-| **MANAGER** | Quản lý kho: Tạo/Duyệt phiếu nhập-xuất (`StockTicket`), Kiểm tra biến động tồn kho (`StockMovement`) | AI Chat, Trợ lý kho (`inventory-assistant`), Đề xuất nhập kho (`stock-proposal`) | **CẤM** CRUD sản phẩm/danh mục, **CẤM** xem doanh thu toàn sàn |
-| **STAFF** | Bán hàng POS tại quầy, Tra cứu tồn kho, Tạo phiếu xuất kho (`EXPORT`) | AI Chat, Tra cứu thông tin tồn kho (`inventory-assistant`) | **CẤM** duyệt phiếu kho, **CẤM** tạo phiếu nhập kho (`IMPORT`), **CẤM** sửa sản phẩm |
-| **CUSTOMER** | Mua sắm, Xem lịch sử đơn cá nhân, Nhận tư vấn sản phẩm | AI Chat tư vấn chọn sản phẩm (Cả Cloud API & Local) | **CẤM** hỏi doanh thu, lãi lỗ, bí mật kinh doanh (Hệ thống trả mã HTTP 403) |
+### 👑 ADMIN
+- **Quản lý Master Data của sản phẩm**: Toàn quyền CRUD dữ liệu sản phẩm, hình ảnh, thông số kỹ thuật (specs), biến thể.
+- **Giá**: Quản lý giá bán, giá niêm yết, giá vốn (cost 75%) và biên lợi nhuận (25%).
+- **Danh mục**: Toàn quyền CRUD danh mục sản phẩm (Category).
+- **Tài khoản**: Quản trị tài khoản người dùng, phân quyền các vai trò, bật/tắt quyền Chat AI.
+- **Doanh thu**: Xem và phân tích toàn bộ doanh thu, lợi nhuận, dòng tiền, báo cáo bán hàng và dự báo tài chính AI (Prophet-ARIMA).
+- **Toàn bộ hệ thống**: Cấu hình cổng thanh toán, thiết lập AI Provider (Gemini API Cloud / Ollama Local), kiểm soát Architecture Studio và toàn bộ hệ thống.
+
+### 👔 MANAGER
+- **Quản lý nghiệp vụ kho**: Điều hành toàn bộ hoạt động xuất/nhập kho và giám sát tồn kho.
+- **Nhập kho**: Tạo và duyệt các phiếu nhập kho (`IMPORT`) bổ sung hàng từ nhà cung cấp.
+- **Xuất kho**: Tạo và duyệt các phiếu xuất kho (`EXPORT`) điều chuyển hàng.
+- **Duyệt yêu cầu**: Thẩm định và duyệt hoặc từ chối các yêu cầu xuất kho từ nhân viên (STAFF) và đề xuất nhập kho từ AI.
+- **Kiểm kê**: Tiến hành kiểm kê thực tế tại kho và đối chiếu số liệu hệ thống.
+- **Điều chỉnh tồn**: Thực hiện điều chỉnh tồn kho theo biên bản kiểm kê (`POST /api/inventory/adjustment`), tự động ghi nhật ký bất biến `StockMovement`.
+- **Cảnh báo tồn kho**: Theo dõi cảnh báo cạn kho thông minh (Smart Safety Stock Analyzer), xem thời gian cạn hàng dự kiến.
+- **Xem thông tin sản phẩm**: Tra cứu danh sách và thông số sản phẩm ở chế độ chỉ đọc (Read-only); **không được phép** sửa giá, danh mục, tên hay xóa sản phẩm.
+
+### 👷 STAFF
+- **Bán hàng**: Thao tác giao diện Bán hàng tại quầy (POS Mode), tạo đơn cho khách lẻ qua SĐT, xuất hóa đơn và kích hoạt bảo hành điện tử.
+- **Xem tồn**: Tra cứu tức thì số lượng tồn kho khả dụng để tư vấn cho khách.
+- **Yêu cầu xuất kho**: Lập phiếu yêu cầu xuất kho (loại `EXPORT` ở trạng thái `PENDING`) khi cần lấy hàng ra quầy bán; **không được phép** tự duyệt phiếu và không được tạo phiếu nhập kho.
+- **Tư vấn khách**: Sử dụng Trợ lý AI Bán hàng tra cứu nhanh sản phẩm phù hợp theo nhu cầu và ngân sách của khách.
+
+### 🛍️ CUSTOMER
+- **Mua hàng**: Khám phá sản phẩm, tìm kiếm thông minh, thêm giỏ hàng, đặt hàng trực tuyến (COD, VNPAY, MoMo), theo dõi đơn hàng cá nhân.
+- **Nhận tư vấn sản phẩm**: Trò chuyện với Trợ lý AI tư vấn sản phẩm (chọn giữa Gemini Cloud và Local AI); **hệ thống tự động ngăn chặn** các câu hỏi liên quan đến doanh thu nội bộ, lợi nhuận hoặc giá vốn cửa hàng.
 
 ---
 

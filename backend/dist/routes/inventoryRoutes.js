@@ -309,4 +309,50 @@ router.put("/tickets/:id/reject", auth_1.authenticateToken, (0, auth_1.authorize
         return res.status(500).json({ error: "Lỗi từ chối phiếu: " + err.message });
     }
 });
+// POST /api/inventory/adjustment - Nghiệp vụ Kiểm kê & Điều chỉnh tồn kho (Chỉ MANAGER & ADMIN)
+router.post("/adjustment", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER"]), async (req, res) => {
+    try {
+        const { productId, actualStock, reason, note } = req.body;
+        if (!productId || actualStock === undefined || actualStock === null) {
+            return res.status(400).json({ error: "Vui lòng chọn sản phẩm và nhập số lượng tồn thực tế sau kiểm kê." });
+        }
+        const targetStock = parseInt(String(actualStock), 10);
+        if (isNaN(targetStock) || targetStock < 0) {
+            return res.status(400).json({ error: "Số lượng tồn thực tế phải là số nguyên không âm (>= 0)." });
+        }
+        const product = await db_1.db.product.findUnique({ where: { id: productId } });
+        if (!product) {
+            return res.status(404).json({ error: "Không tìm thấy sản phẩm." });
+        }
+        const beforeStock = typeof product.stock === "number" ? product.stock : (parseInt(String(product.stock)) || 0);
+        const diff = targetStock - beforeStock;
+        const result = await db_1.db.$transaction(async (tx) => {
+            // 1. Cập nhật tồn kho sản phẩm về số lượng thực tế kiểm kê
+            const updatedProduct = await tx.product.update({
+                where: { id: productId },
+                data: { stock: targetStock }
+            });
+            // 2. Ghi nhật ký biến động kho bất biến StockMovement (ADJUSTMENT)
+            const movement = await tx.stockMovement.create({
+                data: {
+                    productId,
+                    quantity: diff,
+                    type: "ADJUSTMENT",
+                    beforeStock,
+                    afterStock: targetStock,
+                    createdById: req.user.id,
+                    note: `Kiểm kê kho: ${reason || "Điều chỉnh chênh lệch kiểm kê"} (${diff >= 0 ? "+" : ""}${diff} SP). ${note || ""}`.trim()
+                }
+            });
+            return { product: updatedProduct, movement };
+        });
+        return res.status(200).json({
+            message: `Đã hoàn tất kiểm kê và điều chỉnh tồn kho cho "${product.name}" từ ${beforeStock} -> ${targetStock} SP!`,
+            ...result
+        });
+    }
+    catch (err) {
+        return res.status(500).json({ error: "Lỗi điều chỉnh tồn kho: " + err.message });
+    }
+});
 exports.default = router;

@@ -915,5 +915,17 @@ export const api = {
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "Từ chối phiếu thất bại");
     return json;
+  },
+
+  async adjustInventory(data: { productId: string; actualStock: number; reason?: string; note?: string }) {
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
+    const res = await fetch(`${API_BASE}/inventory/adjustment`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Điều chỉnh tồn kho thất bại");
+    return json;
   }
 };

@@ -38,43 +38,45 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const navSections = isManager ? [
     {
-      title: "QUẢN LÝ KHO",
+      title: "NGHIỆP VỤ KHO HÀNG",
       items: [
-        { id: "admin_inventory", label: "Quản Lý Kho Hàng", icon: <Boxes className="w-4 h-4 text-blue-500" /> },
-        { id: "admin_stock_tickets", label: "Duyệt Xuất / Nhập Kho", icon: <ArrowDownToLine className="w-4 h-4 text-rose-500" /> }
+        { id: "admin_stock_tickets", label: "Duyệt Yêu Cầu & Nhập/Xuất", icon: <ArrowDownToLine className="w-4 h-4 text-rose-500" /> },
+        { id: "admin_inventory", label: "Quản Lý Kho & Kiểm Kê", icon: <Boxes className="w-4 h-4 text-blue-500" /> },
+        { id: "admin_inventory_alerts", label: "Cảnh Báo Tồn Kho AI", icon: <AlertTriangle className="w-4 h-4 text-amber-500" /> },
+        { id: "admin_products", label: "Xem Thông Tin Sản Phẩm", icon: <Package className="w-4 h-4 text-slate-500" /> }
       ]
     }
   ] : [
     {
-      title: "TỔNG QUAN",
+      title: "DOANH THU & TỔNG QUAN",
       items: [
-        { id: "admin_dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
-        { id: "admin_pos", label: "Tư Vấn Khách Hàng & POS", icon: <Store className="w-4 h-4 text-blue-500" /> }
+        { id: "admin_dashboard", label: "Doanh Thu & Báo Cáo", icon: <LayoutDashboard className="w-4 h-4 text-rose-500" /> },
+        { id: "admin_forecast", label: "AI Dự Báo Doanh Thu", icon: <TrendingUp className="w-4 h-4 text-emerald-400" /> },
+        { id: "admin_pos", label: "Bàn POS Bán Hàng", icon: <Store className="w-4 h-4 text-blue-500" /> }
       ]
     },
     {
-      title: "QUẢN LÝ SẢN PHẨM & KHO",
+      title: "MASTER DATA SẢN PHẨM",
+      items: [
+        { id: "admin_products", label: "Sản Phẩm & Giá Bán", icon: <Package className="w-4 h-4 text-rose-600" /> },
+        { id: "admin_categories", label: "Danh Mục Sản Phẩm", icon: <Tag className="w-4 h-4 text-indigo-500" /> },
+        { id: "admin_orders", label: "Quản Lý Đơn Hàng", icon: <ShoppingBag className="w-4 h-4 text-emerald-500" /> },
+        { id: "admin_customers", label: "Tài Khoản & Phân Quyền", icon: <Users className="w-4 h-4 text-purple-500" /> }
+      ]
+    },
+    {
+      title: "QUẢN TRỊ KHO & AI",
       items: [
         { id: "admin_stock_tickets", label: "Duyệt Xuất/Nhập Kho", icon: <ArrowDownToLine className="w-4 h-4 text-rose-500" /> },
-        { id: "admin_products", label: "Quản Lý Sản Phẩm", icon: <Package className="w-4 h-4 text-rose-600" /> },
-        { id: "admin_categories", label: "Danh Mục", icon: <Tag className="w-4 h-4 text-indigo-500" /> },
-        { id: "admin_orders", label: "Đơn Hàng", icon: <ShoppingBag className="w-4 h-4 text-emerald-500" /> },
-        { id: "admin_customers", label: "Khách Hàng & Phân Quyền", icon: <Users className="w-4 h-4 text-purple-500" /> },
-        { id: "admin_inventory", label: "Tồn Kho & Cảnh Báo", icon: <Boxes className="w-4 h-4 text-blue-500" /> }
-      ]
-    },
-    {
-      title: "TRÍ TUỆ NHÂN TẠO",
-      items: [
-        { id: "admin_studio", label: "Architecture Studio", icon: <Cpu className="w-4 h-4 text-rose-400" /> },
-        { id: "admin_forecast", label: "AI Dự Báo Doanh Thu", icon: <TrendingUp className="w-4 h-4 text-emerald-400" /> },
+        { id: "admin_inventory", label: "Tồn Kho & Kiểm Kê", icon: <Boxes className="w-4 h-4 text-blue-500" /> },
         { id: "admin_inventory_alerts", label: "Cảnh Báo Cạn Kho AI", icon: <AlertTriangle className="w-4 h-4 text-amber-400" /> }
       ]
     },
     {
-      title: "CÀI ĐẶT HỆ THỐNG",
+      title: "TOÀN BỘ HỆ THỐNG",
       items: [
-        { id: "admin_settings", label: "Cấu Hình Hệ Thống", icon: <Settings className="w-4 h-4" /> }
+        { id: "admin_studio", label: "Architecture Studio", icon: <Cpu className="w-4 h-4 text-rose-400" /> },
+        { id: "admin_settings", label: "Cấu Hình Toàn Bộ Hệ Thống", icon: <Settings className="w-4 h-4" /> }
       ]
     }
   ];

@@ -245,6 +245,41 @@ async function runTestSuite() {
     recordTest('INV-05', 'MANAGER approves IMPORT -> stock incremented & StockMovement logged', passed, `Stock: ${stockBefore} -> ${stockAfter}, Movement found: ${hasMovement}`);
   }
 
+  // INV-06: MANAGER performs inventory check & adjustment -> stock adjusted and StockMovement (ADJUSTMENT) logged
+  {
+    const targetAdjustmentStock = 30;
+    const adjustRes = await apiRequest('/inventory/adjustment', {
+      method: 'POST',
+      body: JSON.stringify({
+        productId: sampleProduct.id,
+        actualStock: targetAdjustmentStock,
+        reason: 'Manager routine inventory count audit',
+        note: 'Biên bản kiểm kê định kỳ'
+      })
+    }, managerToken);
+
+    const afterRes = await apiRequest(`/products/${sampleProduct.id}`, { method: 'GET' });
+    const stockAfter = afterRes.data?.stock;
+
+    const movRes = await apiRequest('/inventory/movements', { method: 'GET' }, managerToken);
+    const hasAdjustmentMovement = movRes.data?.movements?.some(m => m.productId === sampleProduct.id && m.type === 'ADJUSTMENT' && m.afterStock === targetAdjustmentStock);
+
+    const passed = adjustRes.status === 200 && stockAfter === targetAdjustmentStock && hasAdjustmentMovement;
+    recordTest('INV-06', 'MANAGER inventory check & stock adjustment -> stock updated & StockMovement logged', passed, `Stock set to ${targetAdjustmentStock}, Movement found: ${hasAdjustmentMovement}`);
+  }
+
+  // INV-07: STAFF attempts inventory adjustment -> Expect 403 Forbidden
+  {
+    const res = await apiRequest('/inventory/adjustment', {
+      method: 'POST',
+      body: JSON.stringify({
+        productId: sampleProduct.id,
+        actualStock: 99
+      })
+    }, staffToken);
+    recordTest('INV-07', 'STAFF cannot perform stock adjustment (403 Forbidden)', res.status === 403, `Status: ${res.status}`);
+  }
+
   // ---------------------------------------------------------
   // 3. AI PROVIDER & ORCHESTRATION MATRIX
   // ---------------------------------------------------------

@@ -314,10 +314,11 @@ const MainApp: React.FC = () => {
 
   const isAdminRoute = currentView.startsWith("admin_");
 
-  // Giới hạn quyền hạn Quản lý kho (MANAGER): Chỉ có quyền quản lý kho và duyệt nhập xuất kho
+  // Giới hạn quyền hạn Quản lý kho (MANAGER): Nghiệp vụ kho (Nhập/xuất, duyệt, kiểm kê, cảnh báo tồn, xem sản phẩm)
+  const isManagerAllowedView = ["admin_inventory", "admin_stock_tickets", "admin_inventory_alerts", "admin_products"].includes(currentView);
   const isManagerRestrictedView = !isLoading && user?.role === "MANAGER" && (
     currentView === "pos_counter" ||
-    (isAdminRoute && currentView !== "admin_inventory" && currentView !== "admin_stock_tickets")
+    (isAdminRoute && !isManagerAllowedView)
   );
 
   if (isManagerRestrictedView) {
