@@ -50,11 +50,47 @@ export const FloatingChatWidget: React.FC<{
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<"local" | "gemini">("local");
+  const [selectedProvider, setSelectedProvider] = useState<"local" | "gemini">(() => {
+    const saved = localStorage.getItem("tpk_ai_provider");
+    return saved === "gemini" ? "gemini" : "local";
+  });
+  const [providerInfo, setProviderInfo] = useState<{
+    apiAlive: boolean;
+    localAlive: boolean;
+    apiModel: string;
+    localModel: string;
+  }>({
+    apiAlive: true,
+    localAlive: true,
+    apiModel: "Gemini 3.5 Flash",
+    localModel: "LLaVA / Ollama"
+  });
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
+
+  // Lưu lựa chọn provider vào localStorage
+  const handleProviderSelect = (prov: "local" | "gemini") => {
+    setSelectedProvider(prov);
+    localStorage.setItem("tpk_ai_provider", prov);
+  };
+
+  // Nạp trạng thái sức khỏe mô hình AI API & AI Local từ Backend
+  useEffect(() => {
+    api.getAiProviders().then((res: any) => {
+      if (res && res.providers) {
+        const apiProv = res.providers.find((p: any) => p.id === "api");
+        const localProv = res.providers.find((p: any) => p.id === "local");
+        setProviderInfo({
+          apiAlive: apiProv?.health?.isAlive ?? true,
+          localAlive: localProv?.health?.isAlive ?? false,
+          apiModel: apiProv?.health?.model || "Gemini 3.5 Flash",
+          localModel: localProv?.health?.model || "LLaVA"
+        });
+      }
+    }).catch(() => {});
+  }, []);
 
   // Lắng nghe sự kiện toàn cục để mở hộp thoại Chat AI từ Navbar hoặc MobileBottomNav
   useEffect(() => {
@@ -75,21 +111,81 @@ export const FloatingChatWidget: React.FC<{
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
 
+  // Sinh thông điệp chào mừng & gợi ý câu hỏi thích ứng theo vai trò (Role Context)
+  const getWelcomeContent = () => {
+    const role = user?.role;
+    if (role === "ADMIN") {
+      return {
+        text: `Xin chào Quản trị viên ${user?.fullName || ""}! 👑\n\nTôi là **Trợ lý AI Điều hành Doanh nghiệp TPKSTORE**.\n- 📊 Phân tích số liệu doanh thu thực tế, giá vốn và tỷ suất lợi nhuận.\n- 🏆 Nhận diện mặt hàng bán chạy & mặt hàng cần xả kho.\n- 📈 Dự báo nhu cầu bán hàng và tổng kết KPI cửa hàng.\n- 🤖 Hỗ trợ chuyển đổi linh hoạt giữa **AI API (Gemini)** và **AI Local (Ollama)**.`,
+        quickReplies: [
+          "Tóm tắt doanh thu tuần này",
+          "Phân tích sản phẩm bán chạy",
+          "Dự báo nhu cầu tuần tới",
+          "Sản phẩm nào sắp cạn kho?"
+        ]
+      };
+    }
+    if (role === "MANAGER") {
+      return {
+        text: `Xin chào Quản lý kho ${user?.fullName || ""}! 📦\n\nTôi là **Trợ lý AI Quản lý Kho Hàng TPKSTORE**.\n- 🔍 Giám sát tồn kho thực tế, phát hiện hàng sắp hết.\n- 📝 Đề xuất lập phiếu nhập kho (StockTicket PENDING).\n- 📋 Theo dõi lịch sử biến động nhập/xuất kho bất biến.\n- 🤖 Cung cấp lựa chọn AI Local an toàn và AI API tốc độ cao.`,
+        quickReplies: [
+          "Sản phẩm nào sắp hết hàng?",
+          "Tạo đề xuất nhập kho",
+          "Xem tồn kho hiện tại",
+          "Lịch sử biến động kho"
+        ]
+      };
+    }
+    if (role === "STAFF") {
+      return {
+        text: `Xin chào ${user?.fullName || "Nhân viên bán hàng"}! 💼\n\nTôi là **Trợ lý AI Hỗ trợ POS Bán Hàng TPKSTORE**.\n- 💻 Tư vấn cấu hình và thiết bị phù hợp với ngân sách khách mua tại quầy.\n- 📦 Kiểm tra số lượng tồn kho khả dụng để bán.\n- 📷 Nhận diện thiết bị/phụ kiện qua ảnh chụp.\n- 🎙️ Đặt câu hỏi bằng giọng nói tiếng Việt tiện lợi.`,
+        quickReplies: [
+          "Tư vấn laptop cho khách 20 triệu",
+          "Kiểm tra tồn kho điện thoại",
+          "Tra cứu phụ kiện theo nhu cầu",
+          "Chính sách bảo hành 1 đổi 1"
+        ]
+      };
+    }
+    // CUSTOMER & Khách vãng lai
+    return {
+      text: `Xin chào Quý khách! 👋 Tôi là **Trợ lý Mua sắm Thông minh TPKSTORE**.\n\nTôi hỗ trợ:\n1. 🤖 **Chọn mô hình**: Chuyển đổi giữa AI Local (Ollama) và AI API (Gemini Cloud).\n2. 🎙️ **Giọng nói**: Bấm biểu tượng Micro để đặt câu hỏi bằng tiếng Việt.\n3. 📷 **Tìm kiếm bằng ảnh**: Tải ảnh thiết bị/phụ kiện để tìm kiếm sản phẩm tương tự.\n4. 🛍️ **Tư vấn sản phẩm**: So sánh thông số, giá bán và bảo hành chính hãng.`,
+      quickReplies: [
+        "So sánh hai sản phẩm này",
+        "Tư vấn điện thoại dưới 15 triệu",
+        "Tìm tai nghe chống ồn tốt",
+        "Chính sách đổi trả bảo hành"
+      ]
+    };
+  };
+
+  const welcomeData = getWelcomeContent();
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "msg_welcome",
       sender: "ai",
-      text: "Xin chào! 👋 Tôi là **Trợ lý AI Đa phương thức của SHOPBEE**.\n\nTôi hỗ trợ:\n1. 🤖 **Mô hình AI Local (Ollama/LLaVA)**: Hoạt động cục bộ bảo mật, trả lời tốc độ cao.\n2. 🎙️ **Truy vấn bằng Giọng nói**: Bấm biểu tượng Micro để đặt câu hỏi bằng tiếng Việt.\n3. 📷 **Nhận diện bằng Hình ảnh**: Tải ảnh thiết bị/phụ kiện để tôi tìm sản phẩm tương ứng trong kho hàng.\n4. 🛍️ **Tư vấn sản phẩm & Tri thức mở rộng**: Hỗ trợ mọi phân khúc giá, cấu hình, chính sách bảo hành 1 đổi 1 và giao nhanh 2 giờ.\n\nBạn cần hỗ trợ gì hôm nay?",
-      suggestedQuickReplies: [
-        "Tư vấn Laptop Gaming dưới 25tr",
-        "Tìm phụ kiện tai nghe chống ồn",
-        "Chính sách bảo hành 1 đổi 1",
-        "Kiểm tra mô hình AI Local"
-      ],
-      source: "SHOPBEE Local AI Vision",
+      text: welcomeData.text,
+      suggestedQuickReplies: welcomeData.quickReplies,
+      source: "TPKSTORE AI Orchestrator",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     }
   ]);
+
+  // Cập nhật lại tin nhắn chào mừng khi user đăng nhập hoặc đổi role
+  useEffect(() => {
+    const updated = getWelcomeContent();
+    setMessages([
+      {
+        id: `msg_welcome_${user?.role || "guest"}`,
+        sender: "ai",
+        text: updated.text,
+        suggestedQuickReplies: updated.quickReplies,
+        source: "TPKSTORE AI Orchestrator",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      }
+    ]);
+  }, [user?.role]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

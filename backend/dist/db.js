@@ -83,6 +83,8 @@ class FallbackStore {
     cartItems = [];
     aiInteractions = [];
     stockTickets = [];
+    stockMovements = [];
+    customers = [];
     dataDir;
     dataFilePath;
     hasLoggedFallback = false;
@@ -770,6 +772,57 @@ function createModelProxy(modelName) {
                         fallback.stockTickets = fallback.stockTickets.filter(t => t.id !== options.where?.id);
                         fallback.saveToFile();
                         return { success: true };
+                    }
+                }
+                if (modelName === "stockMovement") {
+                    if (method === "create") {
+                        const movement = {
+                            id: options.data.id || (0, uuid_1.v4)(),
+                            ...options.data,
+                            createdAt: new Date()
+                        };
+                        fallback.stockMovements.unshift(movement);
+                        return movement;
+                    }
+                    if (method === "findMany") {
+                        let list = [...fallback.stockMovements];
+                        if (options.where?.productId) {
+                            list = list.filter(m => m.productId === options.where.productId);
+                        }
+                        if (options.where?.type) {
+                            list = list.filter(m => m.type === options.where.type);
+                        }
+                        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                        return list;
+                    }
+                }
+                if (modelName === "customer") {
+                    if (method === "findFirst" || method === "findUnique") {
+                        const w = options.where || {};
+                        return fallback.customers.find(c => (w.id && c.id === w.id) ||
+                            (w.userId && c.userId === w.userId) ||
+                            (w.phone && c.phone === w.phone)) || null;
+                    }
+                    if (method === "findMany") {
+                        return [...fallback.customers];
+                    }
+                    if (method === "create") {
+                        const cust = {
+                            id: options.data.id || (0, uuid_1.v4)(),
+                            ...options.data,
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        };
+                        fallback.customers.unshift(cust);
+                        return cust;
+                    }
+                    if (method === "update") {
+                        const idx = fallback.customers.findIndex(c => c.id === options.where?.id || (options.where?.userId && c.userId === options.where.userId));
+                        if (idx !== -1) {
+                            fallback.customers[idx] = { ...fallback.customers[idx], ...options.data, updatedAt: new Date() };
+                            return fallback.customers[idx];
+                        }
+                        return null;
                     }
                 }
                 return null;

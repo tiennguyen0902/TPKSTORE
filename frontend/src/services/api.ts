@@ -712,10 +712,33 @@ export const api = {
     });
   },
 
-  async getAiForecast(days: number = 30): Promise<{ status: string; data: ForecastData }> {
+  async getAiProviders(): Promise<{ providers: any[] }> {
+    const res = await fetch(`${API_BASE}/ai/providers`, {
+      headers: { "Content-Type": "application/json", ...getAuthHeader() }
+    });
+    return res.json();
+  },
+
+  async getAiModels(): Promise<{ models: any[] }> {
+    const res = await fetch(`${API_BASE}/ai/models`, {
+      headers: { "Content-Type": "application/json", ...getAuthHeader() }
+    });
+    return res.json();
+  },
+
+  async createStockProposal(productId?: string, quantity?: number, reason?: string) {
+    const res = await fetch(`${API_BASE}/ai/stock-proposal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      body: JSON.stringify({ productId, quantity, reason })
+    });
+    return handleResponse(res, "Tạo đề xuất nhập kho thất bại");
+  },
+
+  async getAiForecast(days: number = 30): Promise<{ status: string; data?: ForecastData; message?: string; metrics?: any }> {
     const res = await fetch(`${API_BASE}/ai/forecast`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
       body: JSON.stringify({ days })
     });
     return res.json();
@@ -724,7 +747,7 @@ export const api = {
   async getInventoryAlerts(): Promise<{ status: string; alerts: InventoryAlert[] }> {
     const res = await fetch(`${API_BASE}/ai/inventory-alerts`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json", ...getAuthHeader() }
     });
     return res.json();
   },

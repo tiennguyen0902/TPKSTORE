@@ -195,6 +195,7 @@ router.get("/lookup", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]
 });
 
 // POST /api/users/quick-customer (Staff, Manager & Admin quick create walk-in customer profile)
+// Chuẩn hóa RBAC: Không tạo user ảo có password mặc định; lưu trữ an toàn trong bảng Customer
 router.post("/quick-customer", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { fullName, phone, address } = req.body;
@@ -206,8 +207,8 @@ router.post("/quick-customer", authenticateToken, authorize(["ADMIN", "MANAGER",
     const cleanPhone = trimmedPhone.replace(/\D/g, "");
     const last9 = cleanPhone.length >= 9 ? cleanPhone.slice(-9) : cleanPhone;
 
-    // Check if customer already exists in DB
-    const existing = await db.user.findFirst({
+    // 1. Kiểm tra tài khoản User chính thức nếu đã đăng ký tài khoản từ trước
+    const existingUser = await db.user.findFirst({
       where: {
         OR: [
           { phone: trimmedPhone },
@@ -218,46 +219,53 @@ router.post("/quick-customer", authenticateToken, authorize(["ADMIN", "MANAGER",
       }
     });
 
-    if (existing) {
-      if (fullName && String(fullName).trim() && existing.fullName !== String(fullName).trim()) {
-        const updated = await db.user.update({
-          where: { id: existing.id },
+    // 2. Kiểm tra hoặc tạo hồ sơ Customer
+    let existingCustomer = await db.customer.findFirst({
+      where: {
+        OR: [
+          { phone: trimmedPhone },
+          { phone: cleanPhone },
+          ...(existingUser ? [{ userId: existingUser.id }] : [])
+        ]
+      }
+    });
+
+    if (existingCustomer) {
+      if (fullName && String(fullName).trim() && existingCustomer.fullName !== String(fullName).trim()) {
+        existingCustomer = await db.customer.update({
+          where: { id: existingCustomer.id },
           data: { fullName: String(fullName).trim() }
-        });
-        return res.json({
-          isNew: false,
-          message: "Khách hàng thân thiết đã có trong hệ thống",
-          customer: updated
         });
       }
       return res.json({
         isNew: false,
-        message: "Khách hàng đã có trong hệ thống",
-        customer: existing
+        message: "Khách hàng thân thiết đã có trong hệ thống",
+        customer: {
+          ...existingCustomer,
+          role: "CUSTOMER",
+          isActive: true
+        }
       });
     }
 
-    // Auto-create walk-in customer account
-    const guestEmail = `kh_${cleanPhone || Date.now()}@tpkstore.vn`;
-    const defaultPasswordHash = bcrypt.hashSync("WalkInCustomer123@", 10);
-
-    const newCustomer = await db.user.create({
+    // 3. Tạo mới hồ sơ Customer độc lập (không gán mật khẩu mặc định cố định)
+    const newCustomer = await db.customer.create({
       data: {
-        email: guestEmail,
         fullName: (fullName && String(fullName).trim()) || "Khách lẻ",
         phone: trimmedPhone,
         address: (address && String(address).trim()) || "Mua tại quầy - TPKSTORE",
-        passwordHash: defaultPasswordHash,
-        role: "CUSTOMER",
-        isActive: true,
-        canChatAi: true
+        userId: existingUser ? existingUser.id : null
       }
     });
 
     return res.status(201).json({
       isNew: true,
-      message: "Tạo hồ sơ khách lẻ thành công!",
-      customer: newCustomer
+      message: "Tạo hồ sơ khách lẻ thành công (an toàn, không mật khẩu mặc định)!",
+      customer: {
+        ...newCustomer,
+        role: "CUSTOMER",
+        isActive: true
+      }
     });
   } catch (err: any) {
     return res.status(500).json({ error: "Lỗi tạo khách hàng: " + err.message });

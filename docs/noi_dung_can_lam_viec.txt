@@ -1,0 +1,356 @@
+TPKSTORE
+TECHNICAL IMPLEMENTATION BRIEF FOR ANTIGRAVITY
+Tối ưu hệ thống bán hàng, phân quyền và tích hợp AI API + AI Local cho toàn bộ vai trò
+Repository
+github.com/tiennguyen0902/TPKSTORE
+Mục tiêu
+Chuẩn hóa nghiệp vụ + RBAC + kho + AI đa nhà cung cấp
+Đối tượng triển khai
+Antigravity / Coding Agent
+Vai trò hệ thống
+ADMIN, MANAGER, STAFF, CUSTOMER
+Yêu cầu AI
+Mọi vai trò đều được trải nghiệm AI API và AI Local
+Nguyên tắc chính: AI được mở cho tất cả người dùng, nhưng dữ liệu và hành động mà AI được phép truy cập phải tuân theo RBAC của từng vai trò.
+1. Mục tiêu triển khai
+Giữ nguyên định hướng hệ thống quản lý bán hàng TPKSTORE nhưng chuẩn hóa lại các luồng nghiệp vụ cốt lõi: sản phẩm, khách hàng, bán hàng tại quầy, đơn online, doanh thu và tồn kho.
+Sửa các điểm chưa đồng nhất giữa frontend, backend và Prisma schema, đặc biệt là RBAC và nghiệp vụ kho.
+Mở trải nghiệm AI cho ADMIN, MANAGER, STAFF và CUSTOMER. Mỗi vai trò đều có thể chọn AI API hoặc AI Local.
+AI không được phép làm tăng quyền của người dùng. AI chỉ được truy vấn và thực hiện hành động nằm trong quyền hiện tại của vai trò.
+Tách rõ AI Core theo bài toán (tư vấn sản phẩm, hỏi đáp dữ liệu, báo cáo) và AI Extension (vision, voice, forecast, local model).
+Tạo test tự động để chứng minh phân quyền, tồn kho, đơn hàng và AI hoạt động đúng.
+2. Bài toán nghiệp vụ đã chốt
+Cửa hàng bán lẻ cần quản lý sản phẩm, khách hàng, hóa đơn, doanh thu và tồn kho hằng ngày. Hệ thống phải giúp nhân viên thao tác nhanh, người quản lý theo dõi đúng phạm vi công việc, chủ cửa hàng nắm toàn bộ tình hình kinh doanh, đồng thời cung cấp AI để tư vấn sản phẩm, sinh báo cáo và hỏi đáp dữ liệu bán hàng.
+3. Vai trò và phạm vi quyền
+Vai trò
+Trách nhiệm chính
+Phạm vi nghiệp vụ
+ADMIN
+Quản lý toàn cửa hàng
+Sản phẩm, danh mục, nhân sự, khách hàng, đơn hàng, doanh thu, tồn kho, báo cáo, cấu hình AI, phân quyền.
+MANAGER
+Quản lý kho
+Nhập/xuất kho, duyệt phiếu kho, tồn kho, lịch sử biến động kho; không quản trị sản phẩm và không xem doanh thu toàn cửa hàng nếu không được cấp thêm quyền.
+STAFF
+Bán hàng tại quầy
+Tra cứu/tư vấn sản phẩm, POS, lập hóa đơn, kiểm tra tồn kho, tạo yêu cầu xuất kho.
+CUSTOMER
+Mua hàng
+Xem/tìm sản phẩm, giỏ hàng, đặt hàng, thanh toán, theo dõi đơn cá nhân, AI tư vấn mua hàng.
+4. Ma trận quyền mục tiêu
+Chức năng
+ADMIN
+MANAGER
+STAFF
+CUSTOMER
+Xem sản phẩm
+✓
+✓
+✓
+✓
+CRUD sản phẩm
+✓
+—
+—
+—
+CRUD danh mục
+✓
+—
+—
+—
+POS bán tại quầy
+✓
+—
+✓
+—
+Xem tồn kho
+✓
+✓
+✓
+—
+Tạo yêu cầu xuất kho
+✓
+✓
+✓
+—
+Nhập/xuất kho quản trị
+✓
+✓
+—
+—
+Duyệt phiếu kho
+✓
+✓
+—
+—
+Xem doanh thu toàn cửa hàng
+✓
+—
+—
+—
+Quản lý nhân sự/phân quyền
+✓
+—
+—
+—
+Đặt hàng online
+✓
+✓
+✓
+✓
+Xem đơn cá nhân
+—
+—
+—
+✓
+AI API
+✓
+✓
+✓
+✓
+AI Local
+✓
+✓
+✓
+✓
+5. Nguyên tắc AI bắt buộc
+Mọi vai trò đều nhìn thấy khu vực AI và đều có quyền chọn provider: API hoặc LOCAL.
+Provider API có thể là Gemini/OpenAI hoặc provider hiện có trong dự án; provider LOCAL sử dụng Ollama hoặc local inference service hiện có.
+AI không bypass authorize(). Mọi tool/function mà AI gọi phải tái sử dụng service nghiệp vụ đã có kiểm tra quyền.
+CUSTOMER chỉ được AI tư vấn sản phẩm, giải thích thông tin sản phẩm, so sánh sản phẩm và hỗ trợ mua hàng; không được hỏi dữ liệu doanh thu, khách hàng khác hoặc kho nội bộ.
+STAFF được AI hỗ trợ tư vấn tại quầy, tra cứu sản phẩm và tồn kho; không được hỏi doanh thu toàn cửa hàng hoặc thay đổi tồn kho trực tiếp.
+MANAGER được AI hỗ trợ quản lý kho, phát hiện hàng sắp hết, phân tích nhập/xuất, tạo đề xuất phiếu kho; không được xem dữ liệu quản trị tài chính ngoài phạm vi.
+ADMIN được AI hỏi đáp dữ liệu kinh doanh, sinh báo cáo, phân tích doanh thu, tồn kho và KPI.
+Mọi phản hồi AI cần ghi lại provider, model, role, userId, latency, success/failure và loại tác vụ trong AIInteraction để phục vụ audit.
+6. Thiết kế UX AI chung cho mọi vai trò
+Tạo một AI Assistant dùng chung, nhưng nội dung gợi ý và tool được cấp theo vai trò.
+Trên giao diện AI có selector: “AI API” và “AI Local”.
+Hiển thị model đang dùng, trạng thái kết nối, thời gian phản hồi và nút chuyển provider.
+Nếu API lỗi, có thể đề nghị chuyển sang Local; nếu Local lỗi, có thể đề nghị chuyển sang API. Không tự ý gửi dữ liệu sang provider khác nếu người dùng đã chọn cố định provider.
+Không dùng dữ liệu giả để giả lập kết quả forecast hoặc báo cáo khi provider lỗi; phải trả trạng thái unavailable/fallback rõ ràng.
+AI Local phải vẫn hoạt động cho các tác vụ không cần Internet khi local service sẵn sàng.
+7. Kiến trúc AI đề xuất
+Frontend AI Assistant        |        | provider = API | LOCAL        vPOST /api/ai/chat        |        +--> AI Orchestrator              |              +--> Role Context Builder              |      ADMIN / MANAGER / STAFF / CUSTOMER              |              +--> Tool Permission Registry              |              +--> Provider Adapter                    |--> API Adapter (Gemini/OpenAI/...)                    |--> Local Adapter (Ollama/local service)              |              +--> Business Services                     Products / Orders / Inventory / Reports                     (tất cả service tự kiểm tra quyền)
+8. API AI thống nhất nên có
+Endpoint
+Quyền
+Yêu cầu
+POST /api/ai/chat
+Tất cả role
+Chat AI theo provider + role context.
+GET /api/ai/providers
+Tất cả role
+Trả trạng thái AI API/Local và model khả dụng.
+GET /api/ai/models
+Tất cả role
+Danh sách model được phép dùng.
+POST /api/ai/product-advice
+Tất cả role
+Tư vấn/so sánh sản phẩm; dữ liệu công khai hoặc dữ liệu được phép.
+POST /api/ai/inventory-assistant
+ADMIN, MANAGER, STAFF(read-only)
+Phân tích tồn kho; STAFF không được approve/update stock.
+POST /api/ai/business-qa
+ADMIN
+Hỏi đáp doanh thu, KPI, khách hàng, báo cáo.
+POST /api/ai/report-summary
+ADMIN
+Tóm tắt báo cáo kinh doanh.
+POST /api/ai/forecast
+ADMIN
+Dự báo; phải auth + authorize ADMIN.
+POST /api/ai/stock-proposal
+ADMIN, MANAGER
+AI chỉ tạo đề xuất/phiếu PENDING; không cập nhật stock trực tiếp.
+9. Role Context cho AI
+ADMIN:- Có thể truy vấn: doanh thu, đơn hàng, sản phẩm, khách hàng, kho, KPI.- Có thể yêu cầu sinh báo cáo.- Hành động thay đổi dữ liệu vẫn phải qua API nghiệp vụ bình thường.MANAGER:- Có thể truy vấn: tồn kho, phiếu nhập/xuất, lịch sử kho, hàng sắp hết.- Có thể yêu cầu AI tạo đề xuất nhập/xuất hoặc draft phiếu.- Không được truy vấn doanh thu toàn cửa hàng hoặc dữ liệu nhân sự.STAFF:- Có thể truy vấn: sản phẩm, giá, tồn kho có thể bán, thông tin tư vấn.- Có thể dùng AI trong POS để gợi ý sản phẩm phù hợp khách hàng.- Có thể tạo yêu cầu EXPORT; không duyệt phiếu và không tăng/giảm stock trực tiếp.CUSTOMER:- Có thể truy vấn: dữ liệu sản phẩm công khai, giá bán, mô tả, so sánh, gợi ý.- Có thể hỏi tình trạng đơn hàng của chính mình sau khi xác thực.- Không truy vấn dữ liệu nội bộ cửa hàng.
+10. Các lỗi/điểm cần sửa bắt buộc trong code hiện tại
+Hạng mục
+Hiện trạng
+Yêu cầu sửa
+Product RBAC
+Backend hiện cho MANAGER POST/PUT/DELETE product.
+Chỉ ADMIN được CRUD sản phẩm.
+StockTicket/Prisma
+Inventory route dùng db.stockTicket nhưng Prisma schema chưa có model tương ứng.
+Thêm model chính thức + migration.
+STAFF inventory
+STAFF có thể tạo IMPORT/EXPORT.
+STAFF chỉ được tạo yêu cầu EXPORT.
+AI reorder approve
+AI route có thể làm tăng stock trực tiếp và cho STAFF tham gia.
+AI chỉ tạo StockTicket PENDING; Manager/Admin duyệt.
+admin-qa
+Endpoint dữ liệu kinh doanh cho nhiều role.
+Chuyển thành business-qa chỉ ADMIN.
+forecast
+Endpoint chưa được khóa đúng mức.
+authenticateToken + ADMIN.
+Product.stock
+CRUD sản phẩm cho phép chỉnh stock trực tiếp.
+Stock chỉ đổi qua nghiệp vụ kho/đơn hàng.
+Walk-in customer
+POS tạo CUSTOMER account với password mặc định.
+Tách Customer profile hoặc userId nullable.
+AI fallback
+Có dữ liệu forecast fallback cố định.
+Không giả dữ liệu; trả unavailable hoặc tính từ dữ liệu thật.
+11. Thiết kế dữ liệu kho bắt buộc
+11.1 StockTicket
+enum StockTicketType {  IMPORT  EXPORT}enum StockTicketStatus {  PENDING  APPROVED  REJECTED}model StockTicket {  id                String            @id @default(uuid())  type              StockTicketType  status            StockTicketStatus @default(PENDING)  productId         String  quantity          Int  reason            String  note              String?  requestedByUserId String  approvedByUserId  String?  rejectReason      String?  approvedAt        DateTime?  createdAt         DateTime          @default(now())  updatedAt         DateTime          @updatedAt}
+11.2 StockMovement
+enum StockMovementType {  IMPORT  EXPORT  SALE  SALE_CANCEL  ADJUSTMENT}model StockMovement {  id          String   @id @default(uuid())  productId   String  quantity    Int  type        StockMovementType  beforeStock Int  afterStock  Int  referenceId String?  createdById String?  note        String?  createdAt   DateTime @default(now())}
+Nguyên tắc: Product.stock là trạng thái hiện tại; StockMovement là nhật ký bất biến để truy vết mọi biến động.
+12. Luồng kho chuẩn
+STAFF tạo yêu cầu EXPORT       |       vStockTicket(PENDING)       |       vMANAGER / ADMIN    |         | approve   reject    |         |    v         vAPPROVED   REJECTED    |    +--> Transaction:          1. lock/check current stock          2. update Product.stock          3. create StockMovement          4. update StockTicket status
+13. Luồng AI quản lý kho mới
+AI phát hiện sản phẩm sắp hết       |       vAI đề xuất số lượng nhập       |       vMANAGER chọn "Tạo phiếu nhập"       |       vStockTicket IMPORT - PENDING       |       vMANAGER/ADMIN xác nhận       |       vProduct.stock tăng + StockMovement được ghi
+Không cho AI gọi update stock trực tiếp trong bất kỳ provider nào, kể cả AI Local.
+14. Chuẩn hóa Customer
+Không tạo tài khoản đăng nhập giả cho khách mua tại quầy bằng password cố định.
+Nên có Customer entity/profile riêng; userId có thể nullable.
+Khách online có User + CustomerProfile; khách tại quầy có CustomerProfile nhưng không bắt buộc có User.
+Order tham chiếu customerId; createdByStaffId dùng cho đơn POS nếu cần audit.
+15. Frontend cần sửa
+Tạo AI Assistant entry cho cả ADMIN, MANAGER, STAFF, CUSTOMER.
+Thêm provider switch: AI API / AI Local; lưu lựa chọn theo user hoặc localStorage.
+Hiển thị trạng thái Local model: Online/Offline, model name; API: provider/model hiện tại.
+Gợi ý prompt theo role. Ví dụ STAFF: “Tư vấn laptop cho khách 20 triệu”; MANAGER: “Sản phẩm nào sắp hết?”; ADMIN: “Tóm tắt doanh thu tuần này”; CUSTOMER: “So sánh hai sản phẩm này”.
+Ẩn/disable hành động AI mà role không có quyền, nhưng backend vẫn phải chặn độc lập.
+Product management menu chỉ ADMIN.
+MANAGER tập trung Inventory/Tickets/Stock History.
+STAFF tập trung POS/Product lookup/Export request/AI advisor.
+CUSTOMER tập trung Store/Cart/Orders/AI shopping assistant.
+16. Backend cần refactor
+Tạo service layer cho product, order, inventory, report thay vì để AI route truy cập database tùy ý.
+Tạo permission registry dùng chung giữa API routes và AI tool execution.
+Tạo AI provider interface thống nhất: chat(), health(), listModels().
+Tạo ApiAiProvider adapter và LocalAiProvider adapter.
+Tạo AI Orchestrator chọn provider theo request và áp role context.
+Tất cả AI tool calls phải truyền authenticated user context.
+Không hard-code quyền trong prompt như biện pháp bảo mật duy nhất; authorize ở server là bắt buộc.
+Ghi AIInteraction cho cả Local và API.
+17. Interface AI provider tham khảo
+interface AIProvider {  id: 'api' | 'local';  health(): Promise<AIHealth>;  listModels(): Promise<AIModelInfo[]>;  chat(input: {    model?: string;    messages: ChatMessage[];    systemContext: string;    tools?: AIToolDefinition[];  }): Promise<AIResponse>;}
+18. Permission Registry cho AI tool
+const AI_TOOL_PERMISSIONS = {  search_products: ['ADMIN','MANAGER','STAFF','CUSTOMER'],  compare_products: ['ADMIN','MANAGER','STAFF','CUSTOMER'],  read_own_orders: ['CUSTOMER'],  read_inventory: ['ADMIN','MANAGER','STAFF'],  create_export_request: ['ADMIN','MANAGER','STAFF'],  create_import_proposal: ['ADMIN','MANAGER'],  approve_stock_ticket: ['ADMIN','MANAGER'],  business_metrics: ['ADMIN'],  customer_analytics: ['ADMIN'],  generate_business_report: ['ADMIN']};
+19. Quy tắc bảo mật AI
+Không đưa toàn bộ database vào prompt.
+Chỉ truy vấn dữ liệu cần thiết bằng tool/service được kiểm soát.
+Không gửi password hash, token, secrets, API keys, thông tin nhạy cảm sang model.
+CUSTOMER chỉ được truy xuất order có customer/user ownership tương ứng.
+Prompt injection không được làm thay đổi role hoặc permission.
+AI Local và AI API phải dùng cùng permission registry.
+Tất cả hành động ghi dữ liệu quan trọng phải có validation + transaction + audit log.
+API key và local endpoint cấu hình qua environment variables; không commit secrets.
+20. Test bắt buộc sau khi sửa
+Test ID
+Tình huống
+Expected
+RBAC-PROD-01
+MANAGER POST /products
+403
+RBAC-PROD-02
+STAFF PUT /products/:id
+403
+RBAC-PROD-03
+ADMIN CRUD product
+2xx
+INV-01
+STAFF create EXPORT ticket
+201 + PENDING
+INV-02
+STAFF create IMPORT ticket
+403
+INV-03
+STAFF approve ticket
+403
+INV-04
+MANAGER approve EXPORT
+stock giảm + movement
+INV-05
+MANAGER approve IMPORT
+stock tăng + movement
+AI-01
+CUSTOMER dùng AI API tư vấn sản phẩm
+200
+AI-02
+CUSTOMER dùng AI Local tư vấn sản phẩm
+200
+AI-03
+CUSTOMER hỏi doanh thu
+403/tool denied
+AI-04
+STAFF dùng AI tra tồn kho
+200
+AI-05
+STAFF yêu cầu AI approve phiếu
+denied
+AI-06
+MANAGER AI tạo đề xuất nhập
+PENDING ticket, stock chưa đổi
+AI-07
+ADMIN AI business Q&A
+200
+AI-08
+API provider offline
+error/fallback rõ ràng, không fake data
+AI-09
+Local provider offline
+error/fallback rõ ràng, không fake data
+ORDER-01
+Checkout/Pos giảm stock trong transaction
+đúng
+ORDER-02
+Cancel order hoàn stock + movement
+đúng
+21. Tiêu chí nghiệm thu
+ADMIN, MANAGER, STAFF và CUSTOMER đều truy cập được màn hình AI.
+Cả 4 vai trò đều có thể dùng AI API và AI Local cho các tác vụ được phép.
+Khi đổi provider, chức năng nghiệp vụ và permission không thay đổi.
+MANAGER không thể CRUD product bằng API trực tiếp.
+STAFF không thể IMPORT hoặc approve stock ticket.
+AI không thể cập nhật Product.stock trực tiếp.
+Mọi biến động tồn kho có StockMovement.
+Prisma schema có đầy đủ model dùng trong runtime; không phụ thuộc JSON fallback để chạy nghiệp vụ chính.
+CUSTOMER không thể đọc dữ liệu doanh thu/toàn bộ khách hàng/tồn kho nội bộ.
+Không còn forecast/result giả cố định khi AI lỗi.
+Tất cả test RBAC + inventory + AI + order chạy pass.
+README được cập nhật đúng với code sau sửa.
+22. Thứ tự triển khai cho Antigravity
+Đọc toàn bộ repository và xác nhận cấu trúc hiện tại trước khi sửa.
+Tạo branch/refactor plan; không xóa chức năng đang chạy nếu chưa có thay thế.
+Sửa Prisma schema: StockTicket, StockMovement, Customer model nếu áp dụng; tạo migration.
+Refactor inventory service và transaction.
+Sửa Product RBAC và loại bỏ update stock trực tiếp khỏi product CRUD.
+Sửa STAFF/MANAGER inventory permissions.
+Tạo AI provider abstraction API + Local.
+Tạo Role Context + AI Tool Permission Registry.
+Refactor các AI route về endpoint thống nhất; giữ compatibility alias nếu frontend cũ còn dùng.
+Sửa frontend AI Assistant và provider switch cho mọi vai trò.
+Sửa Customer/POS walk-in flow để không tạo password mặc định.
+Viết test tự động theo bảng test trong tài liệu.
+Chạy lint, typecheck, unit/integration tests, Prisma validation và smoke test.
+Cập nhật README, .env.example và tài liệu chạy AI Local/API.
+23. Yêu cầu Antigravity khi sửa code
+Không chỉ sửa giao diện; quyền phải được chặn ở backend.
+Không thay đổi business rule đã chốt nếu không có lý do kỹ thuật rõ ràng.
+Không tạo dữ liệu giả nhằm làm dashboard/AI trông như hoạt động thật.
+Không hard-code credentials.
+Mỗi thay đổi schema phải có migration và seed tương thích.
+Nếu thay đổi API contract, cập nhật frontend cùng lúc hoặc cung cấp backward compatibility.
+Mỗi lỗi phát hiện thêm phải ghi rõ: file, nguyên nhân, mức độ, thay đổi đã thực hiện.
+Sau cùng xuất một CHANGELOG kỹ thuật và danh sách test đã chạy.
+24. Deliverables Antigravity phải trả lại
+Source code đã sửa hoàn chỉnh.
+Prisma migrations.
+.env.example cho AI API và AI Local.
+Tài liệu cách chạy local model (ví dụ Ollama) và cách chọn model.
+Test suite + kết quả test.
+RBAC matrix cuối cùng.
+Danh sách endpoint cuối cùng.
+ERD cập nhật cho User/Customer/Product/Order/StockTicket/StockMovement.
+CHANGELOG: file nào đã sửa và vì sao.
+README cập nhật phù hợp đúng chức năng thực tế.
+25. Prompt thực thi ngắn gọn cho Antigravity
+Hãy dùng toàn bộ tài liệu này như specification bắt buộc. Đọc toàn bộ repository TPKSTORE trước khi sửa. Mục tiêu là chuẩn hóa nghiệp vụ bán hàng và RBAC, đồng thời cho ADMIN, MANAGER, STAFF và CUSTOMER đều được sử dụng cả AI API và AI Local. AI phải bị giới hạn dữ liệu/hành động theo role, không được bypass backend authorization. Ưu tiên sửa consistency của Prisma/inventory, Product RBAC, StockTicket/StockMovement, AI tool permissions, provider abstraction và test tự động. Không dùng dữ liệu giả để che lỗi provider. Sau khi hoàn tất, chạy toàn bộ test/typecheck/lint/Prisma validation và trả lại changelog chi tiết.

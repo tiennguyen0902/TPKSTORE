@@ -14,7 +14,7 @@
 [![Prisma ORM](https://img.shields.io/badge/Prisma-5.22.0-2D3748.svg)](https://www.prisma.io/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Test_Suite-8%2F8_Pass_(100%25)-success.svg)](https://github.com/tiennguyen0902/TPKSTORE)
+[![Tests](https://img.shields.io/badge/Test_Suite-18%2F18_Pass_(100%25)-success.svg)](https://github.com/tiennguyen0902/TPKSTORE)
 
 ---
 
@@ -324,34 +324,58 @@ Khung chat nổi thông minh (`FloatingChatWidget`) đóng vai trò là một ch
 
 ---
 
-## 5. Bộ Kiểm Thử Tự Động (Automated Test Suite)
+## 5. Bộ Kiểm Thử Tự Động (Automated Verification Test Suite)
 
-Dự án tích hợp bộ kiểm thử tự động toàn diện kiểm chứng toàn bộ quy trình nghiệp vụ:
+Dự án tích hợp bộ kiểm thử tự động toàn diện chuẩn hóa theo yêu cầu kỹ thuật (Mục 20), kiểm chứng toàn bộ 18 tiêu chí ma trận (RBAC, Kho, AI Multi-Provider, Đơn hàng):
 
 ```bash
-npm test
+# Chạy bộ kiểm thử tự động chuẩn hóa 18 tiêu chí
+node backend/tests/automated_verification.js
 ```
 
-### Kết Quả Kiểm Thử (100% PASS):
+### Kết Quả Kiểm Thử Toàn Diện (18/18 PASS — 100%):
 
 ```
-==================================================================
-🧪 BẮT ĐẦU CHẠY BỘ TEST SUITE TỰ ĐỘNG - SHOPBEE STORE AI
-==================================================================
+================================================================
+       TPKSTORE SPECIFICATION TEST SUITE (SECTION 20)           
+================================================================
 
-  ✅ [PASS] TC-AUTH-01: Đăng nhập quản trị viên (Admin) và cấp phát JWT Token
-  ✅ [PASS] TC-AUTH-02: Đăng nhập tài khoản khách hàng (Customer)
-  ✅ [PASS] TC-ORDER-01: Lập hóa đơn mua hàng -> Tồn kho sản phẩm tự động giảm chính xác
-  ✅ [PASS] TC-ORDER-02: Hủy hóa đơn bán hàng -> Tồn kho sản phẩm được hoàn lại nguyên trạng
-  ✅ [PASS] TC-REPORT-01: Truy vấn báo cáo tổng quan doanh thu và bảng điều khiển
-  ✅ [PASS] TC-AI-01: AI Chatbot tra cứu sản phẩm còn hàng và không gợi ý hàng hết tồn kho
-  ✅ [PASS] TC-AI-02: AI Admin Q&A Copilot phân tích dữ liệu bán chậm từ CSDL đơn hàng
-  ✅ [PASS] TC-SEC-01: Bảo mật RBAC - Chặn khách hàng thường truy cập trái phép API quản trị
+Authenticating 4 roles (ADMIN, MANAGER, STAFF, CUSTOMER)...
+All 4 roles authenticated successfully.
 
-==================================================================
-🏁 TỔNG KẾT KIỂM THỬ: 8/8 TEST CASES THÀNH CÔNG (100%)
-==================================================================
+--- 1. RBAC Product Management Matrix ---
+[PASS] RBAC-PROD-01: MANAGER cannot create product (403)
+[PASS] RBAC-PROD-02: STAFF cannot update product (403)
+[PASS] RBAC-PROD-03: ADMIN CRUD product allowed & direct stock update blocked (Created: 201, Stock preserved at 15)
+
+--- 2. Inventory & Stock Ticket Matrix ---
+[PASS] INV-01: STAFF can create EXPORT ticket (PENDING) (Status: 201)
+[PASS] INV-02: STAFF cannot create IMPORT ticket (403 Forbidden)
+[PASS] INV-03: STAFF cannot approve stock tickets (403 Forbidden)
+[PASS] INV-04: MANAGER approves EXPORT -> stock decremented & StockMovement logged
+[PASS] INV-05: MANAGER approves IMPORT -> stock incremented & StockMovement logged
+
+--- 3. AI Provider & Orchestration Matrix ---
+[PASS] AI-01: CUSTOMER AI advice via API Provider (200 OK)
+[PASS] AI-02: CUSTOMER AI advice via Local Provider (200 OK)
+[PASS] AI-03: CUSTOMER blocked from inquiring revenue/profit (403 Forbidden)
+[PASS] AI-04: STAFF AI inventory status lookup allowed (200 OK)
+[PASS] AI-05: STAFF blocked from AI stock ticket approval (403 Forbidden)
+[PASS] AI-06: MANAGER AI stock proposal creates PENDING ticket (Stock unchanged)
+[PASS] AI-07: ADMIN business-qa & forecast endpoints accessible with role auth (QA: 200, Forecast: 200)
+[PASS] AI-08: AI Multi-provider status endpoint reports live availability
+
+--- 4. Order Transactions & Stock Movements Matrix ---
+[PASS] ORDER-01: Order creation decrements stock and writes StockMovement (SALE)
+[PASS] ORDER-02: Order cancellation restores stock and writes StockMovement (SALE_CANCEL)
+================================================================
+TEST RESULTS: 18/18 PASSED (0 FAILED)
+================================================================
 ```
+
+> **Tài liệu hướng dẫn chi tiết & đặc tả kỹ thuật:**
+> - 📘 [Hướng Dẫn Cài Đặt & Vận Hành AI Multi-Provider](docs/HUONG_DAN_CAI_DAT_VA_VAN_HANH_AI.md)
+> - 📝 [Technical Changelog RBAC & Inventory Standardization](docs/CHANGELOG_RBAC_INVENTORY_AI.md)
 
 ---
 

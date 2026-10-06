@@ -19,17 +19,48 @@ router.get("/tickets", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"
     if (staff && staff !== "ALL") {
       where.requestedByUserId = String(staff);
     }
-    if (search) {
-      where.search = String(search);
-    }
     if (mine === "true" && req.user) {
       where.requestedByUserId = req.user.id;
     }
 
-    const tickets = await db.stockTicket.findMany({ where });
+    const tickets = await db.stockTicket.findMany({
+      where,
+      include: {
+        product: true,
+        requestedByUser: {
+          select: { id: true, fullName: true, role: true, email: true }
+        },
+        approvedByUser: {
+          select: { id: true, fullName: true, role: true, email: true }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    let filtered = tickets;
+    if (search && String(search).trim()) {
+      const q = String(search).trim().toLowerCase();
+      filtered = tickets.filter((t: any) => 
+        (t.product?.name && t.product.name.toLowerCase().includes(q)) ||
+        (t.productName && String(t.productName).toLowerCase().includes(q)) ||
+        (t.reason && t.reason.toLowerCase().includes(q)) ||
+        (t.requestedByUser?.fullName && t.requestedByUser.fullName.toLowerCase().includes(q)) ||
+        (t.id && t.id.toLowerCase().includes(q))
+      );
+    }
+
+    const formattedTickets = filtered.map((t: any) => ({
+      ...t,
+      productName: t.product?.name || t.productName || "Sản phẩm",
+      productThumbnail: t.product?.thumbnail || t.productThumbnail || "",
+      requestedByName: t.requestedByUser?.fullName || t.requestedByName || "Nhân viên",
+      requestedByRole: t.requestedByUser?.role || t.requestedByRole || "STAFF",
+      approvedByName: t.approvedByUser?.fullName || t.approvedByName || null
+    }));
+
     return res.json({
-      total: tickets.length,
-      tickets
+      total: formattedTickets.length,
+      tickets: formattedTickets
     });
   } catch (err: any) {
     return res.status(500).json({ error: "Lỗi lấy danh sách phiếu kho: " + err.message });
@@ -72,9 +103,37 @@ router.get("/summary", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"
   }
 });
 
-// POST /api/inventory/tickets - Tạo phiếu yêu cầu nhập/xuất kho (Nhân viên, Quản lý, Admin)
+// GET /api/inventory/movements - Nhật ký biến động tồn kho bất biến (Admin & Manager)
+router.get("/movements", authenticateToken, authorize(["ADMIN", "MANAGER"]), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { productId, type } = req.query;
+    const where: any = {};
+    if (productId) where.productId = String(productId);
+    if (type) where.type = String(type);
+
+    const movements = await db.stockMovement.findMany({
+      where,
+      include: {
+        product: { select: { id: true, name: true, thumbnail: true } },
+        createdBy: { select: { id: true, fullName: true, role: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return res.json({
+      total: movements.length,
+      movements
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi lấy nhật ký biến động kho: " + err.message });
+  }
+});
+
+// POST /api/inventory/tickets - Tạo phiếu yêu cầu nhập/xuất kho
+// Quy chuẩn RBAC: STAFF chỉ được tạo yêu cầu EXPORT; MANAGER & ADMIN được tạo cả IMPORT & EXPORT
 router.post("/tickets", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF"]), async (req: AuthenticatedRequest, res: Response) => {
   try {
+    const user = req.user!;
     const { productId, type, quantity, reason, note } = req.body;
 
     if (!productId || !type || !quantity || !reason) {
@@ -83,6 +142,13 @@ router.post("/tickets", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF
 
     if (!["IMPORT", "EXPORT"].includes(type)) {
       return res.status(400).json({ error: "Loại phiếu phải là 'IMPORT' (Nhập kho) hoặc 'EXPORT' (Xuất kho)." });
+    }
+
+    // RBAC: STAFF chỉ được tạo phiếu EXPORT (Xuất kho), không được tạo IMPORT (Nhập kho)
+    if (user.role === "STAFF" && type !== "EXPORT") {
+      return res.status(403).json({ 
+        error: "Quyền hạn bị từ chối: Nhân viên (STAFF) chỉ được tạo yêu cầu Xuất kho (EXPORT), không có quyền lập phiếu Nhập kho!" 
+      });
     }
 
     const qty = parseInt(quantity, 10);
@@ -104,32 +170,37 @@ router.post("/tickets", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF
       });
     }
 
-    const user = req.user!;
-    const isAutoApproved = user.role === "MANAGER" || user.role === "ADMIN";
+    const newTicket = await db.stockTicket.create({
+      data: {
+        type,
+        productId,
+        quantity: qty,
+        reason,
+        note: note || "",
+        requestedByUserId: user.id,
+        status: "PENDING"
+      },
+      include: {
+        product: true,
+        requestedByUser: {
+          select: { id: true, fullName: true, role: true }
+        }
+      }
+    });
 
-    const newTicketData: any = {
-      type,
-      productId,
+    const formattedTicket = {
+      ...newTicket,
       productName: product.name,
       productThumbnail: product.thumbnail,
-      quantity: qty,
-      reason,
-      note: note || "",
-      requestedByUserId: user.id,
       requestedByName: user.fullName,
-      requestedByRole: user.role,
-      status: "PENDING",
-      createdAt: new Date(),
-      updatedAt: new Date()
+      requestedByRole: user.role
     };
-
-    const newTicket = await db.stockTicket.create({ data: newTicketData });
 
     return res.status(201).json({
       message: type === "IMPORT" 
-        ? "Đã lập phiếu yêu cầu nhập kho thành công! Đang chờ Quản lý duyệt."
-        : "Đã lập phiếu yêu cầu xuất kho thành công! Đang chờ Quản lý duyệt.",
-      ticket: newTicket
+        ? "Đã lập phiếu yêu cầu nhập kho thành công! Đang ở trạng thái PENDING chờ Quản lý duyệt."
+        : "Đã lập phiếu yêu cầu xuất kho thành công! Đang ở trạng thái PENDING chờ Quản lý duyệt.",
+      ticket: formattedTicket
     });
   } catch (err: any) {
     return res.status(500).json({ error: "Lỗi tạo phiếu kho: " + err.message });
@@ -137,10 +208,16 @@ router.post("/tickets", authenticateToken, authorize(["ADMIN", "MANAGER", "STAFF
 });
 
 // PUT /api/inventory/tickets/:id/approve - Quản lý hoặc Admin PHÊ DUYỆT phiếu kho
+// Thực thi Transaction: 1. Kiểm tra tồn kho -> 2. Cập nhật Product.stock -> 3. Ghi StockMovement -> 4. Cập nhật StockTicket APPROVED
 router.put("/tickets/:id/approve", authenticateToken, authorize(["ADMIN", "MANAGER"]), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const ticketId = req.params.id;
-    const ticket = await db.stockTicket.findFirst({ where: { id: ticketId } });
+    const approver = req.user!;
+
+    const ticket = await db.stockTicket.findFirst({ 
+      where: { id: ticketId },
+      include: { product: true }
+    });
 
     if (!ticket) {
       return res.status(404).json({ error: "Không tìm thấy phiếu kho." });
@@ -152,54 +229,75 @@ router.put("/tickets/:id/approve", authenticateToken, authorize(["ADMIN", "MANAG
       });
     }
 
-    const product = await db.product.findFirst({ where: { id: ticket.productId } });
-    if (!product) {
-      return res.status(404).json({ error: "Sản phẩm liên kết với phiếu này không còn tồn tại trong kho." });
-    }
-
-    const currentStock = typeof product.stock === "number" ? product.stock : (parseInt(String(product.stock)) || 0);
-
-    // Xử lý biến động tồn kho
-    if (ticket.type === "EXPORT") {
-      if (currentStock < ticket.quantity) {
-        return res.status(400).json({
-          error: `Không thể duyệt xuất kho! Tồn kho hiện tại (${currentStock} SP) nhỏ hơn số lượng yêu cầu xuất (${ticket.quantity} SP).`
-        });
+    const result = await db.$transaction(async (tx: any) => {
+      const product = await tx.product.findUnique({ where: { id: ticket.productId } });
+      if (!product) {
+        throw new Error("Sản phẩm liên kết với phiếu này không còn tồn tại trong kho.");
       }
-      // Giảm tồn kho
-      await db.product.update({
-        where: { id: ticket.productId },
-        data: { stock: { decrement: ticket.quantity } }
-      });
-    } else if (ticket.type === "IMPORT") {
-      // Tăng tồn kho
-      await db.product.update({
-        where: { id: ticket.productId },
-        data: { stock: { increment: ticket.quantity } }
-      });
-    }
 
-    // Cập nhật trạng thái phiếu
-    const approver = req.user!;
-    const updatedTicket = await db.stockTicket.update({
-      where: { id: ticketId },
-      data: {
-        status: "APPROVED",
-        approvedByUserId: approver.id,
-        approvedByName: approver.fullName,
-        approvedAt: new Date().toISOString()
+      const beforeStock = typeof product.stock === "number" ? product.stock : (parseInt(String(product.stock)) || 0);
+      let afterStock = beforeStock;
+
+      if (ticket.type === "EXPORT") {
+        if (beforeStock < ticket.quantity) {
+          throw new Error(`Không thể duyệt xuất kho! Tồn kho hiện tại (${beforeStock} SP) nhỏ hơn số lượng yêu cầu xuất (${ticket.quantity} SP).`);
+        }
+        afterStock = beforeStock - ticket.quantity;
+      } else if (ticket.type === "IMPORT") {
+        afterStock = beforeStock + ticket.quantity;
       }
+
+      // 1. Cập nhật tồn kho sản phẩm
+      const updatedProduct = await tx.product.update({
+        where: { id: ticket.productId },
+        data: { stock: afterStock }
+      });
+
+      // 2. Ghi nhật ký bất biến StockMovement
+      await tx.stockMovement.create({
+        data: {
+          productId: ticket.productId,
+          quantity: ticket.quantity,
+          type: ticket.type,
+          beforeStock,
+          afterStock,
+          referenceId: ticket.id,
+          createdById: approver.id,
+          note: `Duyệt phiếu ${ticket.type === "IMPORT" ? "nhập" : "xuất"} kho: ${ticket.reason}`
+        }
+      });
+
+      // 3. Cập nhật trạng thái phiếu kho
+      const updatedTicket = await tx.stockTicket.update({
+        where: { id: ticketId },
+        data: {
+          status: "APPROVED",
+          approvedByUserId: approver.id,
+          approvedAt: new Date()
+        },
+        include: {
+          product: true,
+          requestedByUser: { select: { id: true, fullName: true, role: true } },
+          approvedByUser: { select: { id: true, fullName: true, role: true } }
+        }
+      });
+
+      return { updatedProduct, updatedTicket };
     });
-
-    const refreshedProduct = await db.product.findFirst({ where: { id: ticket.productId } });
 
     return res.json({
-      message: `Đã phê duyệt thành công phiếu ${ticket.type === "IMPORT" ? "NHẬP KHO" : "XUẤT KHO"}! Tồn kho sản phẩm "${product.name}" hiện tại là ${refreshedProduct?.stock} SP.`,
-      ticket: updatedTicket,
-      newStock: refreshedProduct?.stock
+      message: `Đã phê duyệt thành công phiếu ${ticket.type === "IMPORT" ? "NHẬP KHO" : "XUẤT KHO"}! Tồn kho sản phẩm "${result.updatedProduct.name}" hiện tại là ${result.updatedProduct.stock} SP.`,
+      ticket: {
+        ...result.updatedTicket,
+        productName: result.updatedProduct.name,
+        productThumbnail: result.updatedProduct.thumbnail,
+        approvedByName: approver.fullName
+      },
+      newStock: result.updatedProduct.stock
     });
   } catch (err: any) {
-    return res.status(500).json({ error: "Lỗi phê duyệt phiếu: " + err.message });
+    const status = err.message?.includes("Không thể duyệt xuất kho") ? 400 : 500;
+    return res.status(status).json({ error: "Lỗi phê duyệt phiếu: " + err.message });
   }
 });
 
@@ -226,9 +324,12 @@ router.put("/tickets/:id/reject", authenticateToken, authorize(["ADMIN", "MANAGE
       data: {
         status: "REJECTED",
         approvedByUserId: approver.id,
-        approvedByName: approver.fullName,
-        approvedAt: new Date().toISOString(),
+        approvedAt: new Date(),
         rejectReason: reason || "Không được Quản lý kho phê duyệt"
+      },
+      include: {
+        product: true,
+        requestedByUser: { select: { id: true, fullName: true, role: true } }
       }
     });
 

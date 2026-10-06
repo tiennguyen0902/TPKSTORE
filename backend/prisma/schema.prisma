@@ -1,4 +1,4 @@
-// Prisma Schema for SHOPBEE / STORE AI (11 Relational Tables)
+// Prisma Schema for TPKSTORE / STORE AI (Standardized RBAC, Inventory & AI Orchestration)
 
 datasource db {
   provider = "postgresql"
@@ -6,7 +6,8 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 enum Role {
@@ -38,25 +39,49 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum StockTicketType {
+  IMPORT
+  EXPORT
+}
+
+enum StockTicketStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum StockMovementType {
+  IMPORT
+  EXPORT
+  SALE
+  SALE_CANCEL
+  ADJUSTMENT
+}
+
 // 1. Bảng User
 model User {
-  id             String          @id @default(uuid())
-  email          String          @unique
-  passwordHash   String
-  fullName       String
-  phone          String?
-  address        String?
-  avatar         String?
-  role           Role            @default(CUSTOMER)
-  isActive       Boolean         @default(true)
-  canChatAi      Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id                    String          @id @default(uuid())
+  email                 String          @unique
+  passwordHash          String
+  fullName              String
+  phone                 String?
+  address               String?
+  avatar                String?
+  role                  Role            @default(CUSTOMER)
+  isActive              Boolean         @default(true)
+  canChatAi             Boolean         @default(true)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
-  refreshTokens  RefreshToken[]
-  cart           Cart?
-  orders         Order[]
-  aiInteractions AIInteraction[]
+  refreshTokens         RefreshToken[]
+  cart                  Cart?
+  orders                Order[]         @relation("UserOrders")
+  staffCreatedOrders    Order[]         @relation("StaffCreatedOrders")
+  aiInteractions        AIInteraction[]
+  requestedStockTickets StockTicket[]   @relation("StockTicketRequested")
+  approvedStockTickets  StockTicket[]   @relation("StockTicketApproved")
+  stockMovements        StockMovement[]
+  customerProfile       Customer?
 
   @@map("users")
 }
@@ -74,7 +99,24 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-// 3. Bảng Category (Danh mục sản phẩm phân cấp)
+// 3. Bảng Customer (Hồ sơ khách hàng chuẩn hóa, tách biệt với User login)
+model Customer {
+  id        String   @id @default(uuid())
+  userId    String?  @unique
+  fullName  String
+  phone     String
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  orders    Order[]
+
+  @@map("customers")
+}
+
+// 4. Bảng Category (Danh mục sản phẩm)
 model Category {
   id          String    @id @default(uuid())
   name        String
@@ -89,33 +131,35 @@ model Category {
   @@map("categories")
 }
 
-// 4. Bảng Product (Thông tin chi tiết sản phẩm và tồn kho)
+// 5. Bảng Product (Thông tin chi tiết sản phẩm và tồn kho)
 model Product {
-  id            String      @id @default(uuid())
-  name          String
-  slug          String      @unique
-  description   String
-  price         Float
-  originalPrice Float?
-  stock         Int         @default(0)
-  thumbnail     String
-  images        String[]    @default([])
-  rating        Float       @default(5.0)
-  reviewCount   Int         @default(0)
-  isFeatured    Boolean     @default(false)
-  isNew         Boolean     @default(false)
-  categoryId    String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id             String          @id @default(uuid())
+  name           String
+  slug           String          @unique
+  description    String
+  price          Float
+  originalPrice  Float?
+  stock          Int             @default(0)
+  thumbnail      String
+  images         String[]        @default([])
+  rating         Float           @default(5.0)
+  reviewCount    Int             @default(0)
+  isFeatured     Boolean         @default(false)
+  isNew          Boolean         @default(false)
+  categoryId     String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
-  category      Category    @relation(fields: [categoryId], references: [id])
-  cartItems     CartItem[]
-  orderItems    OrderItem[]
+  category       Category        @relation(fields: [categoryId], references: [id])
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  stockTickets   StockTicket[]
+  stockMovements StockMovement[]
 
   @@map("products")
 }
 
-// 5. Bảng Cart (Giỏ hàng của người dùng 1-1)
+// 6. Bảng Cart (Giỏ hàng người dùng)
 model Cart {
   id        String     @id @default(uuid())
   userId    String     @unique
@@ -128,7 +172,7 @@ model Cart {
   @@map("carts")
 }
 
-// 6. Bảng CartItem (Chi tiết các mặt hàng trong giỏ)
+// 7. Bảng CartItem (Chi tiết các mặt hàng trong giỏ)
 model CartItem {
   id        String   @id @default(uuid())
   cartId    String
@@ -144,41 +188,45 @@ model CartItem {
   @@map("cart_items")
 }
 
-// 7. Bảng Order (Thông tin đơn đặt hàng)
+// 8. Bảng Order (Thông tin đơn đặt hàng)
 model Order {
-  id              String        @id @default(uuid())
-  userId          String
-  totalAmount     Float
-  shippingFee     Float         @default(0)
-  discountAmount  Float         @default(0)
-  finalAmount     Float
-  status          OrderStatus   @default(PENDING)
-  paymentMethod   PaymentMethod @default(COD)
-  paymentStatus   PaymentStatus @default(PENDING)
-  shippingAddress String
-  phone           String
-  customerName    String
-  note            String?
-  momoTransId     String?
-  momoPayUrl      String?
-  momoOrderId     String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id               String        @id @default(uuid())
+  userId           String?
+  customerId       String?
+  createdByStaffId String?
+  totalAmount      Float
+  shippingFee      Float         @default(0)
+  discountAmount   Float         @default(0)
+  finalAmount      Float
+  status           OrderStatus   @default(PENDING)
+  paymentMethod    PaymentMethod @default(COD)
+  paymentStatus    PaymentStatus @default(PENDING)
+  shippingAddress  String
+  phone            String
+  customerName     String
+  note             String?
+  momoTransId      String?
+  momoPayUrl       String?
+  momoOrderId      String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  user            User          @relation(fields: [userId], references: [id])
-  items           OrderItem[]
-  payment         Payment?
+  user             User?         @relation("UserOrders", fields: [userId], references: [id])
+  customer         Customer?     @relation(fields: [customerId], references: [id])
+  createdByStaff   User?         @relation("StaffCreatedOrders", fields: [createdByStaffId], references: [id])
+  items            OrderItem[]
+  payment          Payment?
 
   @@map("orders")
 }
 
-// 8. Bảng OrderItem (Chi tiết các sản phẩm trong đơn hàng)
+// 9. Bảng OrderItem (Chi tiết các sản phẩm trong đơn hàng)
 model OrderItem {
   id        String   @id @default(uuid())
   orderId   String
   productId String
   quantity  Int
-  price     Float    // Snapshot price at purchase time
+  price     Float
   createdAt DateTime @default(now())
 
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -187,7 +235,7 @@ model OrderItem {
   @@map("order_items")
 }
 
-// 9. Bảng Payment (Ghi nhận thông tin giao dịch thanh toán)
+// 10. Bảng Payment (Ghi nhận thông tin giao dịch thanh toán)
 model Payment {
   id            String        @id @default(uuid())
   orderId       String        @unique
@@ -205,40 +253,88 @@ model Payment {
   @@map("payments")
 }
 
-// 10. Bảng AIInteraction (Nhật ký tương tác và hội thoại AI)
-model AIInteraction {
-  id        String   @id @default(uuid())
-  userId    String?
-  sessionId String
-  query     String
-  response  String
-  type      String   // RECOMMENDATION | CHAT | FORECAST
-  createdAt DateTime @default(now())
+// 11. Bảng StockTicket (Phiếu yêu cầu nhập/xuất kho)
+model StockTicket {
+  id                String            @id @default(uuid())
+  type              StockTicketType
+  status            StockTicketStatus @default(PENDING)
+  productId         String
+  quantity          Int
+  reason            String
+  note              String?
+  requestedByUserId String
+  approvedByUserId  String?
+  rejectReason      String?
+  approvedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  product           Product           @relation(fields: [productId], references: [id])
+  requestedByUser   User              @relation("StockTicketRequested", fields: [requestedByUserId], references: [id])
+  approvedByUser    User?             @relation("StockTicketApproved", fields: [approvedByUserId], references: [id])
+
+  @@map("stock_tickets")
+}
+
+// 12. Bảng StockMovement (Nhật ký biến động tồn kho bất biến)
+model StockMovement {
+  id          String            @id @default(uuid())
+  productId   String
+  quantity    Int
+  type        StockMovementType
+  beforeStock Int
+  afterStock  Int
+  referenceId String?
+  createdById String?
+  note        String?
+  createdAt   DateTime          @default(now())
+
+  product     Product           @relation(fields: [productId], references: [id])
+  createdBy   User?             @relation(fields: [createdById], references: [id])
+
+  @@map("stock_movements")
+}
+
+// 13. Bảng AIInteraction (Nhật ký tương tác và hội thoại AI với thông tin audit chi tiết)
+model AIInteraction {
+  id         String   @id @default(uuid())
+  userId     String?
+  sessionId  String
+  query      String
+  response   String
+  type       String   // RECOMMENDATION | CHAT | FORECAST | ADVICE | INVENTORY
+  provider   String   @default("api")    // api | local
+  model      String   @default("unknown")
+  role       String   @default("CUSTOMER")
+  latency    Int      @default(0)        // ms
+  success    Boolean  @default(true)
+  actionType String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("ai_interactions")
 }
 
-// 11. Bảng SystemSettings (Cấu hình hệ thống)
+// 14. Bảng SystemSettings (Cấu hình hệ thống)
 model SystemSettings {
-  id                    String  @id @default("default")
-  storeName             String  @default("SHOPBEE")
-  hotline               String  @default("1900 6868")
-  supportEmail          String  @default("support@store-ai.example.com")
-  freeShippingThreshold Float   @default(500000)
-  aiProvider            String  @default("gemini")
-  geminiApiKey          String  @default("")
-  geminiModel           String  @default("gemini-3.5-flash")
-  openaiApiKey          String  @default("")
-  openaiModel           String  @default("gpt-5.4-mini")
-  aiServiceUrl          String  @default("http://ai_service:8000")
-  localAiUrl            String  @default("http://localhost:11434")
-  localAiModel          String  @default("llava")
-  vnpayTmnCode          String  @default("SANDBOX_STORE_AI")
-  momoPartnerCode       String  @default("MOMO")
-  momoAccessKey         String  @default("F8BBA842ECF85")
-  momoSecretKey         String  @default("K951B6PE1waDMi640xX08PD3vg6EkVlz")
+  id                    String   @id @default("default")
+  storeName             String   @default("SHOPBEE")
+  hotline               String   @default("1900 6868")
+  supportEmail          String   @default("support@store-ai.example.com")
+  freeShippingThreshold Float    @default(500000)
+  aiProvider            String   @default("gemini")
+  geminiApiKey          String   @default("")
+  geminiModel           String   @default("gemini-3.5-flash")
+  openaiApiKey          String   @default("")
+  openaiModel           String   @default("gpt-5.4-mini")
+  aiServiceUrl          String   @default("http://ai_service:8000")
+  localAiUrl            String   @default("http://localhost:11434")
+  localAiModel          String   @default("llava")
+  vnpayTmnCode          String   @default("SANDBOX_STORE_AI")
+  momoPartnerCode       String   @default("MOMO")
+  momoAccessKey         String   @default("F8BBA842ECF85")
+  momoSecretKey         String   @default("K951B6PE1waDMi640xX08PD3vg6EkVlz")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

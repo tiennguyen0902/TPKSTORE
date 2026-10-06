@@ -20,7 +20,7 @@ export const AdminAiForecast: React.FC = () => {
     setIsLoading(true);
     try {
       const res = await api.getAiForecast(timeRange);
-      setForecastData(res.data);
+      setForecastData(res.data || null);
     } catch (err) {
       console.warn("Could not fetch AI forecast:", err);
     } finally {

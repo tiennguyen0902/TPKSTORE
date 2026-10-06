@@ -65,14 +65,15 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
       }));
     }
 
-    // Use transaction for atomic stock decrement + order creation
-    const newOrder = await db.$transaction(async (tx) => {
-      let targetUserId = userId;
+    // Use transaction for atomic stock decrement + StockMovement + order creation
+    const newOrder = await db.$transaction(async (tx: any) => {
+      let targetUserId: string | null = userId;
+      let targetCustomerId: string | null = null;
 
-      // Nếu là đơn hàng tại quầy / do nhân viên tư vấn, liên kết hoặc tạo nhanh tài khoản Khách lẻ theo SĐT
+      // Nếu là đơn hàng tại quầy / do nhân viên tư vấn, liên kết hoặc tạo hồ sơ Customer an toàn theo SĐT
       if (isCounter || (isStaffOrAdmin && orderPhone)) {
         const cleanPhone = orderPhone.replace(/\D/g, "");
-        const existingCustomer = await tx.user.findFirst({
+        const existingUser = await tx.user.findFirst({
           where: {
             OR: [
               { phone: orderPhone },
@@ -82,38 +83,70 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
           }
         });
 
-        if (existingCustomer) {
-          targetUserId = existingCustomer.id;
-          if (orderCustomerName && orderCustomerName !== "Khách lẻ" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách lẻ")) {
+        if (existingUser) {
+          targetUserId = existingUser.id;
+          if (orderCustomerName && orderCustomerName !== "Khách lẻ" && (!existingUser.fullName || existingUser.fullName === "Khách lẻ")) {
             await tx.user.update({
-              where: { id: existingCustomer.id },
+              where: { id: existingUser.id },
               data: { fullName: orderCustomerName }
             });
           }
         } else {
-          // Tự động tạo hồ sơ khách lẻ tại quầy
-          const guestEmail = `kh_${cleanPhone || Date.now()}@tpkstore.vn`;
-          const defaultPasswordHash = bcrypt.hashSync("WalkInCustomer123@", 10);
-          const newCust = await tx.user.create({
+          // Khách tại quầy không bắt buộc có User account login với password ảo
+          targetUserId = null;
+        }
+
+        // Tìm hoặc tạo hồ sơ Customer chuẩn hóa
+        let custProfile = await tx.customer.findFirst({
+          where: {
+            OR: [
+              { phone: orderPhone },
+              { phone: cleanPhone },
+              ...(targetUserId ? [{ userId: targetUserId }] : [])
+            ]
+          }
+        });
+
+        if (!custProfile) {
+          custProfile = await tx.customer.create({
             data: {
-              email: guestEmail,
+              userId: targetUserId,
               fullName: orderCustomerName || "Khách lẻ",
               phone: orderPhone,
-              address: orderAddress,
-              passwordHash: defaultPasswordHash,
-              role: "CUSTOMER",
-              isActive: true,
-              canChatAi: true
+              address: orderAddress
             }
           });
-          targetUserId = newCust.id;
+        } else if (targetUserId && !custProfile.userId) {
+          await tx.customer.update({
+            where: { id: custProfile.id },
+            data: { userId: targetUserId }
+          });
         }
+        targetCustomerId = custProfile.id;
+      } else if (userId) {
+        // Đơn online của User đã đăng nhập
+        let custProfile = await tx.customer.findUnique({ where: { userId } });
+        if (!custProfile) {
+          custProfile = await tx.customer.create({
+            data: {
+              userId,
+              fullName: orderCustomerName || req.user?.fullName || "Khách hàng",
+              phone: orderPhone || req.user?.phone || "",
+              address: orderAddress || req.user?.address || ""
+            }
+          });
+        }
+        targetCustomerId = custProfile.id;
       }
 
       let totalAmount = 0;
       const orderItemsData: { productId: string; quantity: number; price: number }[] = [];
 
-      // Verify stock and compute snapshot price
+      // Generate sequential Order ID trước để reference trong StockMovement
+      const orderCount = await tx.order.count();
+      const orderId = `#ord_${1000 + orderCount + 1}`;
+
+      // Verify stock, deduct stock and log StockMovement
       for (const item of checkoutItems) {
         const prod = await tx.product.findUnique({ where: { id: item.productId } });
         if (!prod) {
@@ -123,10 +156,27 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
           throw new Error(`Sản phẩm "${prod.name}" chỉ còn ${prod.stock} trong kho`);
         }
 
-        // Deduct stock atomically
+        const beforeStock = typeof prod.stock === "number" ? prod.stock : (parseInt(String(prod.stock)) || 0);
+        const afterStock = beforeStock - item.quantity;
+
+        // Trừ tồn kho trong Transaction
         await tx.product.update({
           where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } }
+          data: { stock: afterStock }
+        });
+
+        // Ghi nhật ký biến động kho bất biến StockMovement (SALE)
+        await tx.stockMovement.create({
+          data: {
+            productId: prod.id,
+            quantity: item.quantity,
+            type: "SALE",
+            beforeStock,
+            afterStock,
+            referenceId: orderId,
+            createdById: isStaffOrAdmin ? req.user!.id : (targetUserId || null),
+            note: `Bán hàng qua đơn hàng ${orderId} (SL: ${item.quantity})`
+          }
         });
 
         const itemTotal = prod.price * item.quantity;
@@ -145,10 +195,6 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
       const discountAmount = typeof reqDiscount === "number" ? reqDiscount : 0;
       const finalAmount = Math.max(0, totalAmount + shippingFee - discountAmount);
 
-      // Count existing orders for sequential ID
-      const orderCount = await tx.order.count();
-      const orderId = `#ord_${1000 + orderCount + 1}`;
-
       const pm = paymentMethod === "MOMO" ? "MOMO" : (paymentMethod === "VNPAY" ? "VNPAY" : "COD");
 
       let finalNote = note || "";
@@ -164,6 +210,8 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
         data: {
           id: orderId,
           userId: targetUserId,
+          customerId: targetCustomerId,
+          createdByStaffId: isStaffOrAdmin ? req.user!.id : null,
           customerName: orderCustomerName,
           phone: orderPhone,
           shippingAddress: orderAddress,
@@ -187,7 +235,7 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
       });
 
       // Clear customer cart only for standard online checkout (not counter POS)
-      if (!isCounter) {
+      if (!isCounter && userId) {
         const cart = await tx.cart.findUnique({ where: { userId } });
         if (cart) {
           await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
@@ -234,10 +282,12 @@ router.post("/pos", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req
     const orderCustomerName = (customerName && String(customerName).trim()) || "Khách lẻ";
     const orderAddress = (shippingAddress && String(shippingAddress).trim()) || "Mua trực tiếp tại quầy - TPKSTORE";
 
-    const newOrder = await db.$transaction(async (tx) => {
-      // 1. Tìm hoặc tạo hồ sơ khách lẻ
-      let targetUserId = "";
-      const existingCustomer = await tx.user.findFirst({
+    const newOrder = await db.$transaction(async (tx: any) => {
+      // 1. Tìm hoặc liên kết hồ sơ khách lẻ chuẩn hóa trong bảng Customer
+      let targetUserId: string | null = null;
+      let targetCustomerId: string | null = null;
+
+      const existingUser = await tx.user.findFirst({
         where: {
           OR: [
             { phone: trimmedPhone },
@@ -247,35 +297,49 @@ router.post("/pos", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req
         }
       });
 
-      if (existingCustomer) {
-        targetUserId = existingCustomer.id;
-        if (orderCustomerName !== "Khách lẻ" && (!existingCustomer.fullName || existingCustomer.fullName === "Khách lẻ")) {
+      if (existingUser) {
+        targetUserId = existingUser.id;
+        if (orderCustomerName !== "Khách lẻ" && (!existingUser.fullName || existingUser.fullName === "Khách lẻ")) {
           await tx.user.update({
-            where: { id: existingCustomer.id },
+            where: { id: existingUser.id },
             data: { fullName: orderCustomerName }
           });
         }
-      } else {
-        const guestEmail = `kh_${cleanPhone || Date.now()}@tpkstore.vn`;
-        const defaultPasswordHash = bcrypt.hashSync("WalkInCustomer123@", 10);
-        const newCust = await tx.user.create({
-          data: {
-            email: guestEmail,
-            fullName: orderCustomerName,
-            phone: trimmedPhone,
-            address: orderAddress,
-            passwordHash: defaultPasswordHash,
-            role: "CUSTOMER",
-            isActive: true,
-            canChatAi: true
-          }
-        });
-        targetUserId = newCust.id;
       }
 
-      // 2. Trừ tồn kho & tính tiền
+      let custProfile = await tx.customer.findFirst({
+        where: {
+          OR: [
+            { phone: trimmedPhone },
+            { phone: cleanPhone },
+            ...(targetUserId ? [{ userId: targetUserId }] : [])
+          ]
+        }
+      });
+
+      if (!custProfile) {
+        custProfile = await tx.customer.create({
+          data: {
+            userId: targetUserId,
+            fullName: orderCustomerName,
+            phone: trimmedPhone,
+            address: orderAddress
+          }
+        });
+      } else if (targetUserId && !custProfile.userId) {
+        await tx.customer.update({
+          where: { id: custProfile.id },
+          data: { userId: targetUserId }
+        });
+      }
+      targetCustomerId = custProfile.id;
+
+      // 2. Trừ tồn kho & tính tiền & ghi nhận StockMovement (SALE)
       let totalAmount = 0;
       const orderItemsData: { productId: string; quantity: number; price: number }[] = [];
+
+      const orderCount = await tx.order.count();
+      const orderId = `#ord_${1000 + orderCount + 1}`;
 
       for (const item of items) {
         const prod = await tx.product.findUnique({ where: { id: item.productId } });
@@ -286,9 +350,27 @@ router.post("/pos", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req
           throw new Error(`Sản phẩm "${prod.name}" chỉ còn ${prod.stock} trong kho (yêu cầu: ${item.quantity})`);
         }
 
+        const beforeStock = typeof prod.stock === "number" ? prod.stock : (parseInt(String(prod.stock)) || 0);
+        const afterStock = beforeStock - item.quantity;
+
+        // Trừ tồn kho trong Transaction
         await tx.product.update({
           where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } }
+          data: { stock: afterStock }
+        });
+
+        // Ghi nhật ký biến động kho bất biến StockMovement (SALE)
+        await tx.stockMovement.create({
+          data: {
+            productId: prod.id,
+            quantity: item.quantity,
+            type: "SALE",
+            beforeStock,
+            afterStock,
+            referenceId: orderId,
+            createdById: req.user!.id,
+            note: `Bán tại quầy POS qua đơn hàng ${orderId} (SL: ${item.quantity})`
+          }
         });
 
         const itemTotal = prod.price * item.quantity;
@@ -301,8 +383,6 @@ router.post("/pos", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req
         });
       }
 
-      const orderCount = await tx.order.count();
-      const orderId = `#ord_${1000 + orderCount + 1}`;
       const finalDiscount = Number(discountAmount) || 0;
       const finalAmount = Math.max(0, totalAmount - finalDiscount);
 
@@ -314,6 +394,8 @@ router.post("/pos", authenticateToken, authorize(["ADMIN", "STAFF"]), async (req
         data: {
           id: orderId,
           userId: targetUserId,
+          customerId: targetCustomerId,
+          createdByStaffId: req.user!.id,
           customerName: orderCustomerName,
           phone: trimmedPhone,
           shippingAddress: orderAddress,
@@ -457,11 +539,28 @@ router.put("/:id/status", authenticateToken, authorize(["ADMIN", "MANAGER", "STA
 
     // Handle stock refund if cancelled
     if (status === "CANCELLED" && order.status !== "CANCELLED") {
-      await db.$transaction(async (tx) => {
+      await db.$transaction(async (tx: any) => {
         for (const item of order.items) {
+          const prod = await tx.product.findUnique({ where: { id: item.productId } });
+          const beforeStock = prod ? (typeof prod.stock === "number" ? prod.stock : (parseInt(String(prod.stock)) || 0)) : 0;
+          const afterStock = beforeStock + item.quantity;
+
           await tx.product.update({
             where: { id: item.productId },
-            data: { stock: { increment: item.quantity } }
+            data: { stock: afterStock }
+          });
+
+          await tx.stockMovement.create({
+            data: {
+              productId: item.productId,
+              quantity: item.quantity,
+              type: "SALE_CANCEL",
+              beforeStock,
+              afterStock,
+              referenceId: order.id,
+              createdById: req.user!.id,
+              note: `Hoàn tồn kho do đổi trạng thái đơn hàng #${order.id} sang CANCELLED (+${item.quantity})`
+            }
           });
         }
         await tx.order.update({
@@ -474,7 +573,7 @@ router.put("/:id/status", authenticateToken, authorize(["ADMIN", "MANAGER", "STA
         where: { id: order.id },
         include: { items: { include: { product: true } } }
       });
-      return res.json({ message: "Đã hủy đơn hàng và hoàn lại tồn kho.", order: updated });
+      return res.json({ message: "Đã hủy đơn hàng và hoàn lại tồn kho cùng nhật ký StockMovement.", order: updated });
     }
 
     const updateData: any = {};
@@ -522,12 +621,29 @@ router.post("/:id/cancel", authenticateToken, async (req: AuthenticatedRequest, 
       return res.status(400).json({ error: "Chỉ có thể hủy đơn hàng đang ở trạng thái Chờ xử lý hoặc Đã xác nhận." });
     }
 
-    await db.$transaction(async (tx) => {
-      // Refund stock
+    await db.$transaction(async (tx: any) => {
+      // Refund stock and record StockMovement
       for (const item of order.items) {
+        const prod = await tx.product.findUnique({ where: { id: item.productId } });
+        const beforeStock = prod ? (typeof prod.stock === "number" ? prod.stock : (parseInt(String(prod.stock)) || 0)) : 0;
+        const afterStock = beforeStock + item.quantity;
+
         await tx.product.update({
           where: { id: item.productId },
-          data: { stock: { increment: item.quantity } }
+          data: { stock: afterStock }
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            productId: item.productId,
+            quantity: item.quantity,
+            type: "SALE_CANCEL",
+            beforeStock,
+            afterStock,
+            referenceId: order.id,
+            createdById: user.id,
+            note: `Khách hàng/Admin hủy đơn #${order.id} (Hoàn kho: +${item.quantity})`
+          }
         });
       }
       await tx.order.update({

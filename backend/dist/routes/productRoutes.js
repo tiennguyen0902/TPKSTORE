@@ -124,19 +124,19 @@ function generateSlug(str) {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
 }
-// POST /api/products (Admin & Manager)
-router.post("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER"]), async (req, res) => {
+// POST /api/products (Chỉ ADMIN được quyền tạo mới sản phẩm theo quy chuẩn RBAC)
+router.post("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN"]), async (req, res) => {
     try {
         const { name, description, price, originalPrice, stock, categoryId, thumbnail, images, isFeatured, isNew } = req.body;
         if (!name || typeof name !== "string" || !name.trim()) {
             return res.status(400).json({ error: "Tên sản phẩm không được để trống." });
         }
         const trimmedName = name.trim();
-        if (price === undefined || stock === undefined || !categoryId) {
-            return res.status(400).json({ error: "Vui lòng điền đầy đủ Tên, Giá bán, Tồn kho và Danh mục." });
+        if (price === undefined || !categoryId) {
+            return res.status(400).json({ error: "Vui lòng điền đầy đủ Tên, Giá bán và Danh mục." });
         }
         const parsedPrice = parseFloat(price);
-        const parsedStock = parseInt(stock);
+        const parsedStock = stock !== undefined ? parseInt(stock) : 0;
         if (isNaN(parsedPrice) || parsedPrice <= 0) {
             return res.status(400).json({ error: "Giá bán sản phẩm phải lớn hơn 0 VND." });
         }
@@ -168,6 +168,7 @@ router.post("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANA
             });
         }
         const defaultThumb = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80";
+        const user = req.user;
         const newProduct = await db_1.db.product.create({
             data: {
                 name: trimmedName,
@@ -186,6 +187,26 @@ router.post("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANA
             },
             include: { category: true }
         });
+        // Nếu có tồn kho ban đầu, ghi nhận StockMovement bất biến
+        if (parsedStock > 0) {
+            try {
+                await db_1.db.stockMovement.create({
+                    data: {
+                        productId: newProduct.id,
+                        quantity: parsedStock,
+                        type: "ADJUSTMENT",
+                        beforeStock: 0,
+                        afterStock: parsedStock,
+                        referenceId: newProduct.id,
+                        createdById: user?.id || null,
+                        note: "Khởi tạo tồn kho ban đầu khi tạo sản phẩm mới"
+                    }
+                });
+            }
+            catch (smErr) {
+                console.warn("Could not log initial stock movement:", smErr);
+            }
+        }
         return res.status(201).json({
             message: "Thêm mới sản phẩm thành công!",
             product: newProduct
@@ -195,8 +216,8 @@ router.post("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANA
         return res.status(500).json({ error: "Lỗi thêm sản phẩm: " + err.message });
     }
 });
-// PUT /api/products/:id (Admin & Manager)
-router.put("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER"]), async (req, res) => {
+// PUT /api/products/:id (Chỉ ADMIN được cập nhật sản phẩm; Không cho phép sửa stock trực tiếp)
+router.put("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN"]), async (req, res) => {
     try {
         const existing = await db_1.db.product.findUnique({ where: { id: req.params.id } });
         if (!existing) {
@@ -250,12 +271,9 @@ router.put("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MA
         if (originalPrice !== undefined) {
             updateData.originalPrice = originalPrice ? parseFloat(originalPrice) : null;
         }
+        // Tồn kho không được chỉnh sửa trực tiếp qua API update sản phẩm (Phải qua StockTicket & Transaction kho)
         if (stock !== undefined) {
-            const parsedStock = parseInt(stock);
-            if (isNaN(parsedStock) || parsedStock < 0) {
-                return res.status(400).json({ error: "Số lượng tồn kho không được âm." });
-            }
-            updateData.stock = parsedStock;
+            // Ignored for direct updates to preserve stock integrity and StockMovement history
         }
         if (description !== undefined) {
             updateData.description = String(description).trim();
@@ -314,8 +332,8 @@ router.put("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MA
         return res.status(500).json({ error: "Lỗi cập nhật sản phẩm: " + err.message });
     }
 });
-// DELETE /api/products/:id (Admin & Manager)
-router.delete("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER"]), async (req, res) => {
+// DELETE /api/products/:id (Chỉ ADMIN được xóa sản phẩm theo quy chuẩn RBAC)
+router.delete("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN"]), async (req, res) => {
     try {
         const existing = await db_1.db.product.findUnique({ where: { id: req.params.id } });
         if (!existing) {

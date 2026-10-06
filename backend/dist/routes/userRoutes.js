@@ -1,12 +1,8 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
-const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const router = (0, express_1.Router)();
 // GET /api/users (Admin, Manager & Staff view customer list)
 router.get("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER", "STAFF"]), async (req, res) => {
@@ -182,6 +178,7 @@ router.get("/lookup", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", 
     }
 });
 // POST /api/users/quick-customer (Staff, Manager & Admin quick create walk-in customer profile)
+// Chuẩn hóa RBAC: Không tạo user ảo có password mặc định; lưu trữ an toàn trong bảng Customer
 router.post("/quick-customer", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER", "STAFF"]), async (req, res) => {
     try {
         const { fullName, phone, address } = req.body;
@@ -191,8 +188,8 @@ router.post("/quick-customer", auth_1.authenticateToken, (0, auth_1.authorize)([
         const trimmedPhone = String(phone).trim();
         const cleanPhone = trimmedPhone.replace(/\D/g, "");
         const last9 = cleanPhone.length >= 9 ? cleanPhone.slice(-9) : cleanPhone;
-        // Check if customer already exists in DB
-        const existing = await db_1.db.user.findFirst({
+        // 1. Kiểm tra tài khoản User chính thức nếu đã đăng ký tài khoản từ trước
+        const existingUser = await db_1.db.user.findFirst({
             where: {
                 OR: [
                     { phone: trimmedPhone },
@@ -202,43 +199,50 @@ router.post("/quick-customer", auth_1.authenticateToken, (0, auth_1.authorize)([
                 ]
             }
         });
-        if (existing) {
-            if (fullName && String(fullName).trim() && existing.fullName !== String(fullName).trim()) {
-                const updated = await db_1.db.user.update({
-                    where: { id: existing.id },
+        // 2. Kiểm tra hoặc tạo hồ sơ Customer
+        let existingCustomer = await db_1.db.customer.findFirst({
+            where: {
+                OR: [
+                    { phone: trimmedPhone },
+                    { phone: cleanPhone },
+                    ...(existingUser ? [{ userId: existingUser.id }] : [])
+                ]
+            }
+        });
+        if (existingCustomer) {
+            if (fullName && String(fullName).trim() && existingCustomer.fullName !== String(fullName).trim()) {
+                existingCustomer = await db_1.db.customer.update({
+                    where: { id: existingCustomer.id },
                     data: { fullName: String(fullName).trim() }
-                });
-                return res.json({
-                    isNew: false,
-                    message: "Khách hàng thân thiết đã có trong hệ thống",
-                    customer: updated
                 });
             }
             return res.json({
                 isNew: false,
-                message: "Khách hàng đã có trong hệ thống",
-                customer: existing
+                message: "Khách hàng thân thiết đã có trong hệ thống",
+                customer: {
+                    ...existingCustomer,
+                    role: "CUSTOMER",
+                    isActive: true
+                }
             });
         }
-        // Auto-create walk-in customer account
-        const guestEmail = `kh_${cleanPhone || Date.now()}@tpkstore.vn`;
-        const defaultPasswordHash = bcryptjs_1.default.hashSync("WalkInCustomer123@", 10);
-        const newCustomer = await db_1.db.user.create({
+        // 3. Tạo mới hồ sơ Customer độc lập (không gán mật khẩu mặc định cố định)
+        const newCustomer = await db_1.db.customer.create({
             data: {
-                email: guestEmail,
                 fullName: (fullName && String(fullName).trim()) || "Khách lẻ",
                 phone: trimmedPhone,
                 address: (address && String(address).trim()) || "Mua tại quầy - TPKSTORE",
-                passwordHash: defaultPasswordHash,
-                role: "CUSTOMER",
-                isActive: true,
-                canChatAi: true
+                userId: existingUser ? existingUser.id : null
             }
         });
         return res.status(201).json({
             isNew: true,
-            message: "Tạo hồ sơ khách lẻ thành công!",
-            customer: newCustomer
+            message: "Tạo hồ sơ khách lẻ thành công (an toàn, không mật khẩu mặc định)!",
+            customer: {
+                ...newCustomer,
+                role: "CUSTOMER",
+                isActive: true
+            }
         });
     }
     catch (err) {
