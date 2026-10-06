@@ -77,6 +77,7 @@ export const CounterPosView: React.FC<CounterPosViewProps> = ({ onNavigateWareho
   const [consultantNote, setConsultantNote] = useState("");
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [orderError, setOrderError] = useState("");
+  const [posMobileTab, setPosMobileTab] = useState<"products" | "cart">("products");
 
   // 4. Receipt & Electronic Warranty Modal
   const [completedOrder, setCompletedOrder] = useState<any>(null);
@@ -620,10 +621,32 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
         </div>
       )}
 
+      {/* Mobile / Tablet Tab Switcher */}
+      <div className="lg:hidden flex rounded-2xl bg-slate-200/80 p-1 mb-4 shadow-inner">
+        <button
+          type="button"
+          onClick={() => setPosMobileTab("products")}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            posMobileTab === "products" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          🔍 Chọn Món & Tìm Kiếm ({products.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setPosMobileTab("cart")}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            posMobileTab === "cart" ? "bg-white text-rose-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          🛒 Đơn Hàng Quầy {cartItems.length > 0 && <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-black">{cartItems.length}</span>}
+        </button>
+      </div>
+
       {/* Main POS Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Side: Product Catalog & Quick Search (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
+        <div className={`${posMobileTab === "products" ? "block" : "hidden lg:block"} lg:col-span-7 space-y-4`}>
           {/* Search & Filter Toolbar */}
           <div className="p-4 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3">
             <div className="relative">
@@ -773,7 +796,7 @@ Hãy đưa ra kịch bản tư vấn súc tích, chuyên nghiệp cho nhân viê
         </div>
 
         {/* Right Side: Customer Info & In-Store Counter Cart (5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
+        <div className={`${posMobileTab === "cart" ? "block" : "hidden lg:block"} lg:col-span-5 space-y-4`}>
           {/* Section 1: Customer Phone & Loyalty Lookup Card */}
           <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">

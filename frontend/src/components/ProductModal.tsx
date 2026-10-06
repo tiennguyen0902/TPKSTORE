@@ -217,19 +217,19 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-md overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden animate-in fade-in duration-200">
-      <div className="relative w-full max-w-5xl max-h-[92vh] bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden flex flex-col my-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-md overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden animate-in fade-in duration-200">
+      <div className="relative w-full max-w-5xl max-h-[94vh] sm:max-h-[92vh] bg-white border border-slate-200 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden flex flex-col my-0 sm:my-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 p-2.5 rounded-full bg-white/90 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors shadow-md"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 p-2 sm:p-2.5 rounded-full bg-white/90 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors shadow-md"
           title="Đóng cửa sổ"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Modal Main Content */}
-        <div className="p-5 sm:p-7 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="p-4 sm:p-7 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8">
           {/* Left Column: Image Gallery & Guarantees (5 cols) */}
           <div className="lg:col-span-5 flex flex-col gap-4">
             {/* Main Featured Image */}
@@ -654,33 +654,31 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-2 pt-2 border-t border-slate-100">
-              <div className="grid grid-cols-2 gap-3">
+            {/* Action Buttons - Sticky on mobile */}
+            <div className="sticky bottom-0 z-20 -mx-4 sm:mx-0 px-4 py-3 sm:p-0 sm:pt-2 bg-white/95 backdrop-blur-md sm:bg-transparent border-t border-slate-200 sm:border-slate-100 shadow-lg sm:shadow-none space-y-2">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                 <button
                   onClick={handleAddToCart}
                   disabled={safeStock <= 0}
-                  className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 text-xs font-bold border border-slate-300 transition-all active:scale-98 shadow-sm cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 py-3 sm:py-3.5 px-2.5 sm:px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 text-xs font-bold border border-slate-300 transition-all active:scale-98 shadow-sm cursor-pointer"
                 >
-                  <ShoppingBag className="w-4 h-4 text-rose-600" />
-                  <span>{addedToast ? "✓ Đã thêm vào giỏ hàng" : "Thêm vào giỏ hàng"}</span>
+                  <ShoppingBag className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span className="truncate">{addedToast ? "✓ Đã thêm" : "Thêm vào giỏ"}</span>
                 </button>
 
                 <button
                   onClick={handleBuyNow}
                   disabled={safeStock <= 0}
-                  className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 disabled:opacity-40 text-white text-xs font-bold shadow-lg shadow-rose-600/30 transition-all active:scale-98 cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 py-3 sm:py-3.5 px-2.5 sm:px-4 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 disabled:opacity-40 text-white text-xs font-bold shadow-lg shadow-rose-600/30 transition-all active:scale-98 cursor-pointer"
                 >
-                  <span>{safeStock <= 0 ? "Hết hàng" : "Mua ngay (Giao 2h)"}</span>
+                  <span className="truncate">{safeStock <= 0 ? "Hết hàng" : "Mua ngay (2h)"}</span>
                 </button>
               </div>
-
-
 
               {addedToast && (
                 <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs text-emerald-800 font-bold animate-in fade-in flex items-center justify-center gap-1.5 shadow-xs">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Đã thêm {quantity} x {product.name} {variantSummary ? `(${variantSummary})` : ""} vào giỏ hàng thành công!</span>
+                  <span className="truncate">Đã thêm vào giỏ hàng thành công!</span>
                 </div>
               )}
             </div>

@@ -79,9 +79,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect, onB
       </div>
 
       {/* Content */}
-      <div className="p-4 flex-1 flex flex-col justify-between">
+      <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 mb-1">
+          <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-rose-600 mb-0.5 sm:mb-1">
             {product.category?.name || "CÔNG NGHỆ"}
           </p>
           <h3 
@@ -91,7 +91,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect, onB
             {product.name}
           </h3>
 
-          <div className="flex items-center gap-1 mt-1.5 text-[11px] text-slate-500">
+          <div className="flex items-center gap-1 mt-1 sm:mt-1.5 text-[10px] sm:text-[11px] text-slate-500">
             <span className="text-amber-400 flex items-center">
               {"★".repeat(starCount)}
             </span>
@@ -100,19 +100,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect, onB
         </div>
 
         {/* Price & Action */}
-        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+        <div className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-slate-100 flex flex-col xs:flex-row xs:items-center justify-between gap-1.5 sm:gap-2">
           <div>
-            <p className="text-rose-600 font-black text-sm tracking-tight">
-              {safePrice.toLocaleString("vi-VN")} <span className="text-xs font-bold">đ</span>
+            <p className="text-rose-600 font-black text-xs sm:text-sm tracking-tight">
+              {safePrice.toLocaleString("vi-VN")} <span className="text-[10px] sm:text-xs font-bold">đ</span>
             </p>
             {safeOriginalPrice && safeOriginalPrice > safePrice && (
-              <p className="text-[10px] text-slate-400 line-through">
+              <p className="text-[9px] sm:text-[10px] text-slate-400 line-through">
                 {safeOriginalPrice.toLocaleString("vi-VN")} đ
               </p>
             )}
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5 self-end xs:self-auto">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -132,7 +132,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect, onB
                   onSelect(product);
                 }
               }}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-bold shadow-md shadow-rose-600/20 active:scale-95 transition-all"
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-[11px] sm:text-xs font-bold shadow-md shadow-rose-600/20 active:scale-95 transition-all whitespace-nowrap"
             >
               Mua ngay
             </button>

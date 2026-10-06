@@ -224,7 +224,7 @@ export const CartView: React.FC<CartViewProps> = ({
 
         {/* Right Column: Order Summary */}
         <div className="lg:col-span-4">
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 space-y-5 sticky top-24 shadow-xl">
+          <div className="p-5 sm:p-6 rounded-3xl bg-white border border-slate-200 space-y-4 sm:space-y-5 sticky top-24 shadow-xl">
             <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
               Tóm Tắt Đơn Hàng
             </h3>
@@ -271,6 +271,21 @@ export const CartView: React.FC<CartViewProps> = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Mobile Sticky Checkout Bar */}
+      <div className="lg:hidden fixed bottom-16 sm:bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-3 sm:p-4 z-30 shadow-2xl flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] text-slate-500 font-medium">Tổng thanh toán ({itemCount} sp):</p>
+          <p className="text-base font-black text-rose-600">{total.toLocaleString("vi-VN")} đ</p>
+        </div>
+        <button
+          onClick={onProceedToCheckout}
+          className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/30 transition-all"
+        >
+          <span>Thanh toán</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Filter, SlidersHorizontal, ArrowUpDown, Tag, Search, RotateCcw } from "lucide-react";
+import { Filter, SlidersHorizontal, ArrowUpDown, Tag, Search, RotateCcw, X, Check } from "lucide-react";
 import { Product, Category } from "../types";
 import { ProductCard } from "./ProductCard";
 import { Pagination } from "./Pagination";
@@ -13,6 +13,14 @@ interface CatalogViewProps {
   onSelectProduct: (p: Product) => void;
   onBuyProduct?: (p: Product) => void;
 }
+
+const PRICE_RANGES = [
+  { id: "all", label: "Tất cả mức giá" },
+  { id: "under_2m", label: "Dưới 2.000.000 đ" },
+  { id: "2m_5m", label: "2.000.000 đ - 5.000.000 đ" },
+  { id: "5m_15m", label: "5.000.000 đ - 15.000.000 đ" },
+  { id: "over_15m", label: "Trên 15.000.000 đ" }
+];
 
 export const CatalogView: React.FC<CatalogViewProps> = ({
   initialCategory,
@@ -28,6 +36,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [showMobileFilterDrawer, setShowMobileFilterDrawer] = useState<boolean>(false);
 
   // Phân trang tự động
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -176,8 +185,17 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           </p>
         </div>
 
-        {/* Sort and Reset */}
-        <div className="flex items-center gap-3">
+        {/* Sort, Filter Mobile, and Reset */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          {/* Mobile Filter Button */}
+          <button
+            onClick={() => setShowMobileFilterDrawer(true)}
+            className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-colors"
+          >
+            <Filter className="w-3.5 h-3.5 text-rose-600" />
+            <span>Bộ lọc {selectedCategory !== "all" || selectedPriceRange !== "all" ? "• 1+" : ""}</span>
+          </button>
+
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700">
             <ArrowUpDown className="w-3.5 h-3.5 text-rose-600" />
             <select
@@ -195,17 +213,18 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           <button
             onClick={handleResetFilters}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors"
+            title="Đặt lại bộ lọc"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Đặt lại bộ lọc</span>
+            <span className="hidden sm:inline">Đặt lại</span>
           </button>
         </div>
       </div>
 
       {/* Main Grid: Sidebar + Products */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left Sidebar Filters */}
-        <div className="lg:col-span-1 space-y-6">
+        {/* Left Sidebar Filters - Desktop only */}
+        <div className="hidden lg:block lg:col-span-1 space-y-6">
           {/* Category Filter */}
           <div className="p-5 rounded-3xl bg-white border border-slate-200 space-y-3 shadow-sm">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-900">
@@ -259,13 +278,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
             </div>
 
             <div className="space-y-1 text-xs">
-              {[
-                { id: "all", label: "Tất cả mức giá" },
-                { id: "under_2m", label: "Dưới 2.000.000 đ" },
-                { id: "2m_5m", label: "2.000.000 đ - 5.000.000 đ" },
-                { id: "5m_15m", label: "5.000.000 đ - 15.000.000 đ" },
-                { id: "over_15m", label: "Trên 15.000.000 đ" }
-              ].map((range) => (
+              {PRICE_RANGES.map((range) => (
                 <label
                   key={range.id}
                   onClick={() => setSelectedPriceRange(range.id)}
@@ -293,7 +306,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
             </div>
           ) : paginatedProducts.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-4">
                 {paginatedProducts.map((prod) => (
                   <ProductCard
                     key={prod.id}
@@ -333,6 +346,110 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Mobile Filter Drawer (Bottom Sheet) */}
+      {showMobileFilterDrawer && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div
+            onClick={() => setShowMobileFilterDrawer(false)}
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs animate-in fade-in"
+          />
+
+          {/* Drawer Sheet */}
+          <div className="fixed inset-x-0 bottom-0 max-h-[85vh] bg-white rounded-t-3xl shadow-2xl flex flex-col z-10 animate-in slide-in-from-bottom duration-200">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-rose-600" />
+                <h3 className="font-extrabold text-sm text-slate-900">Bộ Lọc Sản Phẩm</h3>
+              </div>
+              <button
+                onClick={() => setShowMobileFilterDrawer(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-5">
+              {/* Categories */}
+              <div>
+                <p className="text-xs font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-rose-600" /> Ngành hàng:
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => { handleSelectCategory("all"); }}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold text-left transition-colors ${
+                      selectedCategory === "all"
+                        ? "bg-rose-600 text-white font-bold"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    Tất cả ({categories.length})
+                  </button>
+                  {categories.map((cat) => {
+                    const isActive = selectedCategory === cat.slug || selectedCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => { handleSelectCategory(cat.slug); }}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold text-left truncate transition-colors ${
+                          isActive
+                            ? "bg-rose-600 text-white font-bold"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Price Ranges */}
+              <div className="pt-3 border-t border-slate-100">
+                <p className="text-xs font-bold text-slate-900 mb-2">Khoảng giá:</p>
+                <div className="space-y-1.5">
+                  {PRICE_RANGES.map((range) => (
+                    <label
+                      key={range.id}
+                      onClick={() => setSelectedPriceRange(range.id)}
+                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer ${
+                        selectedPriceRange === range.id ? "bg-rose-50 text-rose-700 font-bold" : "bg-slate-50 text-slate-700"
+                      }`}
+                    >
+                      <span>{range.label}</span>
+                      {selectedPriceRange === range.id && <Check className="w-4 h-4 text-rose-600" />}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center gap-3">
+              <button
+                onClick={() => {
+                  handleResetFilters();
+                  setShowMobileFilterDrawer(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold transition-colors"
+              >
+                Đặt lại
+              </button>
+              <button
+                onClick={() => setShowMobileFilterDrawer(false)}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/20 transition-colors"
+              >
+                Áp dụng bộ lọc
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

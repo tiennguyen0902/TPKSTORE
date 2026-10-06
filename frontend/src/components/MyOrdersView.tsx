@@ -93,9 +93,9 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-16">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Đơn Hàng Của Tôi</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900">Đơn Hàng Của Tôi</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Theo dõi hành trình đơn hàng và quản lý các giao dịch ({totalItems} đơn hàng)
             {totalPages > 1 && (
@@ -107,7 +107,7 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
         </div>
         <button
           onClick={onNavigateCatalog}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors shadow-xs"
+          className="self-start sm:self-auto flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors shadow-xs shrink-0"
         >
           <ArrowLeft className="w-3.5 h-3.5 text-rose-600" />
           <span>Mua thêm sản phẩm</span>
@@ -148,41 +148,41 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
                 key={order.id}
                 className="rounded-3xl bg-white border border-slate-200 overflow-hidden transition-all shadow-sm hover:shadow-md hover:border-slate-300"
               >
-                {/* Order Top Bar (Matching Screenshot) */}
-                <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center font-bold">
-                      <Package className="w-5 h-5" />
+                {/* Order Top Bar - Responsive layout */}
+                <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-slate-100">
+                  <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center font-bold shrink-0 mt-0.5 sm:mt-0">
+                      <Package className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                         <span className="font-extrabold text-slate-900 text-sm">{order.id}</span>
-                        <span className="text-xs text-slate-500 font-mono">
+                        <span className="text-[11px] sm:text-xs text-slate-500 font-mono">
                           {new Date(order.createdAt).toLocaleDateString("vi-VN")} {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-500 mt-0.5 break-words">
                         Người nhận: <strong className="text-slate-800">{order.customerName}</strong> ({order.phone})
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 self-start sm:self-center">
+                  <div className="self-start sm:self-center shrink-0">
                     {getStatusBadge(order.status)}
                   </div>
                 </div>
 
                 {/* Items preview snippet */}
-                <div className="p-5 space-y-3">
+                <div className="p-4 sm:p-5 space-y-3">
                   <div className="space-y-2">
                     {order.items?.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between text-xs text-slate-700">
-                        <div className="flex items-center gap-2 max-w-[70%]">
+                      <div key={item.id} className="flex items-center justify-between gap-3 text-xs text-slate-700">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
                           <span className="truncate font-medium">{item.product?.name || `Sản phẩm ID: ${item.productId}`}</span>
-                          <span className="text-slate-400 font-bold">x{item.quantity}</span>
+                          <span className="text-slate-400 font-bold shrink-0">x{item.quantity}</span>
                         </div>
-                        <span className="font-bold text-slate-900">
+                        <span className="font-bold text-slate-900 shrink-0 whitespace-nowrap">
                           {(item.price * item.quantity).toLocaleString("vi-VN")} đ
                         </span>
                       </div>
@@ -200,17 +200,17 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
                       )
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full sm:w-auto">
+                      <div className="text-left sm:text-right">
                         <span className="text-xs text-slate-500">Tổng tiền: </span>
-                        <span className="text-base font-black text-rose-600">
+                        <span className="text-sm sm:text-base font-black text-rose-600">
                           {order.finalAmount.toLocaleString("vi-VN")} đ
                         </span>
                       </div>
 
                       <button
                         onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
-                        className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center gap-1 transition-colors"
+                        className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center gap-1 transition-colors shrink-0"
                       >
                         <span>Chi tiết đơn</span>
                         {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}

@@ -39,8 +39,8 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <ToastContext.Provider value={{ showToast, hideToast }}>
       {children}
-      {/* Floating Popup Notifications ở góc trái dưới (Bottom-Left) */}
-      <div className="fixed bottom-6 left-6 z-[100] flex flex-col gap-2.5 max-w-sm sm:max-w-md pointer-events-none">
+      {/* Floating Popup Notifications ở góc trái dưới (Bottom-Left), responsive cho mobile */}
+      <div className="fixed bottom-20 sm:bottom-6 left-4 right-4 sm:right-auto sm:left-6 z-[100] flex flex-col gap-2.5 max-w-sm sm:max-w-md pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}

@@ -83,28 +83,28 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
   return (
     <div className="space-y-12 pb-16">
       {/* 1. Hero Section (Crisp White & Light Cherry) */}
-      <section className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-rose-50/80 via-white to-amber-50/40 border border-rose-100 p-8 md:p-12 shadow-xl shadow-rose-950/5">
+      <section className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-rose-50/80 via-white to-amber-50/40 border border-rose-100 p-5 sm:p-8 md:p-12 shadow-xl shadow-rose-950/5">
         <div className="absolute top-0 right-0 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
           {/* Left Hero Column */}
-          <div className="lg:col-span-7 space-y-6">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 leading-tight tracking-tight">
-              Mua sắm <br />
-              Thông Minh <br />
+          <div className="lg:col-span-7 space-y-4 sm:space-y-6">
+            <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-900 leading-tight tracking-tight">
+              Mua sắm <br className="hidden sm:inline" />
+              Thông Minh <br className="hidden sm:inline" />
               cùng SHOPBEE 🐝
             </h1>
 
-            <p className="text-slate-600 text-sm md:text-base leading-relaxed max-w-xl font-medium">
+            <p className="text-slate-600 text-xs sm:text-sm md:text-base leading-relaxed max-w-xl font-medium">
               Hệ thống AI tự động phân tích nhu cầu, gợi ý sản phẩm phù hợp với phong cách và ngân sách của bạn.
             </p>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-4 pt-1 sm:pt-2">
               <button
                 onClick={() => onNavigateCatalog()}
-                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-sm font-bold shadow-lg shadow-rose-600/30 transition-all hover:scale-105 active:scale-95"
+                className="flex items-center justify-center gap-2 px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs sm:text-sm font-bold shadow-lg shadow-rose-600/30 transition-all hover:scale-105 active:scale-95"
               >
                 <span>Khám phá ngay</span>
                 <ArrowRight className="w-4 h-4" />
@@ -112,7 +112,7 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
 
               <button
                 onClick={onOpenChat}
-                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 text-sm font-bold border border-slate-200 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                className="flex items-center justify-center gap-2 px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-bold border border-slate-200 transition-all hover:scale-105 active:scale-95 shadow-sm"
               >
                 <Bot className="w-4 h-4 text-rose-600" />
                 <span>Chat với AI</span>
@@ -267,7 +267,7 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {aiRecommendations.map((prod) => (
               <ProductCard
                 key={prod.id}
@@ -302,7 +302,7 @@ export const StorefrontHome: React.FC<StorefrontHomeProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {featuredProducts.slice(0, 8).map((prod) => (
             <ProductCard
               key={prod.id}

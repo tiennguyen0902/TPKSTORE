@@ -28,8 +28,9 @@ import { StaffDashboard } from "./components/StaffDashboard";
 import { StockTicketsView } from "./components/StockTicketsView";
 import { CounterPosView } from "./components/CounterPosView";
 import { LoginModal } from "./components/LoginModal";
+import { MobileBottomNav } from "./components/MobileBottomNav";
 import { Product } from "./types";
-import { ShieldAlert, CheckCircle2 } from "lucide-react";
+import { ShieldAlert, CheckCircle2, Menu, Home } from "lucide-react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { api } from "./services/api";
 
@@ -132,6 +133,7 @@ const MainApp: React.FC = () => {
   // Quản lý Modal Popup đăng nhập khi mua hàng
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [loginModalProduct, setLoginModalProduct] = useState<Product | null>(null);
+  const [isAdminSidebarOpen, setIsAdminSidebarOpen] = useState<boolean>(false);
   const { showToast } = useToast();
 
   // Mở popup đăng nhập và lưu lại sản phẩm khách đang chọn mua
@@ -448,13 +450,41 @@ const MainApp: React.FC = () => {
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-rose-600 selection:text-white">
       {/* If Admin view -> Render Admin Layout with Sidebar */}
       {isAdminRoute ? (
-        <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
+        <div className="flex h-screen overflow-hidden bg-[#f8fafc] flex-col lg:flex-row">
+          {/* Mobile Admin Top Navigation Bar */}
+          <div className="lg:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between z-30 shrink-0 shadow-xs">
+            <button
+              onClick={() => setIsAdminSidebarOpen(true)}
+              className="p-2 rounded-xl text-slate-700 hover:text-rose-600 hover:bg-slate-100 transition-colors"
+              title="Mở menu quản trị"
+              aria-label="Mở menu quản trị"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-sm text-slate-900 tracking-wider">SHOPBEE</span>
+              <span className="text-[10px] uppercase font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                {user?.role === "MANAGER" ? "MANAGER" : "ADMIN"}
+              </span>
+            </div>
+            <button
+              onClick={() => navigate("/")}
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              title="Về cửa hàng"
+              aria-label="Về cửa hàng"
+            >
+              <Home className="w-5 h-5 text-rose-600" />
+            </button>
+          </div>
+
           <AdminSidebar
             activeTab={currentView}
             setActiveTab={handleNavigateView}
             onNavigateHome={() => navigate("/")}
+            isOpenMobile={isAdminSidebarOpen}
+            onCloseMobile={() => setIsAdminSidebarOpen(false)}
           />
-          <main className="flex-1 overflow-y-auto bg-[#f8fafc] p-6 lg:p-8">
+          <main className="flex-1 overflow-y-auto bg-[#f8fafc] p-3 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
               {currentView === "admin_dashboard" && <AdminDashboard onNavigateTab={handleNavigateView} />}
               {currentView === "admin_pos" && <CounterPosView onNavigateWarehouse={() => navigate("/admin/stock-tickets")} />}
@@ -483,7 +513,7 @@ const MainApp: React.FC = () => {
             setSelectedCategory={handleSelectCategory}
           />
 
-          <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 w-full">
+          <main className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 w-full pb-24 md:pb-8">
             {/* View Đăng nhập / Đăng ký: Chỉ hiển thị khi CHƯA đăng nhập */}
             {currentView === "auth" && !user && (
               <AuthView 
@@ -556,6 +586,9 @@ const MainApp: React.FC = () => {
           </main>
 
           <Footer onNavigateCategory={handleSelectCategory} />
+
+          {/* Mobile Bottom Navigation Bar (Dành riêng cho giao diện điện thoại) */}
+          <MobileBottomNav currentView={currentView} />
         </>
       )}
 

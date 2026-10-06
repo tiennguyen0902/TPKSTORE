@@ -13,7 +13,8 @@ import {
   Settings, 
   Home, 
   LogOut,
-  Store 
+  Store,
+  X
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -21,12 +22,16 @@ interface AdminSidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onNavigateHome: () => void;
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   activeTab,
   setActiveTab,
-  onNavigateHome
+  onNavigateHome,
+  isOpenMobile,
+  onCloseMobile
 }) => {
   const { user, logout } = useAuth();
   const isManager = user?.role === "MANAGER";
@@ -75,94 +80,129 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   ];
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 h-screen sticky top-0 z-30 select-none overflow-y-auto shadow-sm">
-      <div>
-        {/* Brand Header */}
-        <div className="p-5 border-b border-slate-100 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-600 to-rose-700 flex items-center justify-center font-black text-white shadow-md shadow-rose-600/30">
-            🐝
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-sm text-slate-900 tracking-wider">SHOPBEE</span>
-              <span className="text-[9px] uppercase font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
-                {isManager ? "MANAGER" : "ADMIN"}
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-500 font-medium">
-              {isManager ? "ĐIỀU HÀNH KHO HÀNG" : "BẢNG QUẢN TRỊ TỐI CAO"}
-            </p>
-          </div>
-        </div>
+    <>
+      {/* Mobile Backdrop */}
+      {isOpenMobile && (
+        <div 
+          onClick={onCloseMobile}
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 lg:hidden animate-in fade-in"
+        />
+      )}
 
-        {/* Navigation Groups */}
-        <div className="p-4 space-y-6">
-          {navSections.map((sec, idx) => (
-            <div key={idx} className="space-y-1.5">
-              <p className="text-[10px] font-extrabold tracking-wider text-slate-400 uppercase px-3">
-                {sec.title}
-              </p>
-              <div className="space-y-0.5">
-                {sec.items.map((item) => {
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => setActiveTab(item.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                        isActive
-                          ? "bg-rose-600 text-white shadow-md shadow-rose-600/25"
-                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        {item.icon}
-                        <span>{item.label}</span>
-                      </div>
-                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
-                    </button>
-                  );
-                })}
+      <aside className={`w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 h-screen select-none overflow-y-auto shadow-sm z-50 transition-transform duration-200 ${
+        isOpenMobile 
+          ? "fixed inset-y-0 left-0 translate-x-0" 
+          : "fixed inset-y-0 left-0 -translate-x-full lg:static lg:translate-x-0"
+      }`}>
+        <div>
+          {/* Brand Header */}
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-600 to-rose-700 flex items-center justify-center font-black text-white shadow-md shadow-rose-600/30">
+                🐝
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-extrabold text-sm text-slate-900 tracking-wider">SHOPBEE</span>
+                  <span className="text-[9px] uppercase font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                    {isManager ? "MANAGER" : "ADMIN"}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  {isManager ? "ĐIỀU HÀNH KHO HÀNG" : "BẢNG QUẢN TRỊ TỐI CAO"}
+                </p>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Bottom Profile Info & Actions */}
-      <div className="p-4 border-t border-slate-100 space-y-3 bg-slate-50">
-        {/* User Card */}
-        <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-slate-200 shadow-sm">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-600 to-rose-800 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-md">
-            {user?.fullName?.charAt(0) || "U"}
+            {/* Mobile Close Button */}
+            {onCloseMobile && (
+              <button
+                onClick={onCloseMobile}
+                className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-900 truncate">
-              {user?.fullName || (isManager ? "Trần Quốc Quản" : "Thang Quốc Khải")}
-            </p>
-            <p className="text-[10px] text-slate-500 truncate">{user?.email || (isManager ? "manager@example.com" : "admin@example.com")}</p>
+
+          {/* Navigation Groups */}
+          <div className="p-4 space-y-6">
+            {navSections.map((sec, idx) => (
+              <div key={idx} className="space-y-1.5">
+                <p className="text-[10px] font-extrabold tracking-wider text-slate-400 uppercase px-3">
+                  {sec.title}
+                </p>
+                <div className="space-y-0.5">
+                  {sec.items.map((item) => {
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          onCloseMobile?.();
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          isActive
+                            ? "bg-rose-600 text-white shadow-md shadow-rose-600/25"
+                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {item.icon}
+                          <span>{item.label}</span>
+                        </div>
+                        {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Back & Logout Buttons */}
-        <div className="space-y-1 text-xs">
-          <button
-            onClick={onNavigateHome}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition-colors"
-          >
-            <Home className="w-4 h-4 text-rose-600" />
-            <span>Về cửa hàng</span>
-          </button>
+        {/* Bottom Profile Info & Actions */}
+        <div className="p-4 border-t border-slate-100 space-y-3 bg-slate-50">
+          {/* User Card */}
+          <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-slate-200 shadow-sm">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-600 to-rose-800 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-md">
+              {user?.fullName?.charAt(0) || "U"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-slate-900 truncate">
+                {user?.fullName || (isManager ? "Trần Quốc Quản" : "Thang Quốc Khải")}
+              </p>
+              <p className="text-[10px] text-slate-500 truncate">{user?.email || (isManager ? "manager@example.com" : "admin@example.com")}</p>
+            </div>
+          </div>
 
-          <button
-            onClick={logout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 transition-colors font-medium"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Đăng xuất</span>
-          </button>
+          {/* Back & Logout Buttons */}
+          <div className="space-y-1 text-xs">
+            <button
+              onClick={() => {
+                onNavigateHome();
+                onCloseMobile?.();
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition-colors"
+            >
+              <Home className="w-4 h-4 text-rose-600" />
+              <span>Về cửa hàng</span>
+            </button>
+
+            <button
+              onClick={() => {
+                logout();
+                onCloseMobile?.();
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 transition-colors font-medium"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Đăng xuất</span>
+            </button>
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 };
