@@ -204,20 +204,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   )}
 
                   {/* Tên người dùng hiển thị trên màn hình sm trở lên */}
-                  <span className="hidden sm:inline-block text-sm font-bold text-slate-800 max-w-[120px] md:max-w-[170px] truncate">
+                  <span className="hidden sm:inline-block text-xs sm:text-sm font-bold text-slate-800 max-w-[130px] md:max-w-[180px] truncate">
                     {user.fullName}
                   </span>
-
-                  {/* Huy hiệu vai trò hiển thị trên md trở lên */}
-                  {user.role && user.role !== "CUSTOMER" && (
-                    <span className={`hidden md:inline-block text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase shrink-0 ${
-                      user.role === "ADMIN" ? "bg-rose-100 text-rose-700 border border-rose-200" :
-                      user.role === "MANAGER" ? "bg-amber-100 text-amber-800 border border-amber-200" :
-                      "bg-blue-100 text-blue-800 border border-blue-200"
-                    }`}>
-                      {user.role === "MANAGER" ? "MANAGER" : user.role}
-                    </span>
-                  )}
 
                   <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 shrink-0 transition-transform duration-200 ${showUserDropdown ? "rotate-180" : ""}`} />
                 </button>
