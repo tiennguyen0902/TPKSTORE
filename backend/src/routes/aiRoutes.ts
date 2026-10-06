@@ -14,7 +14,8 @@ import {
   LocalAiProvider, 
   canRoleAccessTool, 
   buildRoleContext, 
-  logAIInteraction 
+  logAIInteraction,
+  generateProductAdvice 
 } from "../services/aiOrchestratorService";
 
 const router = Router();
@@ -606,12 +607,15 @@ router.get("/models", async (req: Request, res: Response) => {
 });
 
 // POST /api/ai/product-advice - Tư vấn và so sánh sản phẩm công khai (Mọi vai trò)
+// Luồng xử lý: Product Advice -> AI Orchestrator -> Selected Provider (Gemini / Ollama) -> Model trả lời dựa trên Product Context
 router.post("/product-advice", async (req: Request, res: Response) => {
   const startTime = Date.now();
-  const { question, productId, categoryId, provider = "api" } = req.body;
+  const { question, productId, categoryId, provider = "api", model } = req.body;
   if (!question || !String(question).trim()) {
     return res.status(400).json({ error: "Vui lòng nhập câu hỏi tư vấn sản phẩm." });
   }
+
+  const selectedProvider: "api" | "local" = provider === "local" ? "local" : "api";
 
   try {
     const products = await db.product.findMany({ include: { category: true } });
@@ -622,25 +626,63 @@ router.post("/product-advice", async (req: Request, res: Response) => {
       relevantProducts = products.filter((p: any) => p.categoryId === categoryId);
     }
 
-    const adviceText = `Dựa trên danh mục TPKSTORE, chúng tôi có các sản phẩm tiêu biểu phù hợp với nhu cầu của bạn: ${relevantProducts.slice(0, 3).map((p: any) => `${p.name} (Giá: ${p.price.toLocaleString('vi-VN')} đ)`).join(", ")}. Mọi sản phẩm đều hỗ trợ bảo hành chính hãng 12-24 tháng và 1 đổi 1 trong 30 ngày.`;
+    // Xây dựng ngữ cảnh sản phẩm thật từ CSDL
+    const contextProducts = (relevantProducts.length > 0 ? relevantProducts : products).slice(0, 8);
+    const productContext = contextProducts.map((p: any, idx: number) => 
+      `${idx + 1}. ${p.name} | Danh mục: ${p.category?.name || "Công nghệ"} | Giá bán: ${p.price.toLocaleString("vi-VN")} đ | Tồn kho: ${p.stock} SP | Mô tả: ${p.description || "Chính hãng, bảo hành 12 tháng"}`
+    ).join("\n");
 
+    // Gửi sang AI Orchestrator để thực sự gọi Gemini hoặc Ollama
+    const aiResult = await generateProductAdvice({
+      question: String(question).trim(),
+      productContext,
+      provider: selectedProvider,
+      model
+    });
+
+    if (aiResult.success && aiResult.text) {
+      await logAIInteraction({
+        query: question,
+        response: aiResult.text,
+        type: "PRODUCT_ADVICE",
+        provider: selectedProvider,
+        model: aiResult.model,
+        role: (req as any).user?.role || "CUSTOMER",
+        userId: (req as any).user?.id || null,
+        latency: Date.now() - startTime,
+        success: true,
+        actionType: "PRODUCT_ADVICE"
+      });
+
+      return res.json({
+        status: "success",
+        advice: aiResult.text,
+        provider: selectedProvider,
+        model: aiResult.model,
+        recommendedProducts: contextProducts.slice(0, 4)
+      });
+    }
+
+    // Nếu Provider được chọn offline / lỗi: Tuyệt đối không fake text, trả trạng thái unavailable
     await logAIInteraction({
       query: question,
-      response: adviceText,
+      response: `AI ${selectedProvider} unavailable: ${aiResult.error}`,
       type: "PRODUCT_ADVICE",
-      provider: provider === "local" ? "local" : "api",
-      model: provider === "local" ? "llava" : "gemini-3.5-flash",
+      provider: selectedProvider,
+      model: aiResult.model,
       role: (req as any).user?.role || "CUSTOMER",
       userId: (req as any).user?.id || null,
       latency: Date.now() - startTime,
-      success: true,
+      success: false,
       actionType: "PRODUCT_ADVICE"
     });
 
     return res.json({
-      status: "success",
-      advice: adviceText,
-      recommendedProducts: relevantProducts.slice(0, 4)
+      status: "unavailable",
+      message: `Dịch vụ AI (${selectedProvider === "local" ? "Local AI - Ollama" : "AI API - Google Gemini"}) hiện không khả dụng: ${aiResult.error || "Mô hình đang ngoại tuyến"}. Vui lòng thử lại sau hoặc chuyển đổi Provider.`,
+      provider: selectedProvider,
+      model: aiResult.model,
+      recommendedProducts: contextProducts.slice(0, 4)
     });
   } catch (err: any) {
     return res.status(500).json({ error: "Lỗi tư vấn sản phẩm: " + err.message });
@@ -1646,24 +1688,23 @@ router.post("/reorder-approve", authenticateToken, authorize(["ADMIN", "MANAGER"
 // POST /api/ai/analyze-architecture
 router.post("/analyze-architecture", async (req: Request, res: Response) => {
   const { components, connections } = req.body;
-  const aiRes = await callAiService("/api/ai/analyze-architecture", { components, connections });
+  const settings = await db.systemSettings.findFirst();
+  const geminiApiKey = process.env.GEMINI_API_KEY || settings?.geminiApiKey;
 
-  if (aiRes.success) {
+  const aiRes = await callAiService("/api/ai/analyze-architecture", { 
+    components, 
+    connections,
+    geminiApiKey 
+  });
+
+  if (aiRes.success && aiRes.data && aiRes.data.status !== "unavailable") {
     return res.json(aiRes.data);
   }
 
+  // Tuyệt đối không tự cho score giả 98/100 khi AI offline; trả trạng thái unavailable
   return res.json({
-    status: "success",
-    score: "98/100 (Clean Architecture & High Security)",
-    analysis: [
-      "Kiến trúc 5 tầng (Presentation, Application, Domain, Repository, Infrastructure) bảo đảm tính phân tách trách nhiệm (Separation of Concerns).",
-      "Tích hợp AI Gateway với Fallback Circuit Breaker giúp duy trì thời gian hoạt động Uptime > 99.9%.",
-      "Cơ chế JWT Refresh Token Rotation và SHA-256 Hashing ngăn ngừa triệt để lỗ hổng Token Hijacking và Replay Attack."
-    ],
-    recommendations: [
-      "Áp dụng Redis Cache TTL 60s cho danh mục sản phẩm.",
-      "Giám sát độ trễ AI Microservice qua Health Check định kỳ."
-    ]
+    status: "unavailable",
+    message: "AI architecture analyzer is unavailable."
   });
 });
 

@@ -221,43 +221,58 @@ export const ArchitectureStudio: React.FC = () => {
 
       {/* AI Analysis Result Panel (if generated) */}
       {aiAnalysisResult && (
-        <div className="p-6 rounded-3xl bg-gradient-to-r from-rose-950/60 via-[#131c2e] to-rose-800/60 border border-rose-500/40 space-y-4 animate-in fade-in">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-white font-bold text-sm">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              <span>Kết Quả Đánh Giá Kiến Trúc Từ AI</span>
+        aiAnalysisResult.status === "unavailable" ? (
+          <div className="p-5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-center justify-between gap-3 animate-in fade-in shadow-sm">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+              <div>
+                <p className="font-bold text-amber-900 text-sm">Dịch vụ AI phân tích kiến trúc hiện không khả dụng</p>
+                <p className="text-xs text-amber-700 mt-0.5">{aiAnalysisResult.message || "AI architecture analyzer is unavailable."}</p>
+              </div>
             </div>
-            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-black">
-              Điểm số: {aiAnalysisResult.score}
+            <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-black uppercase border border-amber-300 shrink-0">
+              Offline
             </span>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-2">
-              <p className="font-bold text-rose-300 uppercase tracking-wider">Điểm mạnh kiến trúc:</p>
-              <ul className="space-y-1.5 text-slate-200">
-                {aiAnalysisResult.analysis?.map((item: string, idx: number) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <span className="text-emerald-400 font-bold">✓</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+        ) : (
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-rose-950/60 via-[#131c2e] to-rose-800/60 border border-rose-500/40 space-y-4 animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-white font-bold text-sm">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <span>Kết Quả Đánh Giá Kiến Trúc Từ AI</span>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-black">
+                Điểm số: {aiAnalysisResult.score}
+              </span>
             </div>
 
-            <div className="space-y-2">
-              <p className="font-bold text-amber-300 uppercase tracking-wider">Khuyến nghị tối ưu hóa:</p>
-              <ul className="space-y-1.5 text-slate-200">
-                {aiAnalysisResult.recommendations?.map((rec: string, idx: number) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <span className="text-amber-400 font-bold">→</span>
-                    <span>{rec}</span>
-                  </li>
-                ))}
-              </ul>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="space-y-2">
+                <p className="font-bold text-rose-300 uppercase tracking-wider">Điểm mạnh kiến trúc:</p>
+                <ul className="space-y-1.5 text-slate-200">
+                  {aiAnalysisResult.analysis?.map((item: string, idx: number) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold">✓</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-bold text-amber-300 uppercase tracking-wider">Khuyến nghị tối ưu hóa:</p>
+                <ul className="space-y-1.5 text-slate-200">
+                  {aiAnalysisResult.recommendations?.map((rec: string, idx: number) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="text-amber-400 font-bold">→</span>
+                      <span>{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
+        )
       )}
 
       {/* TAB 1: ARCHITECTURE CANVAS (Matching Screenshot!) */}

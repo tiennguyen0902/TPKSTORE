@@ -272,3 +272,204 @@ export async function logAIInteraction(params: {
     console.warn("Failed to record AIInteraction audit log:", err);
   }
 }
+
+export interface AICompletionResult {
+  success: boolean;
+  text?: string;
+  provider: "api" | "local";
+  model: string;
+  error?: string;
+  latencyMs: number;
+}
+
+/**
+ * Điều phối sinh phản hồi AI dựa trên Provider được chọn:
+ * - api: Gọi Google Gemini Cloud API
+ * - local: Gọi Ollama Local API hoặc Local Python Microservice
+ */
+export async function executeAICompletion(params: {
+  systemPrompt: string;
+  userPrompt: string;
+  provider?: "api" | "local";
+  model?: string;
+}): Promise<AICompletionResult> {
+  const startTime = Date.now();
+  const provider = params.provider === "local" ? "local" : "api";
+  const settings = await db.systemSettings.findFirst();
+
+  if (provider === "local") {
+    const localUrl = process.env.LOCAL_AI_URL || settings?.localAiUrl || "http://localhost:11434";
+    const localModel = params.model || settings?.localAiModel || process.env.LOCAL_AI_MODEL || "qwen2.5:latest";
+
+    // 1. Thử gọi Ollama /api/chat
+    try {
+      const ollamaRes = await axios.post(`${localUrl}/api/chat`, {
+        model: localModel,
+        messages: [
+          { role: "system", content: params.systemPrompt },
+          { role: "user", content: params.userPrompt }
+        ],
+        stream: false
+      }, { timeout: 30000 });
+
+      const reply = ollamaRes.data?.message?.content || ollamaRes.data?.response;
+      if (reply && String(reply).trim()) {
+        return {
+          success: true,
+          text: String(reply).trim(),
+          provider: "local",
+          model: localModel,
+          latencyMs: Date.now() - startTime
+        };
+      }
+    } catch (ollamaErr: any) {
+      // 2. Thử gọi Ollama /api/generate
+      try {
+        const genRes = await axios.post(`${localUrl}/api/generate`, {
+          model: localModel,
+          prompt: `${params.systemPrompt}\n\n${params.userPrompt}`,
+          stream: false
+        }, { timeout: 30000 });
+
+        const reply = genRes.data?.response;
+        if (reply && String(reply).trim()) {
+          return {
+            success: true,
+            text: String(reply).trim(),
+            provider: "local",
+            model: localModel,
+            latencyMs: Date.now() - startTime
+          };
+        }
+      } catch (genErr: any) {
+        // 3. Fallback: Thử qua Python AI Microservice nếu có
+        const microserviceUrl = process.env.AI_SERVICE_URL || settings?.aiServiceUrl || "http://ai_service:8000";
+        try {
+          const microRes = await axios.post(`${microserviceUrl}/api/ai/chat`, {
+            message: params.userPrompt,
+            system_prompt: params.systemPrompt
+          }, { timeout: 15000 });
+
+          const reply = microRes.data?.response || microRes.data?.reply;
+          if (reply && String(reply).trim()) {
+            return {
+              success: true,
+              text: String(reply).trim(),
+              provider: "local",
+              model: "FastAPI-Local",
+              latencyMs: Date.now() - startTime
+            };
+          }
+        } catch (microErr) {
+          return {
+            success: false,
+            error: `Mô hình Local AI (Ollama: ${localModel}) không phản hồi hoặc đang ngoại tuyến tại ${localUrl}.`,
+            provider: "local",
+            model: localModel,
+            latencyMs: Date.now() - startTime
+          };
+        }
+      }
+    }
+
+    return {
+      success: false,
+      error: `Không thể kết nối đến Local AI (${localModel}).`,
+      provider: "local",
+      model: localModel,
+      latencyMs: Date.now() - startTime
+    };
+  } else {
+    // Provider: "api" (Google Gemini Cloud)
+    const apiKey = (process.env.GEMINI_API_KEY || settings?.geminiApiKey || "").trim();
+    if (!apiKey) {
+      return {
+        success: false,
+        error: "Chưa cấu hình Google Gemini API Key trong hệ thống.",
+        provider: "api",
+        model: "gemini",
+        latencyMs: Date.now() - startTime
+      };
+    }
+
+    const candidateModels = [
+      params.model || settings?.geminiModel || "gemini-2.5-flash",
+      "gemini-1.5-flash",
+      "gemini-3.5-flash",
+      "gemini-3.1-flash-lite"
+    ];
+
+    let lastError = "";
+    for (const candidate of candidateModels) {
+      try {
+        const cleanModel = candidate.replace("models/", "").trim();
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`;
+        const geminiRes = await axios.post(url, {
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: `${params.systemPrompt}\n\n${params.userPrompt}` }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 800
+          }
+        }, { timeout: 15000 });
+
+        const parts = geminiRes.data?.candidates?.[0]?.content?.parts;
+        if (parts && parts.length > 0 && parts[0].text) {
+          return {
+            success: true,
+            text: parts[0].text.trim(),
+            provider: "api",
+            model: cleanModel,
+            latencyMs: Date.now() - startTime
+          };
+        }
+      } catch (err: any) {
+        lastError = err.response?.data?.error?.message || err.message;
+      }
+    }
+
+    return {
+      success: false,
+      error: `Google Gemini API gặp sự cố hoặc vượt giới hạn: ${lastError}`,
+      provider: "api",
+      model: candidateModels[0],
+      latencyMs: Date.now() - startTime
+    };
+  }
+}
+
+/**
+ * Hàm nghiệp vụ Product Advice thực sự dùng AI (Gemini hoặc Ollama theo lựa chọn)
+ */
+export async function generateProductAdvice(params: {
+  question: string;
+  productContext: string;
+  provider?: "api" | "local";
+  model?: string;
+}): Promise<AICompletionResult> {
+  const systemPrompt = `Bạn là Chuyên gia Tư vấn Bán hàng Trí tuệ Nhân tạo của TPKSTORE (Hệ thống thiết bị số và công nghệ uy tín).
+Nhiệm vụ của bạn:
+1. Trả lời câu hỏi tư vấn của khách hàng bằng tiếng Việt một cách tự nhiên, lịch sự, chuyên nghiệp và giàu tính thuyết phục.
+2. Dựa chính xác vào danh mục và thông số sản phẩm TPKSTORE được cung cấp dưới đây để gợi ý sản phẩm phù hợp nhất.
+3. Nếu sản phẩm có trong danh mục, hãy nêu rõ tên máy, mức giá và các điểm nổi bật (hiệu năng, camera, pin, bảo hành).
+4. Tuyệt đối không đề cập đến doanh thu nội bộ, giá vốn hàng bán hoặc lợi nhuận của cửa hàng.`;
+
+  const userPrompt = `Câu hỏi của khách hàng: "${params.question}"
+
+Dữ liệu sản phẩm thực tế hiện có tại TPKSTORE:
+${params.productContext}
+
+Hãy đưa ra lời tư vấn chi tiết, so sánh ngắn gọn nếu có nhiều máy phù hợp và đề xuất lựa chọn tối ưu nhất.`;
+
+  return executeAICompletion({
+    systemPrompt,
+    userPrompt,
+    provider: params.provider,
+    model: params.model
+  });
+}
+

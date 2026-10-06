@@ -536,29 +536,67 @@ def inventory_alerts(req: InventoryRequest):
 @app.post("/api/ai/analyze-architecture")
 def analyze_architecture(req: ArchitectureAnalysisRequest):
     components = req.components or []
-    total_components = len(components)
-    layers = list({c.get("layer", "Unknown") for c in components})
+    connections = req.connections or []
+    gemini_key = (req.geminiApiKey or "").strip() or os.getenv("GEMINI_API_KEY", "").strip()
 
-    analysis_points = [
-        f"Kiến trúc gồm {total_components} thành phần chính trải dài trên {len(layers)} tầng phân lớp.",
-        "Mô hình 5-Tier Layered Architecture phân tách rành mạch Presentation, Application, Domain, Repository và Infrastructure.",
-        "Tích hợp AI Gateway với cơ chế Fallback Circuit Breaker bảo vệ Core Backend khỏi sự cố trễ mạng.",
-        "Cơ chế JWT Access Token (15m) kết hợp Refresh Token Rotation (7d) và Redis Blacklist tuân thủ chuẩn an toàn OWASP.",
-        "Kiểm soát dữ liệu giao dịch đơn hàng qua Atomic Transactions ($transaction) đảm bảo tính toàn vẹn ACID.",
-    ]
+    if not components:
+        return {
+            "status": "unavailable",
+            "message": "Không có thành phần kiến trúc nào để phân tích."
+        }
 
-    recommendations = [
-        "Nên cấu hình Rate Limiting nghiêm ngặt (100 req/min/IP) trên Nginx Reverse Proxy đối với route `/api/auth/*`.",
-        "Áp dụng Redis Cache TTL 60s cho danh sách sản phẩm trang chủ để giảm tải 75% truy vấn CSDL.",
-        "Giám sát độ trễ của AI Microservice thông qua Prometheus & Grafana metrics.",
-    ]
+    # Nếu có Gemini API Key, phân tích kiến trúc thực tế bằng AI
+    if gemini_key:
+        comp_summary = "\n".join([f"- [{c.get('layer', 'Component')}] {c.get('name', 'Unknown')}: {c.get('description', '')}" for c in components])
+        conn_summary = "\n".join([f"- {c.get('from', '')} -> {c.get('to', '')} ({c.get('type', 'connection')})" for c in connections])
+        
+        prompt = f"""Bạn là Kiến trúc sư trưởng Hệ thống phần mềm (Chief Software Architect).
+Hãy đánh giá sơ đồ kiến trúc hệ thống sau đây:
 
+Các thành phần (Components):
+{comp_summary}
+
+Các liên kết (Connections):
+{conn_summary}
+
+Yêu cầu xuất ra định dạng JSON chính xác với cấu trúc:
+{{
+  "score": "Điểm số từ 0-100 kèm đánh giá ngắn (ví dụ: 92/100 (Solid Layered Design))",
+  "analysis": ["Điểm mạnh 1", "Điểm mạnh 2", "Điểm mạnh 3"],
+  "recommendations": ["Khuyến nghị tối ưu 1", "Khuyến nghị tối ưu 2"]
+}}
+Chỉ trả về JSON hợp lệ, không kèm văn bản markdown giải thích ngoài lề."""
+
+        target_model = req.geminiModel or DEFAULT_GEMINI_MODEL
+        if not is_gemini_3x(target_model):
+            target_model = DEFAULT_GEMINI_MODEL
+        raw_models = [target_model] + GEMINI_CANDIDATE_MODELS
+        unique_gemini_models = [m for m in _dedupe_models(target_model, raw_models, strip_prefix="models/") if is_gemini_3x(m)]
+
+        for model in unique_gemini_models:
+            raw_reply = _call_gemini(gemini_key, model, prompt)
+            if raw_reply:
+                import json
+                try:
+                    # Tìm chuỗi json trong phản hồi
+                    json_match = re.search(r"\{[\s\S]*\}", raw_reply)
+                    if json_match:
+                        data = json.loads(json_match.group(0))
+                        return {
+                            "status": "success",
+                            "score": data.get("score", "Đã đánh giá bởi AI"),
+                            "analysis": data.get("analysis", []),
+                            "recommendations": data.get("recommendations", [])
+                        }
+                except Exception as e:
+                    logger.warning(f"Error parsing Gemini architecture analysis JSON: {e}")
+
+    # Tuyệt đối không tự cho score giả 98/100 khi AI offline
     return {
-        "status": "success",
-        "score": "98/100 (Clean Architecture & High Security)",
-        "analysis": analysis_points,
-        "recommendations": recommendations,
+        "status": "unavailable",
+        "message": "AI architecture analyzer is unavailable."
     }
+
 
 
 if __name__ == "__main__":
