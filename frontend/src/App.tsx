@@ -524,7 +524,6 @@ const MainApp: React.FC = () => {
                   navigate("/");
                 }}
                 onSuccess={() => {
-                  showLoginSuccessToast();
                   const target = postAuthTarget || "storefront";
                   setPostAuthTarget(null);
                   setAuthBanner("");

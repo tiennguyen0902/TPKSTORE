@@ -18,14 +18,21 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
-    const id = `toast_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const newToast: ToastItem = { id, message, type };
+    setToasts(prev => {
+      // Chống trùng lặp: Nếu đang có toast cùng nội dung hiển thị thì bỏ qua
+      if (prev.some(t => t.message === message)) {
+        return prev;
+      }
 
-    setToasts(prev => [...prev.slice(-2), newToast]);
+      const id = `toast_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const newToast: ToastItem = { id, message, type };
 
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3500);
+      setTimeout(() => {
+        setToasts(current => current.filter(t => t.id !== id));
+      }, 3500);
+
+      return [...prev.slice(-2), newToast];
+    });
   };
 
   const hideToast = (id?: string) => {
