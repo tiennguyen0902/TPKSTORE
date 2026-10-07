@@ -346,9 +346,11 @@ router.delete("/:id", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN"])
                 error: `Không thể xóa sản phẩm "${existing.name}" vì sản phẩm này đã xuất hiện trong ${orderItemCount} đơn hàng lịch sử. Để bảo toàn hóa đơn và dữ liệu kế toán, bạn chỉ nên cập nhật tồn kho về 0!`
             });
         }
-        // 2. Dọn dẹp giỏ hàng chứa sản phẩm này (nếu có) trước khi xóa
+        // 2. Dọn dẹp giỏ hàng, phiếu kho và nhật ký tồn kho liên quan (khi sản phẩm chưa có đơn hàng) trước khi xóa
         try {
             await db_1.db.cartItem.deleteMany({ where: { productId: req.params.id } });
+            await db_1.db.stockTicket.deleteMany({ where: { productId: req.params.id } });
+            await db_1.db.stockMovement.deleteMany({ where: { productId: req.params.id } });
         }
         catch (e) {
             // Bỏ qua lỗi nếu bảng trống hoặc không có ràng buộc

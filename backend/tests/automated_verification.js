@@ -458,6 +458,17 @@ async function runTestSuite() {
   }
 
   // ---------------------------------------------------------
+  // CLEANUP TEST ARTIFACTS
+  // ---------------------------------------------------------
+  if (createdProductId) {
+    try {
+      await apiRequest(`/products/${createdProductId}`, { method: 'DELETE' }, adminToken);
+    } catch (e) {
+      // Ignore cleanup error
+    }
+  }
+
+  // ---------------------------------------------------------
   // SUMMARY
   // ---------------------------------------------------------
   console.log('\n================================================================');

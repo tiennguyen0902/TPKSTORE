@@ -384,9 +384,11 @@ router.delete("/:id", authenticateToken, authorize(["ADMIN"]), async (req: Reque
       });
     }
 
-    // 2. Dọn dẹp giỏ hàng chứa sản phẩm này (nếu có) trước khi xóa
+    // 2. Dọn dẹp giỏ hàng, phiếu kho và nhật ký tồn kho liên quan (khi sản phẩm chưa có đơn hàng) trước khi xóa
     try {
       await db.cartItem.deleteMany({ where: { productId: req.params.id } });
+      await db.stockTicket.deleteMany({ where: { productId: req.params.id } });
+      await db.stockMovement.deleteMany({ where: { productId: req.params.id } });
     } catch (e) {
       // Bỏ qua lỗi nếu bảng trống hoặc không có ràng buộc
     }
