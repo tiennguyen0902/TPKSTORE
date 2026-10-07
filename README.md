@@ -107,25 +107,33 @@ TPKSTORE/                               ← Root thư mục dự án
 │   ├── 📄 package.json
 │   ├── 📄 tsconfig.json
 │   ├── 🗄️ prisma/
-│   │   ├── 📄 schema.prisma            ← Schema CSDL 10 bảng: User, Product, Category, StockTicket...
+│   │   ├── 📄 schema.prisma            ← Schema CSDL 12+ bảng: User, Product, Category, StockTicket, StockMovement...
 │   │   └── 📄 seed.ts                  ← Script nạp CSDL sản phẩm thật & tài khoản mẫu
-│   ├── 🧪 test/
-│   │   └── 📄 core_business_ai.test.js ← Bộ test tự động 8/8 test cases cốt lõi (100% PASS)
+│   ├── 🧪 tests/
+│   │   └── 📄 automated_verification.js ← Bộ kiểm thử tự động 20/20 test cases (100% PASS)
 │   └── 📁 src/
 │       ├── 📄 index.ts                 ← Khởi động Express, CORS, gắn route
 │       ├── 📄 db.ts                    ← Khởi tạo Prisma Client & FallbackStore
 │       ├── 📄 mockData.ts              ← Dữ liệu khởi tạo: sản phẩm công nghệ thật, tài khoản mẫu
 │       ├── 📁 middleware/
 │       │   └── 📄 auth.ts              ← JWT Verification, Refresh Token Rotation, RBAC authorize()
+│       ├── 📁 services/
+│       │   ├── 📄 aiOrchestratorService.ts  ← AI Orchestrator: Gemini API & Ollama Local routing
+│       │   ├── 📄 productSearchService.ts   ← Smart Tokenized Search Engine
+│       │   ├── 📄 intentParserService.ts    ← Phân tích ý định người dùng
+│       │   ├── 📄 groundedChatService.ts    ← RAG chat có kiểm soát ngữ cảnh
+│       │   ├── 📄 speechToTextService.ts    ← Chuyển giọng nói thành văn bản
+│       │   ├── 📄 imageAnalysisService.ts   ← Phân tích hình ảnh đa phương thức
+│       │   └── 📄 safetyGuardrailService.ts ← Lọc nội dung an toàn & kiểm soát quyền hạn AI
 │       └── 📁 routes/
 │           ├── 📄 authRoutes.ts        ← Đăng nhập, đăng ký, refresh token, GET /me
 │           ├── 📄 productRoutes.ts     ← Quản lý sản phẩm & biến thể màu/dung lượng (Chỉ Admin)
-│           ├── 📄 inventoryRoutes.ts   ← Quản lý phiếu kho: Lọc theo Staff, Duyệt/Từ chối, Thống kê tồn
+│           ├── 📄 inventoryRoutes.ts   ← Quản lý phiếu kho: Lọc theo Staff, Duyệt/Từ chối, Điều chỉnh tồn
 │           ├── 📄 categoryRoutes.ts    ← CRUD danh mục hàng hóa
 │           ├── 📄 cartRoutes.ts        ← Thao tác giỏ hàng đồng bộ CSDL
 │           ├── 📄 orderRoutes.ts       ← Đơn hàng trực tuyến & POS bán tại quầy, phiếu bảo hành
 │           ├── 📄 paymentRoutes.ts     ← Cổng thanh toán VNPAY Sandbox & MoMo
-│           ├── 📄 aiRoutes.ts          ← Động cơ AI: Local AI (Ollama), Gemini 3.x+, Voice & Vision RAG
+│           ├── 📄 aiRoutes.ts          ← AI Orchestrator: Local AI (Ollama), Gemini 3.x+, Voice & Vision RAG, Product Advice thật
 │           ├── 📄 userRoutes.ts        ← Tra cứu SĐT khách lẻ, tạo nhanh khách tại quầy, cấp quyền AI
 │           └── 📄 settingsRoutes.ts    ← Cấu hình hệ thống & tham số kết nối Local AI / Gemini
 │
@@ -145,12 +153,12 @@ TPKSTORE/                               ← Root thư mục dự án
 │       │   └── 📄 api.ts               ← Lớp giao tiếp REST API toàn diện (gồm POS & Lookup SĐT)
 │       ├── 📁 styles/
 │       │   └── 📄 index.css            ← Hệ thống CSS & bảng màu Dark Mode Glassmorphism
-│       └── 📁 components/              ← 29 Components giao diện chức năng chuyên sâu
+│       └── 📁 components/              ← 31 Components giao diện chức năng chuyên sâu
 │           ├── 📄 Navbar.tsx           ← Header điều hướng, giỏ hàng, nút truy cập nhanh Bán POS
 │           ├── 📄 Footer.tsx           ← Footer nhận diện thương hiệu
 │           ├── 📄 StorefrontHome.tsx   ← Trang chủ cửa hàng, sản phẩm nổi bật
 │           ├── 📄 CatalogView.tsx      ← Bộ lọc danh mục, tìm kiếm đa chiều, phân trang
-│           ├── 📄 ProductCard.tsx      ← Thẻ sản phẩm: giá bán, giá cost ngầm, tồn kho
+│           ├── 📄 ProductCard.tsx      ← Thẻ sản phẩm: giá bán, tồn kho thời gian thực
 │           ├── 📄 ProductModal.tsx     ← Chi tiết sản phẩm, bộ chọn màu thực tế & dung lượng
 │           ├── 📄 CartView.tsx         ← Trang quản lý giỏ hàng mua sắm
 │           ├── 📄 CheckoutView.tsx     ← Đặt hàng, Chế độ Bán Quầy (POS Mode) miễn ship 0đ
@@ -158,12 +166,13 @@ TPKSTORE/                               ← Root thư mục dự án
 │           ├── 📄 VnpayModal.tsx       ← Giả lập cổng thanh toán VNPAY Sandbox chuẩn ngân hàng
 │           ├── 📄 MomoModal.tsx        ← Giả lập quét mã thanh toán Ví điện tử MoMo
 │           ├── 📄 AuthView.tsx         ← Giao diện Đăng nhập / Đăng ký tài khoản
+│           ├── 📄 LoginModal.tsx       ← Modal đăng nhập nhanh không chuyển trang
 │           ├── 📄 ProfileView.tsx      ← Xem và chỉnh sửa thông tin cá nhân
 │           ├── 📄 MyOrdersView.tsx     ← Khách hàng theo dõi lịch sử đơn và bảo hành
 │           ├── 📄 FloatingChatWidget.tsx ← Trợ lý AI: Giọng nói (Voice), Thị giác (Vision), Local AI
-│           ├── 📄 AdminSidebar.tsx     ← Thanh điều hướng phân quyền (ADMIN vs MANAGER có mục POS)
+│           ├── 📄 AdminSidebar.tsx     ← Thanh điều hướng phân quyền RBAC 4 vai trò
 │           ├── 📄 AdminDashboard.tsx   ← Dashboard tổng quan KPI, Doanh thu, Giá vốn, Lợi nhuận gộp
-│           ├── 📄 AdminProducts.tsx    ← Quản lý sản phẩm: Khóa chỉ xem đối với Quản lý kho / Nhân viên
+│           ├── 📄 AdminProducts.tsx    ← Quản lý sản phẩm: Khóa chỉ xem đối với MANAGER/STAFF
 │           ├── 📄 AdminCategories.tsx  ← Quản lý danh mục sản phẩm (Chỉ Admin)
 │           ├── 📄 AdminOrders.tsx      ← Quản lý danh sách đơn hàng & trạng thái vận chuyển
 │           ├── 📄 AdminCustomers.tsx   ← Quản trị khách hàng: Điểm tích lũy, kích hoạt Chat AI
@@ -173,6 +182,7 @@ TPKSTORE/                               ← Root thư mục dự án
 │           ├── 📄 AdminSettings.tsx    ← Cài đặt mô hình AI: Tích hợp tab cấu hình Local AI Ollama
 │           ├── 📄 ArchitectureStudio.tsx ← Trực quan hóa kiến trúc 5 tầng & kiểm tra an ninh AI
 │           ├── 📄 StaffDashboard.tsx   ← Cổng vận hành Staff: Mặc định mở Bàn Bán Hàng Tại Quầy (POS)
+│           ├── 📄 MobileBottomNav.tsx  ← Thanh điều hướng dưới cùng tối ưu cho thiết bị di động
 │           ├── 📄 Pagination.tsx       ← Phân trang dữ liệu
 │           └── 📄 ErrorBoundary.tsx    ← Bắt lỗi giao diện an toàn
 │
@@ -181,6 +191,10 @@ TPKSTORE/                               ← Root thư mục dự án
     ├── 📄 02_GenAI_SoftwareDevelopment_requirements-qa.docx
     ├── 📄 BAO_CAO_DO_AN_HE_THONG_QUAN_LY_BAN_HANG_STORE_AI.docx
     ├── 📄 BAO_CAO_PHAN_TICH_THIET_KE_HE_THONG_STORE_AI.docx
+    ├── 📄 BAO_CAO_TIEN_DO_THUC_HIEN_DO_AN_STORE_AI.docx
+    ├── 📄 CHANGELOG_RBAC_INVENTORY_AI.md
+    ├── 📄 HUONG_DAN_CAI_DAT_VA_VAN_HANH_AI.md
+    ├── 📄 KIEM_THU_CHUC_NANG_QUAN_LY_VA_AI.docx
     └── 📁 ảnh dự án/                   ← Ảnh chụp màn hình giao diện thực tế
 ```
 
@@ -192,7 +206,7 @@ TPKSTORE/                               ← Root thư mục dự án
 Trong thực tế bán lẻ thiết bị công nghệ, **90% khách hàng ghé cửa hàng trực tiếp không có tài khoản web**, nhân viên chỉ xin **Số điện thoại** để kích hoạt bảo hành điện tử và tích điểm thành viên:
 
 * **Tra cứu & Tạo nhanh bằng Số điện thoại (Zero-friction)**:
-  * `GET /api/users/lookup?phone=...`: Nhân viên nhập 10 chữ số điện thoại, hệ thống tự động kiểm tra hồ sơ khách hàng, số điểm tích lũy hiện có, tổng chi tiêu và lịch sử đơn hàng/bảo hành trước đó.
+  * `GET /api/users/lookup?phone=...`: Nhân viên nhập 10 chữ số điện thoại, hệ thống **truy vấn trực tiếp vào CSDL User** để kiểm tra hồ sơ khách hàng, số điểm tích lũy hiện có, tổng chi tiêu và lịch sử đơn hàng/bảo hành trước đó.
   * `POST /api/users/quick-customer`: Nếu là khách hàng mới, hệ thống tự động khởi tạo hồ sơ ngầm với vai trò `CUSTOMER` mà không bắt khách phải cung cấp email hay tạo mật khẩu rườm rà.
 * **Tích điểm tự động (Loyalty Program)**: Cứ mỗi **10.000 VNĐ** thanh toán = **1 điểm thưởng tích lũy**.
 * **Giao diện POS Bán Hàng Tại Quầy Chuyên Dụng (`CounterPosView.tsx`)**:
@@ -244,7 +258,7 @@ Hệ thống thiết lập hàng rào bảo mật nghiêm ngặt theo 4 vai trò
 #### 👷 STAFF (Nhân viên bán hàng)
 * **Bán hàng**: Thao tác giao diện Bán hàng tại quầy (POS Mode), tạo đơn hàng nhanh cho khách lẻ bằng số điện thoại, xuất hóa đơn và kích hoạt bảo hành điện tử.
 * **Xem tồn**: Tra cứu tức thì số lượng tồn kho khả dụng của từng mã sản phẩm để phục vụ bán hàng.
-* **Yêu cầu xuất kho**: Lập phiếu yêu cầu xuất kho (phiếu loại `EXPORT` ở trạng thái `PENDING`) khi cần lấy hàng từ kho; **không có quyền** tự duyệt phiếu và không có quyền lập phiếu nhập kho.
+* **Yêu cầu xuất kho**: Lập phiếu yêu cầu xuất kho (phiếu loại `EXPORT` ở trạng thái `PENDING`) khi cần lấy hàng từ kho; **không có quyền** tự duyệt phiếu, không có quyền lập phiếu nhập kho và không có quyền điều chỉnh tồn kho.
 * **Tư vấn khách**: Sử dụng Trợ lý AI Bán hàng tra cứu nhanh sản phẩm phù hợp với nhu cầu, tầm giá và sở thích của khách hàng.
 
 #### 🛒 CUSTOMER (Khách hàng)
@@ -274,12 +288,13 @@ Hệ thống sử dụng dữ liệu sản phẩm công nghệ thật 100%:
 ---
 
 ### 3.6. Quản Lý Kho Hàng 2 Lớp (Inbound & Outbound) & Lọc Phiếu Theo Nhân Viên
-1. **Lập phiếu yêu cầu**: Nhân viên kho (`STAFF`) lập phiếu Nhập kho (`IMPORT`) khi hàng về hoặc Xuất kho (`EXPORT`) khi chuyển hàng. Phiếu ở trạng thái `PENDING (Chờ Quản Lý Duyệt)`.
+1. **Lập phiếu yêu cầu**: Nhân viên kho (`STAFF`) lập phiếu Xuất kho (`EXPORT`) khi cần hàng. Phiếu ở trạng thái `PENDING (Chờ Quản Lý Duyệt)`.
 2. **Kiểm soát & Phê duyệt**: 
-   * Quản lý kho (`MANAGER`) hoặc Quản trị viên (`ADMIN`) xem danh sách phiếu chờ duyệt.
+   * Quản lý kho (`MANAGER`) hoặc Quản trị viên (`ADMIN`) lập phiếu Nhập kho (`IMPORT`) và xem danh sách phiếu chờ duyệt.
    * **Bộ lọc nhân viên (`Staff Filter`)**: Cho phép Quản lý kho lọc nhanh toàn bộ phiếu được tạo bởi một nhân viên cụ thể (`GET /api/inventory/tickets?staff=<userId>`).
-   * Khi duyệt (`APPROVE`): Hệ thống thực hiện giao dịch nguyên tử (Atomic transaction) tự động cộng/trừ số lượng tồn kho sản phẩm tức thì.
+   * Khi duyệt (`APPROVE`): Hệ thống thực hiện giao dịch nguyên tử (Atomic transaction) tự động cộng/trừ số lượng tồn kho sản phẩm tức thì, ghi nhật ký `StockMovement` bất biến.
    * Khi từ chối (`REJECT`): Quản lý kho nhập lý do từ chối cụ thể để nhân viên nắm bắt.
+3. **Kiểm kê & Điều chỉnh tồn** (`POST /api/inventory/adjustment`): MANAGER/ADMIN cập nhật số lượng thực tế sau kiểm đếm, hệ thống tự động tính delta và ghi nhật ký `StockMovement` (type: `ADJUSTMENT`).
 
 ---
 
@@ -292,6 +307,7 @@ Khung chat nổi thông minh (`FloatingChatWidget`) đóng vai trò là một ch
 * **Đọc Câu Trả Lời Thành Tiếng (Text-to-Speech)**: Tự động lọc bỏ ký tự Markdown và đọc to câu trả lời bằng giọng đọc tiếng Việt truyền cảm (`SpeechSynthesis`).
 * **Truy Vấn Bằng Hình Ảnh (Multimodal Vision)**: Tải ảnh, kéo thả ảnh hoặc **Dán ảnh chụp màn hình trực tiếp từ clipboard (`Ctrl+V`)** để AI phân tích model máy và gợi ý sản phẩm còn hàng trong kho.
 * **Kiểm Soát Tồn Kho RAG Chặt Chẽ**: AI chỉ gợi ý các sản phẩm đang có số lượng tồn kho > 0, ngăn ngừa việc tư vấn hàng hết kho.
+* **Product Advice qua AI Orchestrator thật**: Endpoint `/api/ai/product-advice` gửi ngữ cảnh sản phẩm thực tế từ CSDL sang Gemini hoặc Ollama và trả lời tư vấn thật sự; không ghép chuỗi template giả.
 
 ---
 
@@ -312,7 +328,7 @@ Khung chat nổi thông minh (`FloatingChatWidget`) đóng vai trò là một ch
 ### 3.10. Architecture Studio & AI Security Auditor
 * **5-Tier Canvas**: Trực quan hóa cấu trúc phân tầng và trạng thái kết nối thời gian thực giữa 5 tầng kiến trúc.
 * **OpenAPI 3.0 Studio**: Trình duyệt tương tác trực tiếp với 30+ API endpoints.
-* **AI Security Audit**: Công cụ dùng AI phân tích cấu hình hệ thống, kiểm tra lỗ hổng bảo mật và đưa ra thang điểm an toàn.
+* **AI Security Audit**: Khi có Gemini API Key, gửi cấu hình Components & Connections sang AI để phân tích cấu trúc thực tế và đưa ra điểm số thật. Khi AI offline, hiển thị trạng thái `unavailable` — **không tự cho điểm giả**.
 
 ---
 
@@ -320,11 +336,12 @@ Khung chat nổi thông minh (`FloatingChatWidget`) đóng vai trò là một ch
 
 | Phân Hệ | Công Nghệ Sử Dụng | Mục Đích |
 | :--- | :--- | :--- |
-| **Giao Diện Frontend** | React 19, TypeScript, Vite, TailwindCSS, Lucide React | SPA hiệu năng cao, Dark Mode Glassmorphism, POS Quầy |
+| **Giao Diện Frontend** | React 19, TypeScript, Vite, Vanilla CSS, Lucide React | SPA hiệu năng cao, Dark Mode Glassmorphism, POS Quầy |
 | **Tương Tác Đa Phương Thức** | Web Speech API (STT & TTS), Clipboard Paste API | Nhận diện giọng nói, đọc câu trả lời tiếng Việt, dán ảnh màn hình |
 | **Backend Core** | Node.js, Express, TypeScript, Prisma ORM, JWT, Bcrypt | REST API, RBAC 4 Tầng, Giao dịch nguyên tử (Atomic Transactions) |
+| **AI Orchestrator** | TypeScript Service (`aiOrchestratorService.ts`) | Điều phối gọi thật Gemini Cloud API & Ollama Local AI theo lựa chọn Provider |
 | **AI Local Engine** | Ollama Local Engine (`llava`, `llama3.2-vision`, `phi3`) | Chat AI nội bộ offline, phân tích hình ảnh, bảo mật dữ liệu tuyệt đối |
-| **Cloud AI & Microservices** | Python 3.10+, FastAPI, Uvicorn, Google Gemini 3.x API | Dự báo chuỗi thời gian Prophet-ARIMA, Phân tích tồn kho an toàn |
+| **Cloud AI & Microservices** | Python 3.10+, FastAPI, Uvicorn, Google Gemini 3.x API | Dự báo chuỗi thời gian Prophet-ARIMA, Phân tích tồn kho an toàn, RAG Chat |
 | **Cơ Sở Dữ Liệu & Bộ Đệm**| PostgreSQL 15, Redis 7, Fallback JSON Store | Lưu trữ quan hệ, Blacklist Token, Fallback đảm bảo chạy 100% |
 | **Cổng Thanh Toán** | VNPAY Sandbox Simulator, MoMo QR Simulator | Thanh toán điện tử chuẩn ngân hàng và ví điện tử |
 | **Hạ Tầng & Điều Phối** | Docker, Docker Compose, Nginx Reverse Proxy | Điều phối 6 dịch vụ, cân bằng tải, SSL/TLS |
@@ -333,14 +350,14 @@ Khung chat nổi thông minh (`FloatingChatWidget`) đóng vai trò là một ch
 
 ## 5. Bộ Kiểm Thử Tự Động (Automated Verification Test Suite)
 
-Dự án tích hợp bộ kiểm thử tự động toàn diện chuẩn hóa theo yêu cầu kỹ thuật (Mục 20), kiểm chứng toàn bộ 18 tiêu chí ma trận (RBAC, Kho, AI Multi-Provider, Đơn hàng):
+Dự án tích hợp bộ kiểm thử tự động toàn diện chuẩn hóa theo yêu cầu kỹ thuật (Mục 20), kiểm chứng toàn bộ **20 tiêu chí** theo 4 ma trận (RBAC, Kho, AI Multi-Provider, Đơn hàng):
 
 ```bash
-# Chạy bộ kiểm thử tự động chuẩn hóa 18 tiêu chí
+# Chạy bộ kiểm thử tự động chuẩn hóa 20 tiêu chí
 node backend/tests/automated_verification.js
 ```
 
-### Kết Quả Kiểm Thử Toàn Diện (18/18 PASS — 100%):
+### Kết Quả Kiểm Thử Toàn Diện (20/20 PASS — 100%):
 
 ```
 ================================================================
@@ -440,7 +457,7 @@ npm run dev
 cd frontend
 npm install
 npm run dev
-# → Giao diện website hoạt động tại: http://localhost:3000
+# → Giao diện website hoạt động tại: http://localhost:5173
 ```
 
 ---
@@ -491,8 +508,8 @@ Tất cả tài khoản demo đều có mật khẩu chung là: `Password123@` v
 | Vai Trò | Email Đăng Nhập | Mật Khẩu | Quyền Hạn Thực Tế Trong Hệ Thống |
 | :--- | :--- | :--- | :--- |
 | 👑 **ADMIN** | `admin@example.com` | `Password123@` | **Toàn quyền Quản trị Tối cao:**<br>• Độc quyền thêm/sửa/xóa sản phẩm & cấu hình màu sắc<br>• Báo cáo Doanh thu, Giá vốn (COGS) & Lợi nhuận gộp (Profit)<br>• Cấu hình mô hình AI Local & Gemini Cloud<br>• Sử dụng Bàn Bán Hàng Tại Quầy (POS Mode)<br>• Architecture Studio & AI Security Auditor |
-| 👔 **MANAGER** | `manager@example.com` | `Password123@` | **Quản Lý Kho Hàng & Giám Sát Quầy:**<br>• Kiểm soát toàn bộ xuất - nhập kho (Inbound / Outbound)<br>• Phê duyệt / Từ chối phiếu xuất nhập kho của từng Staff<br>• Theo dõi cảnh báo cạn kho & tồn kho an toàn AI<br>• Hỗ trợ Bán hàng tại quầy POS khi đông khách<br>• *Khóa chỉ xem sản phẩm (không sửa/xóa danh mục)* |
-| 👷 **STAFF 1** | `staff@example.com` | `Password123@` | **Nhân Viên Tư Vấn & Bán Hàng Tại Quầy (POS):**<br>• **Bàn Bán Hàng POS tại quầy**: Tra cứu SĐT khách lẻ, xuất hóa đơn, tích điểm & in phiếu bảo hành 12-24 tháng<br>• Tiếp nhận và xử lý đơn đặt hàng trực tuyến<br>• Lập phiếu đề xuất Nhập/Xuất kho chờ Manager duyệt<br>• Tra cứu tồn kho sản phẩm tức thì phục vụ tư vấn |
+| 👔 **MANAGER** | `manager@example.com` | `Password123@` | **Quản Lý Kho Hàng & Nghiệp Vụ Kho:**<br>• Kiểm soát toàn bộ xuất - nhập kho (Inbound / Outbound)<br>• Phê duyệt / Từ chối phiếu xuất nhập kho của từng Staff<br>• Kiểm kê & Điều chỉnh tồn kho thực tế (`ADJUSTMENT`)<br>• Theo dõi cảnh báo cạn kho & tồn kho an toàn AI<br>• *Khóa chỉ xem sản phẩm (không sửa/xóa danh mục/doanh thu)* |
+| 👷 **STAFF 1** | `staff@example.com` | `Password123@` | **Nhân Viên Tư Vấn & Bán Hàng Tại Quầy (POS):**<br>• **Bàn Bán Hàng POS tại quầy**: Tra cứu SĐT khách lẻ, xuất hóa đơn, tích điểm & in phiếu bảo hành 12-24 tháng<br>• Lập phiếu đề xuất Xuất kho (chờ Manager duyệt)<br>• Tra cứu tồn kho sản phẩm tức thì phục vụ tư vấn<br>• *Không có quyền lập phiếu nhập kho hoặc điều chỉnh tồn* |
 | 👷 **STAFF 2** | `staff2@example.com` | `Password123@` | **Nhân Viên Bán Hàng & Vận Hành 2** *(tương tự Staff 1)* |
 | 🛒 **CUSTOMER** | `customer@example.com` | `Password123@` | **Khách Hàng Mua Sắm Trực Tuyến:**<br>• Tìm kiếm thông minh, lọc danh mục theo ngân sách<br>• Đặt hàng thanh toán COD, VNPAY Sandbox, Ví MoMo<br>• Tra cứu thời hạn bảo hành điện tử theo SĐT<br>• Trợ lý AI Bán hàng: Nói bằng giọng nói, dán ảnh sản phẩm |
 
@@ -504,7 +521,7 @@ Tất cả tài khoản demo đều có mật khẩu chung là: `Password123@` v
 | :--- | :--- | :--- |
 | **Thang Quốc Khải** | **Team Leader & AI Architect** | • Thiết kế Kiến trúc Phân tầng 5 lớp (5-Tier Layered Architecture)<br>• Tích hợp AI Microservices, Local AI Ollama & Trợ lý Đa phương thức (Voice & Vision RAG)<br>• Xây dựng Backend Core API, Phân quyền RBAC 4 Tầng & Mô-đun Quản lý Lợi nhuận (Cost/Profit) |
 | **Nguyễn Đình Tiến** | **Frontend Lead & UI/UX** | • Thiết kế toàn bộ Giao diện UI/UX Dark Mode Glassmorphism<br>• Xây dựng Giao diện Bán Hàng Tại Quầy POS (`CounterPosView`) & Chế độ POS Checkout<br>• Widget Trợ lý AI tích hợp Web Speech API & Multimodal Image I/O |
-| **Nguyễn Hồng Phúc** | **Database & QA Lead** | • Thiết kế CSDL PostgreSQL (Prisma ORM) & Quy trình kiểm soát kho 2 lớp<br>• Xây dựng luồng tạo nhanh Khách lẻ bằng SĐT & Tích điểm/Bảo hành<br>• Xây dựng bộ kiểm thử tự động 8/8 test cases đạt chuẩn 100% PASS |
+| **Nguyễn Hồng Phúc** | **Database & QA Lead** | • Thiết kế CSDL PostgreSQL (Prisma ORM) & Quy trình kiểm soát kho 2 lớp<br>• Xây dựng luồng tạo nhanh Khách lẻ bằng SĐT & Tích điểm/Bảo hành<br>• Xây dựng bộ kiểm thử tự động **20/20 test cases** đạt chuẩn 100% PASS |
 
 ---
 
