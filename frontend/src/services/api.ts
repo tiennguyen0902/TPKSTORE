@@ -126,6 +126,17 @@ export const api = {
     return handleResponse(res, "Đăng nhập thất bại");
   },
 
+  async refreshToken(refreshToken?: string) {
+    const token = refreshToken || localStorage.getItem("store_ai_refresh_token");
+    if (!token) throw new Error("Không tìm thấy refresh token. Vui lòng đăng nhập lại.");
+    const res = await fetch(`${API_BASE}/auth/refresh-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken: token })
+    });
+    return handleResponse(res, "Gia hạn phiên làm việc thất bại");
+  },
+
   async register(data: { email: string; password: string; fullName: string; phone?: string }) {
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: "POST",

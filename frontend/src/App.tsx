@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import { ToastProvider, useToast } from "./context/ToastContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
 import { FloatingChatWidget } from "./components/FloatingChatWidget";
@@ -565,8 +566,9 @@ const MainApp: React.FC = () => {
               <CheckoutView
                 onBackToCart={() => navigate("/cart")}
                 onOrderSuccess={(orderId) => {
-                  navigate("/my-orders");
+                  navigate(`/my-orders?recent=${encodeURIComponent(orderId)}`);
                 }}
+                onNavigateCatalog={() => navigate("/products")}
               />
             )}
 
@@ -639,9 +641,11 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <ToastProvider>
-          <CartProvider>
-            <MainApp />
-          </CartProvider>
+          <NotificationProvider>
+            <CartProvider>
+              <MainApp />
+            </CartProvider>
+          </NotificationProvider>
         </ToastProvider>
       </AuthProvider>
     </ErrorBoundary>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { 
   Package, 
   Clock, 
@@ -9,7 +10,8 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
-  RotateCcw
+  RotateCcw,
+  Sparkles
 } from "lucide-react";
 import { Order } from "../types";
 import { api } from "../services/api";
@@ -20,9 +22,13 @@ interface MyOrdersViewProps {
 }
 
 export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog }) => {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const recentOrderId = searchParams.get("recent");
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(recentOrderId);
   const [actionMessage, setActionMessage] = useState<string>("");
 
   // Phân trang tự động
@@ -113,6 +119,32 @@ export const MyOrdersView: React.FC<MyOrdersViewProps> = ({ onNavigateCatalog })
           <span>Mua thêm sản phẩm</span>
         </button>
       </div>
+
+      {recentOrderId && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-xl shadow-emerald-950/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm sm:text-base text-white">
+                  🎉 Đặt hàng thành công! Mã đơn: {recentOrderId}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold">
+                  Mới đặt
+                </span>
+              </div>
+              <p className="text-xs text-emerald-100 font-medium mt-0.5">
+                Cảm ơn bạn! Đơn hàng đã được ghi nhận và bảo hành điện tử chính hãng đã được kích hoạt theo số điện thoại.
+              </p>
+            </div>
+          </div>
+          <span className="px-3 py-1 rounded-xl bg-white text-emerald-800 text-xs font-bold shrink-0 self-start sm:self-center shadow-xs">
+            Đang chuẩn bị hàng 📦
+          </span>
+        </div>
+      )}
 
       {actionMessage && (
         <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium animate-in fade-in flex items-center gap-2 shadow-xs">

@@ -260,7 +260,7 @@ export const AdminProducts: React.FC = () => {
   const handleQuickRelogin = async () => {
     setIsReloggingIn(true);
     try {
-      const data = await api.login("admin@example.com", "Password123@");
+      const data = await api.refreshToken();
       if (data?.tokens?.accessToken) {
         localStorage.setItem("store_ai_access_token", data.tokens.accessToken);
         if (data.tokens.refreshToken) {
@@ -268,10 +268,11 @@ export const AdminProducts: React.FC = () => {
         }
       }
       setFormErrorMsg("");
-      setToastMsg("Đã gia hạn phiên Admin thành công! Bạn có thể bấm Lưu ngay.");
+      setToastMsg("Đã gia hạn phiên làm việc thành công! Bạn có thể tiếp tục lưu sản phẩm.");
       setTimeout(() => setToastMsg(""), 4000);
     } catch (err: any) {
-      alert("Không thể tự động gia hạn: " + (err.message || "Vui lòng đăng nhập lại"));
+      alert("Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại tài khoản của bạn.");
+      window.dispatchEvent(new CustomEvent("open-auth-modal"));
     } finally {
       setIsReloggingIn(false);
     }
@@ -623,7 +624,7 @@ export const AdminProducts: React.FC = () => {
                     className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-[11px] shrink-0 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <KeyRound className="w-3.5 h-3.5" />
-                    <span>{isReloggingIn ? "Đang gia hạn..." : "Gia hạn phiên Admin ngay"}</span>
+                    <span>{isReloggingIn ? "Đang gia hạn..." : "Gia hạn phiên làm việc"}</span>
                   </button>
                 )}
               </div>

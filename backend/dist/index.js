@@ -35,6 +35,15 @@ const settingsRoutes_1 = __importDefault(require("./routes/settingsRoutes"));
 const inventoryRoutes_1 = __importDefault(require("./routes/inventoryRoutes"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
+// Security Hardening
+app.disable("x-powered-by");
+app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    next();
+});
 // Middlewares
 app.use((0, cors_1.default)({ origin: true, credentials: true }));
 app.use(express_1.default.json({ limit: "10mb" }));

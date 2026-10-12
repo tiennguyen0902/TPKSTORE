@@ -26,7 +26,7 @@ router.get("/", async (req: Request, res: Response) => {
       const token = authHeader.split(" ")[1];
       try {
         const decoded: any = jwt.verify(token, JWT_ACCESS_SECRET);
-        if (decoded && (decoded.role === "ADMIN" || decoded.role === "MANAGER")) {
+        if (decoded && decoded.role === "ADMIN") {
           isAdmin = true;
         }
       } catch (err) {
@@ -34,7 +34,7 @@ router.get("/", async (req: Request, res: Response) => {
       }
     }
 
-    // Nếu là Admin / Manager: Trả về đầy đủ cấu hình để giao diện quản trị hiển thị & cập nhật
+    // Nếu là Admin: Trả về đầy đủ cấu hình để giao diện quản trị hiển thị & cập nhật
     if (isAdmin) {
       return res.json(settings);
     }

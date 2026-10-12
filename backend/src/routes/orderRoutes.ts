@@ -192,7 +192,8 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
       const settings = await tx.systemSettings.findFirst();
       const freeShippingThreshold = settings?.freeShippingThreshold || 500000;
       const shippingFee = isCounter ? 0 : (totalAmount >= freeShippingThreshold ? 0 : 30000);
-      const discountAmount = typeof reqDiscount === "number" ? reqDiscount : 0;
+      // Ràng buộc bảo mật chống gian lận: Chỉ Nhân viên / Admin mới được nhập discount trực tiếp tại quầy POS
+      const discountAmount = isStaffOrAdmin && typeof reqDiscount === "number" ? Math.max(0, reqDiscount) : 0;
       const finalAmount = Math.max(0, totalAmount + shippingFee - discountAmount);
 
       const pm = paymentMethod === "MOMO" ? "MOMO" : (paymentMethod === "VNPAY" ? "VNPAY" : "COD");
@@ -203,8 +204,11 @@ router.post("/", authenticateToken, async (req: AuthenticatedRequest, res: Respo
         finalNote = finalNote ? `${finalNote} ${staffTag}` : `${isCounter ? "Mua trực tiếp tại quầy" : "Tư vấn bán hàng"} ${staffTag}`;
       }
 
-      const orderStatusVal = isCounter ? (requestedStatus || "DELIVERED") : (requestedStatus || "PENDING");
-      const paymentStatusVal = isCounter ? (requestedPaymentStatus || (pm === "COD" ? "COMPLETED" : "PENDING")) : (requestedPaymentStatus || "PENDING");
+      // Ràng buộc bảo mật: Đơn hàng mua sắm online của khách LUÔN KHỞI TẠO PENDING; client không được can thiệp trạng thái
+      const orderStatusVal = isCounter && isStaffOrAdmin ? (requestedStatus || "DELIVERED") : "PENDING";
+      const paymentStatusVal = isCounter && isStaffOrAdmin 
+        ? (requestedPaymentStatus || (pm === "COD" ? "COMPLETED" : "PENDING")) 
+        : "PENDING";
 
       const order = await tx.order.create({
         data: {

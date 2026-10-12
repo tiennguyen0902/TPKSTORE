@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import { db } from "../db";
 import { authenticateToken, AuthenticatedRequest } from "../middleware/auth";
 import { MomoPaymentService } from "../services/momoService";
@@ -35,14 +36,31 @@ router.post("/create-vnpay-url", authenticateToken, async (req: AuthenticatedReq
   }
 });
 
-// POST /api/payment/vnpay-ipn (Simulated Webhook)
+// POST /api/payment/vnpay-ipn (Simulated Webhook & Sandbox confirmation)
 router.post("/vnpay-ipn", async (req: Request, res: Response) => {
   try {
     const { orderId, responseCode } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ RspCode: "99", Message: "Thiếu mã đơn hàng" });
+    }
 
     const order = await db.order.findUnique({ where: { id: orderId } });
     if (!order) {
       return res.status(404).json({ RspCode: "01", Message: "Order not found" });
+    }
+
+    // Ràng buộc bảo mật chống IDOR: Nếu có Bearer token, xác thực quyền sở hữu đơn hàng
+    const authHeader = req.headers["authorization"];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const secret = process.env.JWT_ACCESS_SECRET || "store_ai_access_secret_super_secure_key_2026";
+        const decoded: any = jwt.verify(authHeader.split(" ")[1], secret);
+        if (decoded.role === "CUSTOMER" && order.userId && order.userId !== decoded.id) {
+          return res.status(403).json({ RspCode: "03", Message: "Bạn không có quyền xác nhận thanh toán đơn hàng này" });
+        }
+      } catch {
+        return res.status(401).json({ RspCode: "04", Message: "Phiên xác thực không hợp lệ" });
+      }
     }
 
     if (responseCode === "00") {

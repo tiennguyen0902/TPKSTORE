@@ -18,6 +18,8 @@ import {
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { useNotifications } from "../context/NotificationContext";
+import { OrderSuccessModal, OrderSuccessData } from "./OrderSuccessModal";
 import { api } from "../services/api";
 import { VnpayModal } from "./VnpayModal";
 import { MomoModal } from "./MomoModal";
@@ -25,15 +27,21 @@ import { MomoModal } from "./MomoModal";
 interface CheckoutViewProps {
   onBackToCart: () => void;
   onOrderSuccess: (orderId: string) => void;
+  onNavigateCatalog?: () => void;
 }
 
 export const CheckoutView: React.FC<CheckoutViewProps> = ({
   onBackToCart,
-  onOrderSuccess
+  onOrderSuccess,
+  onNavigateCatalog
 }) => {
   const { items, subtotal, shippingFee, isFreeShipping, total, clearCart } = useCart();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { addOrderNotification } = useNotifications();
+
+  const [successOrderData, setSuccessOrderData] = useState<OrderSuccessData | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const isStaff = user?.role === "STAFF" || user?.role === "ADMIN";
   const [isCounterMode, setIsCounterMode] = useState(isStaff);
@@ -155,9 +163,38 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         setPendingOrderId(orderId);
         setShowMomoModal(true);
       } else {
+        const snapshotItems = items.map(i => ({
+          productId: i.productId,
+          productName: i.product?.name || "Sản phẩm",
+          productThumbnail: i.product?.thumbnail || "",
+          quantity: i.quantity,
+          price: i.product?.price ?? 0,
+          product: i.product
+        }));
+        const count = items.reduce((sum, item) => sum + item.quantity, 0);
         await clearCart();
-        showToast(`Đặt hàng thành công! Cảm ơn bạn đã mua sắm tại TPKSTORE.`, "success");
-        onOrderSuccess(orderId);
+
+        const successData: OrderSuccessData = {
+          id: orderId,
+          customerName: customerName.trim(),
+          phone: phone.trim(),
+          shippingAddress: isCounterMode ? "Mua trực tiếp tại quầy - TPKSTORE" : shippingAddress.trim(),
+          paymentMethod: "COD",
+          totalAmount: res.order?.totalAmount || subtotal,
+          finalAmount: res.order?.finalAmount || total,
+          items: snapshotItems
+        };
+        setSuccessOrderData(successData);
+        setShowSuccessModal(true);
+
+        addOrderNotification({
+          orderId,
+          customerName: customerName.trim(),
+          totalAmount: res.order?.finalAmount || total,
+          itemsCount: count,
+          paymentMethod: "COD"
+        });
+        showToast(`Đặt hàng thành công! Mã đơn: ${orderId}`, "success");
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Đặt hàng thất bại. Vui lòng thử lại.");
@@ -172,17 +209,76 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     } catch (err) {
       console.warn("IPN confirm error:", err);
     }
+
+    const snapshotItems = items.map(i => ({
+      productId: i.productId,
+      productName: i.product?.name || "Sản phẩm",
+      productThumbnail: i.product?.thumbnail || "",
+      quantity: i.quantity,
+      price: i.product?.price ?? 0,
+      product: i.product
+    }));
+    const count = items.reduce((sum, item) => sum + item.quantity, 0);
     await clearCart();
     setShowVnpayModal(false);
+
+    const successData: OrderSuccessData = {
+      id: pendingOrderId,
+      customerName: customerName.trim(),
+      phone: phone.trim(),
+      shippingAddress: shippingAddress.trim(),
+      paymentMethod: "VNPAY",
+      totalAmount: subtotal,
+      finalAmount: total,
+      items: snapshotItems
+    };
+    setSuccessOrderData(successData);
+    setShowSuccessModal(true);
+
+    addOrderNotification({
+      orderId: pendingOrderId,
+      customerName: customerName.trim(),
+      totalAmount: total,
+      itemsCount: count,
+      paymentMethod: "VNPAY"
+    });
     showToast(`Thanh toán VNPAY & Đặt hàng thành công! Mã đơn: ${pendingOrderId}`, "success");
-    onOrderSuccess(pendingOrderId);
   };
 
   const handleMomoSuccess = async () => {
+    const snapshotItems = items.map(i => ({
+      productId: i.productId,
+      productName: i.product?.name || "Sản phẩm",
+      productThumbnail: i.product?.thumbnail || "",
+      quantity: i.quantity,
+      price: i.product?.price ?? 0,
+      product: i.product
+    }));
+    const count = items.reduce((sum, item) => sum + item.quantity, 0);
     await clearCart();
     setShowMomoModal(false);
+
+    const successData: OrderSuccessData = {
+      id: pendingOrderId,
+      customerName: customerName.trim(),
+      phone: phone.trim(),
+      shippingAddress: shippingAddress.trim(),
+      paymentMethod: "MOMO",
+      totalAmount: subtotal,
+      finalAmount: total,
+      items: snapshotItems
+    };
+    setSuccessOrderData(successData);
+    setShowSuccessModal(true);
+
+    addOrderNotification({
+      orderId: pendingOrderId,
+      customerName: customerName.trim(),
+      totalAmount: total,
+      itemsCount: count,
+      paymentMethod: "MOMO"
+    });
     showToast(`Thanh toán MoMo & Đặt hàng thành công! Mã đơn: ${pendingOrderId}`, "success");
-    onOrderSuccess(pendingOrderId);
   };
 
   return (
@@ -610,6 +706,32 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
           onCancel={() => setShowMomoModal(false)}
         />
       )}
+
+      {/* Modal Thông Báo Mua Hàng & Đặt Hàng Thành Công */}
+      <OrderSuccessModal
+        isOpen={showSuccessModal}
+        orderData={successOrderData}
+        onClose={() => {
+          setShowSuccessModal(false);
+          if (successOrderData) {
+            onOrderSuccess(successOrderData.id);
+          }
+        }}
+        onViewOrders={() => {
+          setShowSuccessModal(false);
+          if (successOrderData) {
+            onOrderSuccess(successOrderData.id);
+          }
+        }}
+        onContinueShopping={() => {
+          setShowSuccessModal(false);
+          if (onNavigateCatalog) {
+            onNavigateCatalog();
+          } else {
+            window.location.href = "/products";
+          }
+        }}
+      />
     </div>
   );
 };

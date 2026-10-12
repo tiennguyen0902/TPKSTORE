@@ -16,11 +16,15 @@ import {
   Laptop,
   Headphones,
   Watch,
-  Tag,
-  Sparkles
+  Sparkles,
+  Bell,
+  CheckCircle2,
+  Clock,
+  Tag
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { useNotifications } from "../context/NotificationContext";
 
 interface NavbarProps {
   currentView: string;
@@ -41,8 +45,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { user, logout } = useAuth();
   const { itemCount } = useCart();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
 
@@ -165,6 +171,124 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Search className="w-5 h-5" />
             </button>
+
+            {/* Notification Bell Dropdown */}
+            <div className="relative shrink-0">
+              <button
+                onClick={() => {
+                  setShowNotificationsDropdown(!showNotificationsDropdown);
+                  setShowUserDropdown(false);
+                }}
+                className={`relative p-2 sm:p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 transition-all hover:scale-105 shrink-0 ${
+                  showNotificationsDropdown ? "ring-2 ring-rose-500 text-rose-600 bg-rose-50" : ""
+                }`}
+                title="Thông báo đơn hàng & hệ thống"
+                aria-label="Thông báo"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-rose-600 text-white text-[10px] font-extrabold flex items-center justify-center shadow-md shadow-rose-600/40 animate-pulse">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {showNotificationsDropdown && (
+                <div 
+                  className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Dropdown Header */}
+                  <div className="p-3.5 sm:p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-pulse" />
+                      <h3 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider">
+                        Thông Báo ({notifications.length})
+                      </h3>
+                      {unreadCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold text-[10px]">
+                          {unreadCount} mới
+                        </span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
+                      >
+                        Đã đọc tất cả
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Notification List */}
+                  <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-slate-400 text-xs">
+                        <Bell className="w-8 h-8 text-slate-300 mx-auto mb-2 opacity-50" />
+                        <p className="font-medium">Bạn chưa có thông báo nào</p>
+                      </div>
+                    ) : (
+                      notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            markAsRead(n.id);
+                            setShowNotificationsDropdown(false);
+                            if (n.orderId) {
+                              navigate("/my-orders");
+                            }
+                          }}
+                          className={`p-3.5 hover:bg-slate-50 transition-colors cursor-pointer flex items-start gap-3 ${
+                            !n.read ? "bg-rose-50/40" : ""
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                            n.type === "order_success" 
+                              ? "bg-emerald-100 text-emerald-600" 
+                              : "bg-blue-100 text-blue-600"
+                          }`}>
+                            {n.type === "order_success" ? (
+                              <CheckCircle2 className="w-4 h-4" />
+                            ) : (
+                              <Sparkles className="w-4 h-4" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="text-xs font-bold text-slate-900 line-clamp-1">{n.title}</p>
+                              {!n.read && (
+                                <span className="w-2 h-2 rounded-full bg-rose-600 shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-600 line-clamp-2 mt-0.5 leading-relaxed font-medium">
+                              {n.message}
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1 font-mono">
+                              <Clock className="w-3 h-3" />
+                              {new Date(n.timestamp).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} • {new Date(n.timestamp).toLocaleDateString("vi-VN")}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Dropdown Footer */}
+                  <div className="p-2.5 bg-slate-50 border-t border-slate-200 text-center">
+                    <button
+                      onClick={() => {
+                        setShowNotificationsDropdown(false);
+                        navigate("/my-orders");
+                      }}
+                      className="text-xs font-bold text-rose-600 hover:text-rose-700 transition-colors py-1 block w-full"
+                    >
+                      Xem lịch sử đơn hàng & bảo hành →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Cart Button with Count Badge */}
             <button 

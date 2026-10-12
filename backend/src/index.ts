@@ -36,6 +36,16 @@ import inventoryRoutes from "./routes/inventoryRoutes";
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Security Hardening
+app.disable("x-powered-by");
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
+
 // Middlewares
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "10mb" }));

@@ -26,7 +26,7 @@ router.get("/", async (req, res) => {
             const token = authHeader.split(" ")[1];
             try {
                 const decoded = jsonwebtoken_1.default.verify(token, JWT_ACCESS_SECRET);
-                if (decoded && (decoded.role === "ADMIN" || decoded.role === "MANAGER")) {
+                if (decoded && decoded.role === "ADMIN") {
                     isAdmin = true;
                 }
             }
@@ -34,7 +34,7 @@ router.get("/", async (req, res) => {
                 // Token không hợp lệ hoặc hết hạn => coi như khách lẻ
             }
         }
-        // Nếu là Admin / Manager: Trả về đầy đủ cấu hình để giao diện quản trị hiển thị & cập nhật
+        // Nếu là Admin: Trả về đầy đủ cấu hình để giao diện quản trị hiển thị & cập nhật
         if (isAdmin) {
             return res.json(settings);
         }
