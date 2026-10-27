@@ -56,23 +56,23 @@ async function callAiService(endpoint, payload, timeoutMs = AI_SERVICE_TIMEOUT_M
         return { success: false, error: err.message };
     }
 }
-// Helper to verify if model is a valid Gemini model
+// Helper to verify if model is Gemini 3.x+
 const isGemini3x = (name) => {
     if (!name)
         return false;
     const clean = name.toLowerCase().replace("models/", "").trim();
-    return /^gemini-[0-9]/i.test(clean);
+    return /^gemini-3(\.[0-9]+)?/i.test(clean);
 };
 exports.isGemini3x = isGemini3x;
-// Danh sách các mô hình Google Gemini chính thức hỗ trợ
+// Danh sách toàn bộ mô hình Google Gemini 3.x trở lên chính thức
 const ALL_GEMINI_MODELS = [
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-pro",
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-3.5-flash"
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
+    "gemini-3.0-pro",
+    "gemini-3.5-pro"
 ];
 // Helper to get settings
 async function getSettings() {
@@ -80,7 +80,7 @@ async function getSettings() {
     return {
         aiProvider: settings?.aiProvider || "gemini",
         geminiApiKey: settings?.geminiApiKey || process.env.GEMINI_API_KEY || "",
-        geminiModel: settings?.geminiModel || "gemini-2.0-flash",
+        geminiModel: settings?.geminiModel || "gemini-3.5-flash",
         openaiApiKey: settings?.openaiApiKey || process.env.OPENAI_API_KEY || "",
         openaiModel: settings?.openaiModel || "gpt-4o-mini",
         localAiUrl: settings?.localAiUrl || process.env.LOCAL_AI_URL || "http://localhost:11434",
@@ -100,7 +100,7 @@ async function directTestGemini(apiKey, model) {
             message: "Chưa có Google Gemini API Key. Vui lòng nhập mã API Key để kiểm tra."
         };
     }
-    const requestedModel = (model || "gemini-2.0-flash").replace("models/", "").trim();
+    const requestedModel = (model || "gemini-3.5-flash").replace("models/", "").trim();
     // 1. Tự động truy vấn ModelService.ListModels từ Google để xác thực API Key & lấy danh sách model thực tế (chỉ giữ 3.x+)
     let availableModels = [];
     try {
@@ -141,9 +141,9 @@ async function directTestGemini(apiKey, model) {
             };
         }
     }
-    // 2. Danh sách model ưu tiên thử nghiệm
+    // 2. Danh sách model ưu tiên thử nghiệm (Chỉ các model 3.x+)
     const candidateModels = [
-        requestedModel && (0, exports.isGemini3x)(requestedModel) ? requestedModel : "gemini-2.0-flash",
+        requestedModel && (0, exports.isGemini3x)(requestedModel) ? requestedModel : "gemini-3.5-flash",
         ...availableModels,
         ...ALL_GEMINI_MODELS
     ].filter((v, i, a) => v && a.indexOf(v) === i && (0, exports.isGemini3x)(v));
@@ -295,9 +295,9 @@ async function directTestLocalAI(localUrl, model) {
 }
 // Direct Chat with Google Gemini when AI microservice is offline
 async function directGeminiChat(apiKey, model, userMessage, products, history = [], imageBase64) {
-    const cleanModel = (model || "gemini-2.0-flash").replace("models/", "").trim();
+    const cleanModel = (model || "gemini-3.5-flash").replace("models/", "").trim();
     const candidateModels = [
-        cleanModel,
+        (0, exports.isGemini3x)(cleanModel) ? cleanModel : "gemini-3.5-flash",
         ...ALL_GEMINI_MODELS
     ].filter((v, i, a) => v && a.indexOf(v) === i && (0, exports.isGemini3x)(v));
     // Lọc sản phẩm liên quan từ CSDL theo từ khóa của khách hàng

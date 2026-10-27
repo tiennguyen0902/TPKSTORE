@@ -45,7 +45,7 @@ app.use((_req, res, next) => {
     next();
 });
 // Middlewares & CORS Whitelist
-const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000")
+const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:3000,http://localhost:5000,http://localhost:8088," + "http://127.0.0.1:5173,http://127.0.0.1:3000,http://127.0.0.1:5000,http://127.0.0.1:8088")
     .split(",")
     .map(o => o.trim())
     .filter(Boolean);

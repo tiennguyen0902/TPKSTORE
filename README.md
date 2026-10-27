@@ -14,7 +14,7 @@
 [![Prisma ORM](https://img.shields.io/badge/Prisma-5.22.0-2D3748.svg)](https://www.prisma.io/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Test_Suites-33%2F33_Pass_(100%25)-success.svg)](https://github.com/tiennguyen0902/TPKSTORE)
+[![Tests](https://img.shields.io/badge/Test_Suites-34%2F34_Pass_(100%25)-success.svg)](https://github.com/tiennguyen0902/TPKSTORE)
 
 ---
 
@@ -116,7 +116,7 @@ TPKSTORE/                               ← Root thư mục dự án
 │   │   └── 📄 seed.ts                  ← Script nạp CSDL sản phẩm thật & tài khoản mẫu
 │   ├── 🧪 tests/
 │   │   ├── 📄 automated_verification.js ← Bộ kiểm thử tự động đặc tả kỹ thuật 20/20 test cases
-│   │   └── 📄 regression_fixes.js       ← Bộ kiểm thử hồi quy nghiệp vụ 5/5 test cases
+│   │   └── 📄 regression_fixes.js       ← Bộ kiểm thử hồi quy nghiệp vụ 6/6 test cases
 │   ├── 🧪 test/
 │   │   └── 📄 core_business_ai.test.js  ← Bộ kiểm thử nghiệp vụ lõi & AI 8/8 test cases
 │   └── 📁 src/
@@ -362,11 +362,11 @@ Khung chat nổi thông minh (`FloatingChatWidget`) đóng vai trò là một ch
 
 ## 5. Bộ Kiểm Thử Tự Động (Automated Test Suite)
 
-Dự án tích hợp 3 bộ kiểm thử tự động toàn diện trên hệ cơ sở dữ liệu thật với kết quả đạt **33/33 tests PASS (100%)**:
+Dự án tích hợp 3 bộ kiểm thử tự động toàn diện trên hệ cơ sở dữ liệu thật với kết quả đạt **34/34 tests PASS (100%)**:
 
 1. **Bộ kiểm thử đặc tả kỹ thuật (`backend/tests/automated_verification.js`)**: 20/20 test cases đạt 100% PASS.
 2. **Bộ kiểm thử nghiệp vụ lõi & AI (`backend/test/core_business_ai.test.js`)**: 8/8 test cases đạt 100% PASS.
-3. **Bộ kiểm thử hồi quy nghiệp vụ (`backend/tests/regression_fixes.js`)**: 5/5 test cases đạt 100% PASS.
+3. **Bộ kiểm thử hồi quy nghiệp vụ (`backend/tests/regression_fixes.js`)**: 6/6 test cases đạt 100% PASS.
 
 ```bash
 # Chạy bộ kiểm thử 1: Đặc tả kỹ thuật RBAC, Kho, AI & Đơn hàng (20 tests)
@@ -375,11 +375,11 @@ node backend/tests/automated_verification.js
 # Chạy bộ kiểm thử 2: Nghiệp vụ sản phẩm, giỏ hàng, POS & AI Fallback (8 tests)
 node backend/test/core_business_ai.test.js
 
-# Chạy bộ kiểm thử 3: Kiểm thử hồi quy chống bán vượt kho, chuyển trạng thái, RBAC POS (5 tests)
+# Chạy bộ kiểm thử 3: Kiểm thử hồi quy chống bán vượt kho, chuyển trạng thái, RBAC POS, chống xác nhận đơn đã hủy (6 tests)
 node backend/tests/regression_fixes.js
 ```
 
-### Kết Quả Kiểm Thử Toàn Diện (33/33 PASS — 100%):
+### Kết Quả Kiểm Thử Toàn Diện (34/34 PASS — 100%):
 
 ```
 ================================================================
@@ -443,8 +443,9 @@ TEST RESULTS: 8/8 PASSED (0 FAILED)
 [PASS] REG-03: Concurrent order checkout prevents overselling (Success: 1, Failed: 1, Final Stock: 0)
 [PASS] REG-04: MANAGER role is authorized to execute POS checkout (Status: 201)
 [PASS] REG-05: Registration rejects weak password under 8 chars / missing numbers (Status: 400)
+[PASS] REG-06: Cancelled order cannot be confirmed via /payment/vnpay-confirm (Status: 400, Order Status: CANCELLED)
 ================================================================
-TEST RESULTS: 5/5 PASSED (0 FAILED)
+TEST RESULTS: 6/6 PASSED (0 FAILED)
 ================================================================
 ```
 
@@ -464,13 +465,17 @@ Các biến môi trường cấu hình chính:
 
 | Tên Biến | Mô Tả | Mặc Định / Gợi Ý |
 | :--- | :--- | :--- |
+| `NODE_ENV` | Chế độ môi trường thực thi | `development` |
 | `PORT` | Cổng chạy Backend API | `5000` |
+| `CORS_ORIGINS` | Danh sách Origin được phép truy cập CORS (phân tách bởi dấu phẩy) | `http://localhost:5173,http://localhost:3000,http://localhost:5000,http://localhost:8088,http://127.0.0.1:5173,http://127.0.0.1:3000,http://127.0.0.1:5000,http://127.0.0.1:8088` |
+| `ENABLE_DEMO_OTP` | Hiển thị mã OTP trực tiếp trong response JSON khi quên mật khẩu (Bắt buộc đặt `true` khi demo vì hệ thống không gửi email SMTP) | `true` |
 | `JWT_ACCESS_SECRET` | Khóa bí mật ký JWT Access Token (7 ngày) | `super_secret_jwt_access_key_shopbee_2026` |
 | `JWT_REFRESH_SECRET` | Khóa bí mật ký JWT Refresh Token (30 ngày) | `super_secret_jwt_refresh_key_shopbee_2026` |
 | `DATABASE_URL` | Chuỗi kết nối PostgreSQL | `postgresql://postgres:postgres@localhost:5432/shopbee` |
 | `LOCAL_AI_URL` | Địa chỉ máy chủ AI Local (Ollama) | `http://localhost:11434` |
 | `LOCAL_AI_MODEL` | Tên mô hình AI Local mặc định | `llava` *(hoặc `llama3.2-vision`, `phi3`)* |
 | `GEMINI_API_KEY` | Khóa Google Gemini API Key | *(Lấy miễn phí tại [Google AI Studio](https://aistudio.google.com/))* |
+| `GEMINI_MODEL` | Mô hình Google Gemini Cloud mặc định | `gemini-3.5-flash` |
 | `AI_SERVICE_URL` | Đường dẫn tới Python AI Microservice | `http://localhost:8000` |
 
 ---
@@ -568,7 +573,7 @@ Tất cả tài khoản demo đều có mật khẩu chung là: `Password123@` v
 2. **Cảnh báo tồn kho theo ngưỡng:** Hệ thống phân loại mức độ cảnh báo dựa trên các ngưỡng số lượng cố định (≤3 CRITICAL, ≤5 HIGH, ≤10 MEDIUM), chưa tính toán tự động dựa trên Daily Sales Velocity và Lead Time thực tế.
 3. **Cổng thanh toán VNPAY giả lập:** Luồng thanh toán VNPAY hiện được giả lập trực tiếp trong hệ thống, chưa đấu nối API chính thức của VNPAY. Trong khi đó, MoMo gọi API trên môi trường test `test-payment.momo.vn`.
 4. **Bộ nhớ tạm (RAM) cho bảo mật & giới hạn:** Bộ đếm khóa đăng nhập và danh sách thu hồi token (Token Blacklist) được lưu trong bộ nhớ RAM của tiến trình backend, sẽ được đặt lại khi khởi động lại server.
-5. **Mã xác thực OTP:** Hệ thống chưa tích hợp dịch vụ gửi email SMTP; mã OTP được trả về trực tiếp trong phản hồi API ở chế độ phát triển (development).
+5. **Mã xác thực OTP (Quên mật khẩu):** Hệ thống chưa tích hợp dịch vụ gửi email SMTP. Để phục vụ demo và kiểm thử luồng quên mật khẩu, cần cấu hình `ENABLE_DEMO_OTP=true` trong file `.env` để mã OTP được trả về trực tiếp trong phản hồi API của endpoint `/api/auth/forgot-password`.
 
 ---
 
@@ -578,7 +583,7 @@ Tất cả tài khoản demo đều có mật khẩu chung là: `Password123@` v
 | :--- | :--- | :--- |
 | **Thang Quốc Khải** | **Team Leader & AI Architect** | • Thiết kế Kiến trúc Phân tầng 5 lớp (5-Tier Layered Architecture)<br>• Tích hợp AI Microservices, Local AI Ollama & Trợ lý Đa phương thức (Voice & Vision RAG)<br>• Xây dựng Backend Core API, Phân quyền RBAC 4 Tầng & Mô-đun Quản lý Lợi nhuận (Cost/Profit) |
 | **Nguyễn Đình Tiến** | **Frontend Lead & UI/UX** | • Thiết kế toàn bộ Giao diện UI/UX Dark Mode Glassmorphism<br>• Xây dựng Giao diện Bán Hàng Tại Quầy POS (`CounterPosView`) & Chế độ POS Checkout<br>• Widget Trợ lý AI tích hợp Web Speech API & Multimodal Image I/O |
-| **Nguyễn Hồng Phúc** | **Database & QA Lead** | • Thiết kế CSDL PostgreSQL (Prisma ORM) & Quy trình kiểm soát kho 2 lớp<br>• Xây dựng luồng tạo nhanh Khách lẻ bằng SĐT & Tích điểm/Bảo hành<br>• Xây dựng các bộ kiểm thử tự động đạt chuẩn **33/33 test cases (100% PASS)** |
+| **Nguyễn Hồng Phúc** | **Database & QA Lead** | • Thiết kế CSDL PostgreSQL (Prisma ORM) & Quy trình kiểm soát kho 2 lớp<br>• Xây dựng luồng tạo nhanh Khách lẻ bằng SĐT & Tích điểm/Bảo hành<br>• Xây dựng các bộ kiểm thử tự động đạt chuẩn **34/34 test cases (100% PASS)** |
 
 ---
 

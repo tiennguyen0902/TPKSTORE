@@ -80,7 +80,7 @@ export const AdminAiForecast: React.FC = () => {
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Độ tin cậy mô hình</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Khoảng tin cậy hiển thị</p>
             <p className="text-xl font-black text-blue-600 mt-1">{metrics.confidenceLevel || "95%"}</p>
           </div>
 

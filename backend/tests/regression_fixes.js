@@ -6,6 +6,7 @@
  * - REG-03: Concurrent order stock over-selling prevention via atomic DB update
  * - REG-04: MANAGER role authorized to use POS counter sales
  * - REG-05: Password registration rule validation (min 8 chars, letter + number)
+ * - REG-06: Cancelled order cannot be confirmed via /payment/vnpay-confirm (returns 400, remains CANCELLED)
  */
 
 const BASE_URL = process.env.API_BASE_URL || 'http://localhost:5000/api';
@@ -239,6 +240,49 @@ async function runRegressionSuite() {
 
       const passed = regRes.status === 400;
       recordTest('REG-05', 'Register with 6-char password "abc123" is rejected with 400 Bad Request', passed, `Status: ${regRes.status}, Error: "${regRes.data?.error || ''}"`);
+    }
+
+    // ---------------------------------------------------------
+    // REG-06: Cancelled order cannot be confirmed via /payment/vnpay-confirm (400 Bad Request, remains CANCELLED)
+    // ---------------------------------------------------------
+    {
+      // 1. Create PENDING order
+      const newOrderRes = await apiRequest('/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          customerName: 'Regression Cancelled Customer',
+          phone: '0987999888',
+          shippingAddress: '456 Đường Test, Quận 1, TP.HCM',
+          paymentMethod: 'VNPAY',
+          items: [{ productId: testProduct.id, quantity: 1 }]
+        })
+      }, customerToken);
+
+      const cancelOrderId = newOrderRes.data?.order?.id;
+      if (cancelOrderId) createdOrderIds.push(cancelOrderId);
+
+      // 2. Cancel order
+      const cancelRes = await apiRequest(`/orders/${encodeURIComponent(cancelOrderId)}/cancel`, {
+        method: 'POST'
+      }, customerToken);
+
+      // 3. Attempt to confirm payment on cancelled order via /payment/vnpay-confirm
+      const confirmRes = await apiRequest('/payment/vnpay-confirm', {
+        method: 'POST',
+        body: JSON.stringify({
+          orderId: cancelOrderId,
+          responseCode: '00'
+        })
+      }, customerToken);
+
+      // 4. Verify order remains CANCELLED
+      const orderCheckRes = await apiRequest(`/orders/${encodeURIComponent(cancelOrderId)}`, {
+        method: 'GET'
+      }, customerToken);
+
+      const finalStatus = orderCheckRes.data?.status || orderCheckRes.data?.order?.status;
+      const passed = confirmRes.status === 400 && finalStatus === 'CANCELLED';
+      recordTest('REG-06', 'Cancelled order cannot be confirmed via /payment/vnpay-confirm (400 Bad Request, remains CANCELLED)', passed, `Confirm Status: ${confirmRes.status}, Order Status: ${finalStatus}`);
     }
 
   } finally {

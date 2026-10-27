@@ -46,6 +46,9 @@ router.post("/vnpay-ipn", async (req, res) => {
         if (!order) {
             return res.status(404).json({ RspCode: "01", Message: "Order not found" });
         }
+        if (order.status !== "PENDING") {
+            return res.status(400).json({ RspCode: "02", Message: "Đơn hàng không còn ở trạng thái chờ thanh toán" });
+        }
         // Ràng buộc bảo mật chống IDOR: Nếu có Bearer token, xác thực quyền sở hữu đơn hàng
         const authHeader = req.headers["authorization"];
         if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -94,6 +97,9 @@ router.post("/vnpay-confirm", auth_1.authenticateToken, async (req, res) => {
         const order = await db_1.db.order.findUnique({ where: { id: orderId } });
         if (!order) {
             return res.status(404).json({ RspCode: "01", Message: "Không tìm thấy đơn hàng" });
+        }
+        if (order.status !== "PENDING") {
+            return res.status(400).json({ RspCode: "02", Message: "Đơn hàng không còn ở trạng thái chờ thanh toán" });
         }
         // Bảo mật chống IDOR: Khách hàng chỉ được xác nhận thanh toán cho đơn của chính mình
         if (user.role === "CUSTOMER" && order.userId && order.userId !== user.id) {
