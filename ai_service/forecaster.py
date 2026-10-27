@@ -1,6 +1,6 @@
 """
 AI Sales & Demand Forecasting Module
-Simulates Hybrid-Prophet-ARIMA Time-Series Analysis with Seasonality & Trend
+Simulates trend and weekly seasonality for demonstration purposes.
 """
 
 import math
@@ -61,12 +61,10 @@ def generate_sales_forecast(days: int = 30) -> Dict[str, Any]:
 
     # 3. Model Performance Metrics
     metrics = {
-        "modelName": "Hybrid-Prophet-ARIMA-v2.1",
+        "modelName": "Trend + Weekly Seasonality (Simulated Demo)",
         "forecastGrowth": "+8.5%",
-        "mape": "4.12%",
-        "rmse": "845,200 VND",
-        "r2Score": "95.88%",
-        "confidenceLevel": "95%"
+        "confidenceLevel": "95%",
+        "isSimulated": True
     }
 
     # 4. Actionable Business Insights
@@ -95,6 +93,7 @@ def generate_sales_forecast(days: int = 30) -> Dict[str, Any]:
     ]
 
     return {
+        "isSimulated": True,
         "metrics": metrics,
         "historical": historical_points,
         "forecast": forecast_points,

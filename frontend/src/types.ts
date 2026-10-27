@@ -125,13 +125,15 @@ export interface InventoryAlert {
 }
 
 export interface ForecastData {
+  isSimulated?: boolean;
   metrics: {
     modelName: string;
     forecastGrowth: string;
-    mape: string;
-    rmse: string;
-    r2Score: string;
-    confidenceLevel: string;
+    mape?: string;
+    rmse?: string;
+    r2Score?: string;
+    confidenceLevel?: string;
+    isSimulated?: boolean;
   };
   historical: {
     date: string;

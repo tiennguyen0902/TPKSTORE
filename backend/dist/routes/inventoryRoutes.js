@@ -211,22 +211,30 @@ router.put("/tickets/:id/approve", auth_1.authenticateToken, (0, auth_1.authoriz
             if (!product) {
                 throw new Error("Sản phẩm liên kết với phiếu này không còn tồn tại trong kho.");
             }
-            const beforeStock = typeof product.stock === "number" ? product.stock : (parseInt(String(product.stock)) || 0);
-            let afterStock = beforeStock;
+            let beforeStock = 0;
+            let afterStock = 0;
+            let updatedProduct = null;
             if (ticket.type === "EXPORT") {
-                if (beforeStock < ticket.quantity) {
-                    throw new Error(`Không thể duyệt xuất kho! Tồn kho hiện tại (${beforeStock} SP) nhỏ hơn số lượng yêu cầu xuất (${ticket.quantity} SP).`);
+                const r = await tx.product.updateMany({
+                    where: { id: ticket.productId, stock: { gte: ticket.quantity } },
+                    data: { stock: { decrement: ticket.quantity } }
+                });
+                if (r.count === 0) {
+                    throw new Error(`Không thể duyệt xuất kho! Tồn kho hiện tại nhỏ hơn số lượng yêu cầu xuất (${ticket.quantity} SP).`);
                 }
-                afterStock = beforeStock - ticket.quantity;
+                updatedProduct = await tx.product.findUnique({ where: { id: ticket.productId } });
+                afterStock = updatedProduct.stock;
+                beforeStock = afterStock + ticket.quantity;
             }
             else if (ticket.type === "IMPORT") {
-                afterStock = beforeStock + ticket.quantity;
+                await tx.product.update({
+                    where: { id: ticket.productId },
+                    data: { stock: { increment: ticket.quantity } }
+                });
+                updatedProduct = await tx.product.findUnique({ where: { id: ticket.productId } });
+                afterStock = updatedProduct.stock;
+                beforeStock = afterStock - ticket.quantity;
             }
-            // 1. Cập nhật tồn kho sản phẩm
-            const updatedProduct = await tx.product.update({
-                where: { id: ticket.productId },
-                data: { stock: afterStock }
-            });
             // 2. Ghi nhật ký bất biến StockMovement
             await tx.stockMovement.create({
                 data: {

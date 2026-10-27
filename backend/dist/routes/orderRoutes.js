@@ -1,9 +1,35 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
+const crypto_1 = __importDefault(require("crypto"));
+function generateOrderId() {
+    // Timestamp base36 + 6 ký tự hex ngẫu nhiên: đảm bảo duy nhất, chống race condition và không trùng lặp
+    const timePart = Date.now().toString(36).toUpperCase();
+    const randPart = crypto_1.default.randomBytes(3).toString("hex").toUpperCase();
+    return `#ord_${timePart}_${randPart}`;
+}
 const router = (0, express_1.Router)();
+const ALLOWED_TRANSITIONS = {
+    PENDING: ["CONFIRMED", "CANCELLED"],
+    CONFIRMED: ["PROCESSING", "CANCELLED"],
+    PROCESSING: ["SHIPPING", "CANCELLED"],
+    SHIPPING: ["DELIVERED"],
+    DELIVERED: [],
+    CANCELLED: []
+};
+const STATUS_LABELS = {
+    PENDING: "Chờ xác nhận",
+    CONFIRMED: "Đã xác nhận",
+    PROCESSING: "Đang chuẩn bị hàng",
+    SHIPPING: "Đang giao",
+    DELIVERED: "Đã giao",
+    CANCELLED: "Đã hủy"
+};
 // POST /api/orders (Checkout: Support both standard web checkout & Staff counter consultation for walk-in customers)
 router.post("/", auth_1.authenticateToken, async (req, res) => {
     try {
@@ -122,25 +148,24 @@ router.post("/", auth_1.authenticateToken, async (req, res) => {
             }
             let totalAmount = 0;
             const orderItemsData = [];
-            // Generate sequential Order ID trước để reference trong StockMovement
-            const orderCount = await tx.order.count();
-            const orderId = `#ord_${1000 + orderCount + 1}`;
-            // Verify stock, deduct stock and log StockMovement
+            // Sinh mã Order ID duy nhất, chống Race Condition khi có nhiều đơn hàng đặt đồng thời
+            const orderId = generateOrderId();
+            // Verify stock, deduct stock atomically and log StockMovement
             for (const item of checkoutItems) {
                 const prod = await tx.product.findUnique({ where: { id: item.productId } });
                 if (!prod) {
                     throw new Error(`Sản phẩm với ID ${item.productId} không tồn tại`);
                 }
-                if (prod.stock < item.quantity) {
-                    throw new Error(`Sản phẩm "${prod.name}" chỉ còn ${prod.stock} trong kho`);
-                }
-                const beforeStock = typeof prod.stock === "number" ? prod.stock : (parseInt(String(prod.stock)) || 0);
-                const afterStock = beforeStock - item.quantity;
-                // Trừ tồn kho trong Transaction
-                await tx.product.update({
-                    where: { id: item.productId },
-                    data: { stock: afterStock }
+                const r = await tx.product.updateMany({
+                    where: { id: item.productId, stock: { gte: item.quantity } },
+                    data: { stock: { decrement: item.quantity } }
                 });
+                if (r.count === 0) {
+                    throw new Error(`Sản phẩm "${prod.name}" không đủ tồn kho`);
+                }
+                const updated = await tx.product.findUnique({ where: { id: item.productId } });
+                const afterStock = updated.stock;
+                const beforeStock = afterStock + item.quantity;
                 // Ghi nhật ký biến động kho bất biến StockMovement (SALE)
                 await tx.stockMovement.create({
                     data: {
@@ -224,8 +249,8 @@ router.post("/", auth_1.authenticateToken, async (req, res) => {
         return res.status(400).json({ error: err.message });
     }
 });
-// POST /api/orders/pos (Specialized POS Counter Order for Staff & Admin)
-router.post("/pos", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "STAFF"]), async (req, res) => {
+// POST /api/orders/pos (Specialized POS Counter Order for Staff, Manager & Admin)
+router.post("/pos", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER", "STAFF"]), async (req, res) => {
     try {
         const { customerName, phone, shippingAddress, note, paymentMethod, items, discountAmount = 0, paymentStatus = "COMPLETED", status = "DELIVERED" } = req.body;
         if (!phone || !String(phone).trim()) {
@@ -289,23 +314,23 @@ router.post("/pos", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "S
             // 2. Trừ tồn kho & tính tiền & ghi nhận StockMovement (SALE)
             let totalAmount = 0;
             const orderItemsData = [];
-            const orderCount = await tx.order.count();
-            const orderId = `#ord_${1000 + orderCount + 1}`;
+            // Sinh mã Order ID duy nhất, chống Race Condition khi bán hàng tại quầy
+            const orderId = generateOrderId();
             for (const item of items) {
                 const prod = await tx.product.findUnique({ where: { id: item.productId } });
                 if (!prod) {
                     throw new Error(`Sản phẩm với ID ${item.productId} không tồn tại`);
                 }
-                if (prod.stock < item.quantity) {
-                    throw new Error(`Sản phẩm "${prod.name}" chỉ còn ${prod.stock} trong kho (yêu cầu: ${item.quantity})`);
-                }
-                const beforeStock = typeof prod.stock === "number" ? prod.stock : (parseInt(String(prod.stock)) || 0);
-                const afterStock = beforeStock - item.quantity;
-                // Trừ tồn kho trong Transaction
-                await tx.product.update({
-                    where: { id: item.productId },
-                    data: { stock: afterStock }
+                const r = await tx.product.updateMany({
+                    where: { id: item.productId, stock: { gte: item.quantity } },
+                    data: { stock: { decrement: item.quantity } }
                 });
+                if (r.count === 0) {
+                    throw new Error(`Sản phẩm "${prod.name}" không đủ tồn kho`);
+                }
+                const updated = await tx.product.findUnique({ where: { id: item.productId } });
+                const afterStock = updated.stock;
+                const beforeStock = afterStock + item.quantity;
                 // Ghi nhật ký biến động kho bất biến StockMovement (SALE)
                 await tx.stockMovement.create({
                     data: {
@@ -464,17 +489,27 @@ router.put("/:id/status", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMI
         if (status && !validStatuses.includes(status)) {
             return res.status(400).json({ error: "Trạng thái đơn hàng không hợp lệ." });
         }
-        // Handle stock refund if cancelled
+        if (status && status !== order.status) {
+            const allowedNext = ALLOWED_TRANSITIONS[order.status] || [];
+            if (!allowedNext.includes(status)) {
+                const currentLabel = STATUS_LABELS[order.status] || order.status;
+                const targetLabel = STATUS_LABELS[status] || status;
+                return res.status(400).json({
+                    error: `Không thể chuyển đơn từ "${currentLabel}" sang "${targetLabel}".`
+                });
+            }
+        }
+        // Handle stock refund if cancelled (only reached if transition is valid)
         if (status === "CANCELLED" && order.status !== "CANCELLED") {
             await db_1.db.$transaction(async (tx) => {
                 for (const item of order.items) {
-                    const prod = await tx.product.findUnique({ where: { id: item.productId } });
-                    const beforeStock = prod ? (typeof prod.stock === "number" ? prod.stock : (parseInt(String(prod.stock)) || 0)) : 0;
-                    const afterStock = beforeStock + item.quantity;
                     await tx.product.update({
                         where: { id: item.productId },
-                        data: { stock: afterStock }
+                        data: { stock: { increment: item.quantity } }
                     });
+                    const updatedProd = await tx.product.findUnique({ where: { id: item.productId } });
+                    const afterStock = updatedProd ? updatedProd.stock : item.quantity;
+                    const beforeStock = afterStock - item.quantity;
                     await tx.stockMovement.create({
                         data: {
                             productId: item.productId,

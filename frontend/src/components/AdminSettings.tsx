@@ -28,7 +28,7 @@ export const AdminSettings: React.FC = () => {
     freeShippingThreshold: 500000,
     aiProvider: "gemini",
     geminiApiKey: "",
-    geminiModel: "gemini-3.5-flash",
+    geminiModel: "gemini-2.0-flash",
     aiServiceUrl: "http://localhost:8000",
     vnpayTmnCode: "SANDBOX_STORE_AI",
     momoPartnerCode: "MOMO",
@@ -501,12 +501,18 @@ export const AdminSettings: React.FC = () => {
                   }}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-none focus:border-rose-500 text-xs font-medium"
                 >
-                  <optgroup label="🌟 Mô hình Gemini 3.x Flash (Tối ưu & Tốc độ cao)">
-                    <option value="gemini-3.5-flash">gemini-3.5-flash ⭐ (Khuyên dùng - Flash 3.5 Cực nhanh & Đa phương thức)</option>
-                    <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite 🍃 (Flash 3.1 Lite - Siêu nhẹ, độ trễ thấp & tiết kiệm)</option>
-                    <option value="gemini-3.6-flash">gemini-3.6-flash 🚀 (Flash 3.6 Ổn định & Hiệu năng cao)</option>
-                    <option value="gemini-3.7-flash">gemini-3.7-flash ⚡ (Flash 3.7 Siêu tốc)</option>
-                    <option value="gemini-3.8-flash">gemini-3.8-flash 🌟 (Flash 3.8 Flagship)</option>
+                  <optgroup label="⚡ Mô hình Google Gemini Chính Thức (Khuyên dùng)">
+                    <option value="gemini-2.0-flash">gemini-2.0-flash ⚡ (Khuyên dùng - Flash 2.0 Cực nhanh, Đa phương thức & Tiết kiệm)</option>
+                    <option value="gemini-1.5-flash">gemini-1.5-flash ⭐ (Flash 1.5 Ổn định, tốc độ cao)</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro 🧠 (Pro 1.5 Suy luận chuyên sâu & logic phức tạp)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash 🚀 (Flash 2.5 Tiên tiến)</option>
+                  </optgroup>
+                  <optgroup label="🌟 Mô hình Gemini 3.x Flash (Thế hệ mới)">
+                    <option value="gemini-3.5-flash">gemini-3.5-flash ⭐ (Flash 3.5)</option>
+                    <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite 🍃 (Flash 3.1 Lite)</option>
+                    <option value="gemini-3.6-flash">gemini-3.6-flash 🚀 (Flash 3.6)</option>
+                    <option value="gemini-3.7-flash">gemini-3.7-flash ⚡ (Flash 3.7)</option>
+                    <option value="gemini-3.8-flash">gemini-3.8-flash 🌟 (Flash 3.8)</option>
                   </optgroup>
                   <optgroup label="🧠 Dòng Gemini 3.x Pro (Suy luận chuyên sâu)">
                     <option value="gemini-3.0-pro">gemini-3.0-pro 🧠 (Pro 3.0 Suy luận logic & phân tích)</option>

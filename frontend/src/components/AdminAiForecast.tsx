@@ -33,12 +33,10 @@ export const AdminAiForecast: React.FC = () => {
   }, [timeRange]);
 
   const metrics = forecastData?.metrics || {
-    modelName: "Hybrid-Prophet-ARIMA-v2.1",
+    modelName: "Trend + Weekly Seasonality (Simulated Demo)",
     forecastGrowth: "+8.5%",
-    mape: "4.12%",
-    rmse: "845,200 VND",
-    r2Score: "95.88%",
-    confidenceLevel: "95%"
+    confidenceLevel: "95%",
+    isSimulated: true
   };
 
   return (
@@ -74,26 +72,28 @@ export const AdminAiForecast: React.FC = () => {
           </div>
         </div>
 
-        {/* 4 Metric Cards (Matching Screenshot!) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+        {/* Metric Cards & Simulation Notice */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tăng trưởng dự báo</p>
-            <p className="text-xl font-black text-emerald-400 mt-1">{metrics.forecastGrowth}</p>
+            <p className="text-xl font-black text-emerald-500 mt-1">{metrics.forecastGrowth || "+8.5%"}</p>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Sai số tuyệt đối (MAPE)</p>
-            <p className="text-xl font-black text-slate-900 mt-1">{metrics.mape}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Độ tin cậy mô hình</p>
+            <p className="text-xl font-black text-blue-600 mt-1">{metrics.confidenceLevel || "95%"}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Độ lệch chuẩn (RMSE)</p>
-            <p className="text-xl font-black text-slate-900 mt-1">{metrics.rmse}</p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Độ chính xác R² Score</p>
-            <p className="text-xl font-black text-amber-400 mt-1">{metrics.r2Score}</p>
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-amber-100 text-amber-700 shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Lưu ý mô phỏng</p>
+              <p className="text-xs text-amber-800 font-semibold mt-0.5 leading-snug">
+                Dữ liệu mô phỏng phục vụ minh họa, chưa huấn luyện trên dữ liệu bán hàng thực tế
+              </p>
+            </div>
           </div>
         </div>
       </div>

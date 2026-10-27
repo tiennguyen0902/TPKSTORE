@@ -136,8 +136,10 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
 
     if (!password) {
       errors.password = "Vui lòng thiết lập mật khẩu.";
-    } else if (password.length < 6) {
-      errors.password = "Mật khẩu phải có tối thiểu 6 ký tự.";
+    } else if (password.length < 8) {
+      errors.password = "Mật khẩu phải có tối thiểu 8 ký tự.";
+    } else if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      errors.password = "Mật khẩu phải chứa ít nhất một chữ cái và một chữ số.";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -208,8 +210,10 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
 
     if (!newPassword) {
       errors.newPassword = "Vui lòng nhập mật khẩu mới.";
-    } else if (newPassword.length < 6) {
-      errors.newPassword = "Mật khẩu mới phải có tối thiểu 6 ký tự.";
+    } else if (newPassword.length < 8) {
+      errors.newPassword = "Mật khẩu mới phải có tối thiểu 8 ký tự.";
+    } else if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      errors.newPassword = "Mật khẩu mới phải chứa ít nhất một chữ cái và một chữ số.";
     }
 
     if (!confirmPassword) {
@@ -524,7 +528,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Mật khẩu (tối thiểu 6 ký tự) <span className="text-rose-600">*</span></label>
+                <label className="block font-semibold text-slate-700 mb-1">Mật khẩu (tối thiểu 8 ký tự, có chữ và số) <span className="text-rose-600">*</span></label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -671,7 +675,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess, onBackToStore, me
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Mật khẩu mới (tối thiểu 6 ký tự) <span className="text-rose-600">*</span></label>
+                <label className="block font-semibold text-slate-700 mb-1">Mật khẩu mới (tối thiểu 8 ký tự, có chữ và số) <span className="text-rose-600">*</span></label>
                 <div className="relative">
                   <input
                     type={showNewPassword ? "text" : "password"}

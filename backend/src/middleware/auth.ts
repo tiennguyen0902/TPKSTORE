@@ -6,11 +6,22 @@ import { User } from "@prisma/client";
 
 // WARNING: Fallback secrets dưới đây CHỈ dùng cho môi trường dev.
 // Trong production, bắt buộc set JWT_ACCESS_SECRET và JWT_REFRESH_SECRET qua biến môi trường.
-const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "store_ai_access_secret_key_2026";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "store_ai_refresh_secret_key_2026";
+export const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "store_ai_access_secret_key_2026";
+export const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "store_ai_refresh_secret_key_2026";
 
-// In-memory blacklist for invalidated access tokens (only needs to survive within session)
-const blacklistedTokens = new Set<string>();
+// TTL-based token blacklist with automatic cleanup to prevent memory leaks
+// Maps token string -> expiry timestamp (ms)
+const blacklistedTokens = new Map<string, number>();
+
+// Dọn dẹp token đã hết hạn mỗi 10 phút
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, exp] of blacklistedTokens.entries()) {
+    if (exp <= now) {
+      blacklistedTokens.delete(token);
+    }
+  }
+}, 10 * 60 * 1000);
 
 export interface AuthenticatedRequest extends Request {
   user?: User;
@@ -49,11 +60,24 @@ export async function generateTokens(user: User) {
 }
 
 export function addToBlacklist(token: string) {
-  blacklistedTokens.add(token);
+  let expTimestamp = Date.now() + 7 * 24 * 3600 * 1000; // Mặc định 7 ngày
+  try {
+    const decoded: any = jwt.decode(token);
+    if (decoded && decoded.exp) {
+      expTimestamp = decoded.exp * 1000;
+    }
+  } catch {}
+  blacklistedTokens.set(token, expTimestamp);
 }
 
 export function isBlacklisted(token: string): boolean {
-  return blacklistedTokens.has(token);
+  const exp = blacklistedTokens.get(token);
+  if (!exp) return false;
+  if (Date.now() > exp) {
+    blacklistedTokens.delete(token);
+    return false;
+  }
+  return true;
 }
 
 export function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {

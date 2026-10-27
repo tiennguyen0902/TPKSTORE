@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { db } from "../db";
-import { generateTokens, authenticateToken, AuthenticatedRequest } from "../middleware/auth";
+import { generateTokens, authenticateToken, AuthenticatedRequest, addToBlacklist } from "../middleware/auth";
 
 const router = Router();
 
@@ -15,8 +15,14 @@ router.post("/register", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Vui lòng nhập đầy đủ Email, Mật khẩu và Họ tên." });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: "Mật khẩu phải có độ dài từ 6 ký tự trở lên." });
+    if (password.length < 8) {
+      return res.status(400).json({ error: "Mật khẩu phải có tối thiểu 8 ký tự." });
+    }
+
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    if (!hasLetter || !hasNumber) {
+      return res.status(400).json({ error: "Mật khẩu phải chứa ít nhất một chữ cái và một chữ số." });
     }
 
     const existingUser = await db.user.findFirst({
@@ -217,6 +223,27 @@ router.post("/refresh-token", async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/auth/logout (Thu hồi refresh token và blacklist access token)
+router.post("/logout", async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+    if (refreshToken) {
+      const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+      await db.refreshToken.deleteMany({ where: { tokenHash } });
+    }
+
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    if (token) {
+      addToBlacklist(token);
+    }
+
+    return res.json({ message: "Đăng xuất thành công. Phiên làm việc đã bị thu hồi." });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Lỗi hệ thống khi đăng xuất: " + err.message });
+  }
+});
+
 // GET /api/auth/me
 router.get("/me", authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
@@ -372,14 +399,19 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
 
     otpStore.set(normalizedEmail, { otp, expiresAt });
 
-    console.log(`[AUTH] Mã OTP khôi phục mật khẩu cho ${normalizedEmail}: ${otp}`);
+    // Bảo mật: Chỉ in mã OTP ra console ở môi trường Development phục vụ kiểm thử
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[AUTH-DEV] Mã OTP khôi phục mật khẩu cho ${normalizedEmail}: ${otp}`);
+    }
 
-    const isDev = process.env.NODE_ENV !== "production" || process.env.ENABLE_DEMO_OTP === "true";
+    // Bảo mật: CHỈ trả OTP về client response khi biến ENABLE_DEMO_OTP được gán rõ ràng "true".
+    // Mặc định an toàn: Không bao giờ trả OTP trong response ở bất kỳ môi trường nào trừ khi chủ ý bật cờ demo.
+    const showOtpInResponse = process.env.ENABLE_DEMO_OTP === "true";
 
     return res.json({
       message: "Mã xác thực OTP đã được tạo thành công!",
       email: normalizedEmail,
-      ...(isDev ? { otp } : {}), // Chỉ hiển thị OTP trong response khi ở môi trường Development / Demo
+      ...(showOtpInResponse ? { otp } : {}),
       expiresInMinutes: 15
     });
   } catch (err: any) {

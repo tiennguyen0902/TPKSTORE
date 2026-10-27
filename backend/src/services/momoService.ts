@@ -28,14 +28,26 @@ export interface MomoCreatePaymentResponse {
 export class MomoPaymentService {
   private static async getDefaultConfig() {
     const settings = await db.systemSettings.findFirst();
+
+    // LƯU Ý BẢO MẬT:
+    // "F8BBA842ECF85" và "K951B6PE1waDMi640xX08PD3vg6EkVlz" là cặp khóa thử nghiệm chính thức do MoMo công khai trong tài liệu Sandbox.
+    // Trong môi trường Production, BẮT BUỘC phải khai báo MOMO_ACCESS_KEY và MOMO_SECRET_KEY thật từ MoMo Business Portal.
+    const isProduction = process.env.NODE_ENV === "production";
+    const accessKey = process.env.MOMO_ACCESS_KEY || settings?.momoAccessKey || (isProduction ? "" : "F8BBA842ECF85");
+    const secretKey = process.env.MOMO_SECRET_KEY || settings?.momoSecretKey || (isProduction ? "" : "K951B6PE1waDMi640xX08PD3vg6EkVlz");
+
+    if (isProduction && (!accessKey || !secretKey)) {
+      console.error("[MoMo Security] Cảnh báo nghiêm trọng: Chưa cấu hình MOMO_ACCESS_KEY hoặc MOMO_SECRET_KEY trong môi trường Production!");
+    }
+
     return {
       partnerCode: process.env.MOMO_PARTNER_CODE || settings?.momoPartnerCode || "MOMO",
-      accessKey: process.env.MOMO_ACCESS_KEY || settings?.momoAccessKey || "F8BBA842ECF85",
-      secretKey: process.env.MOMO_SECRET_KEY || settings?.momoSecretKey || "K951B6PE1waDMi640xX08PD3vg6EkVlz",
-      hostname: "test-payment.momo.vn",
+      accessKey,
+      secretKey,
+      hostname: isProduction ? "payment.momo.vn" : "test-payment.momo.vn",
       createPath: "/v2/gateway/api/create",
-      defaultRedirectUrl: "http://localhost:3000/payment-result",
-      defaultIpnUrl: "http://localhost:5000/api/payment/momo-ipn"
+      defaultRedirectUrl: process.env.MOMO_REDIRECT_URL || "http://localhost:3000/payment-result",
+      defaultIpnUrl: process.env.MOMO_IPN_URL || "http://localhost:5000/api/payment/momo-ipn"
     };
   }
 

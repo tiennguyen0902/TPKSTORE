@@ -393,7 +393,8 @@ async function runTestSuite() {
   {
     const provRes = await apiRequest('/ai/providers', { method: 'GET' });
     const hasProviders = provRes.status === 200 && provRes.data?.providers?.length === 2;
-    recordTest('AI-08', 'AI Multi-provider status endpoint reports live availability', hasProviders, `Providers: ${provRes.data?.providers?.map(p => p.id + ':' + (p.available ? 'online' : 'offline')).join(', ')}`);
+    const isOnline = (p) => Boolean(p.available || p.health?.isAlive || p.health?.status === 'online');
+    recordTest('AI-08', 'AI Multi-provider status endpoint reports live availability', hasProviders, `Providers: ${provRes.data?.providers?.map(p => p.id + ':' + (isOnline(p) ? 'online' : 'offline')).join(', ')}`);
   }
 
   // ---------------------------------------------------------

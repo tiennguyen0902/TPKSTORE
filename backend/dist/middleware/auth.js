@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.JWT_REFRESH_SECRET = exports.JWT_ACCESS_SECRET = void 0;
 exports.generateTokens = generateTokens;
 exports.addToBlacklist = addToBlacklist;
 exports.isBlacklisted = isBlacklisted;
@@ -13,10 +14,20 @@ const crypto_1 = __importDefault(require("crypto"));
 const db_1 = require("../db");
 // WARNING: Fallback secrets dưới đây CHỈ dùng cho môi trường dev.
 // Trong production, bắt buộc set JWT_ACCESS_SECRET và JWT_REFRESH_SECRET qua biến môi trường.
-const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "store_ai_access_secret_key_2026";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "store_ai_refresh_secret_key_2026";
-// In-memory blacklist for invalidated access tokens (only needs to survive within session)
-const blacklistedTokens = new Set();
+exports.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "store_ai_access_secret_key_2026";
+exports.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "store_ai_refresh_secret_key_2026";
+// TTL-based token blacklist with automatic cleanup to prevent memory leaks
+// Maps token string -> expiry timestamp (ms)
+const blacklistedTokens = new Map();
+// Dọn dẹp token đã hết hạn mỗi 10 phút
+setInterval(() => {
+    const now = Date.now();
+    for (const [token, exp] of blacklistedTokens.entries()) {
+        if (exp <= now) {
+            blacklistedTokens.delete(token);
+        }
+    }
+}, 10 * 60 * 1000);
 async function generateTokens(user) {
     const payload = {
         id: user.id,
@@ -25,7 +36,7 @@ async function generateTokens(user) {
         fullName: user.fullName,
         canChatAi: user.canChatAi !== false
     };
-    const accessToken = jsonwebtoken_1.default.sign(payload, JWT_ACCESS_SECRET, { expiresIn: "7d" });
+    const accessToken = jsonwebtoken_1.default.sign(payload, exports.JWT_ACCESS_SECRET, { expiresIn: "7d" });
     const rawRefreshToken = crypto_1.default.randomBytes(40).toString("hex");
     const tokenHash = crypto_1.default.createHash("sha256").update(rawRefreshToken).digest("hex");
     const expiresAt = new Date();
@@ -45,10 +56,25 @@ async function generateTokens(user) {
     };
 }
 function addToBlacklist(token) {
-    blacklistedTokens.add(token);
+    let expTimestamp = Date.now() + 7 * 24 * 3600 * 1000; // Mặc định 7 ngày
+    try {
+        const decoded = jsonwebtoken_1.default.decode(token);
+        if (decoded && decoded.exp) {
+            expTimestamp = decoded.exp * 1000;
+        }
+    }
+    catch { }
+    blacklistedTokens.set(token, expTimestamp);
 }
 function isBlacklisted(token) {
-    return blacklistedTokens.has(token);
+    const exp = blacklistedTokens.get(token);
+    if (!exp)
+        return false;
+    if (Date.now() > exp) {
+        blacklistedTokens.delete(token);
+        return false;
+    }
+    return true;
 }
 function authenticateToken(req, res, next) {
     const authHeader = req.headers["authorization"];
@@ -59,7 +85,7 @@ function authenticateToken(req, res, next) {
     if (isBlacklisted(token)) {
         return res.status(401).json({ error: "Token đã bị vô hiệu hóa (Blacklisted)." });
     }
-    jsonwebtoken_1.default.verify(token, JWT_ACCESS_SECRET, async (err, decoded) => {
+    jsonwebtoken_1.default.verify(token, exports.JWT_ACCESS_SECRET, async (err, decoded) => {
         if (err) {
             return res.status(403).json({ error: "Phiên đăng nhập đã hết hạn hoặc không hợp lệ." });
         }

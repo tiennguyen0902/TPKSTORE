@@ -50,8 +50,7 @@ router.post("/vnpay-ipn", async (req, res) => {
         const authHeader = req.headers["authorization"];
         if (authHeader && authHeader.startsWith("Bearer ")) {
             try {
-                const secret = process.env.JWT_ACCESS_SECRET || "store_ai_access_secret_super_secure_key_2026";
-                const decoded = jsonwebtoken_1.default.verify(authHeader.split(" ")[1], secret);
+                const decoded = jsonwebtoken_1.default.verify(authHeader.split(" ")[1], auth_1.JWT_ACCESS_SECRET);
                 if (decoded.role === "CUSTOMER" && order.userId && order.userId !== decoded.id) {
                     return res.status(403).json({ RspCode: "03", Message: "Bạn không có quyền xác nhận thanh toán đơn hàng này" });
                 }
@@ -59,6 +58,10 @@ router.post("/vnpay-ipn", async (req, res) => {
             catch {
                 return res.status(401).json({ RspCode: "04", Message: "Phiên xác thực không hợp lệ" });
             }
+        }
+        else if (process.env.NODE_ENV === "production") {
+            // Trong môi trường production, bắt buộc phải có xác thực danh tính
+            return res.status(401).json({ RspCode: "04", Message: "Yêu cầu phiên xác thực người dùng để hoàn tất giao dịch" });
         }
         if (responseCode === "00") {
             // Payment success
@@ -74,6 +77,41 @@ router.post("/vnpay-ipn", async (req, res) => {
                 data: { paymentStatus: "FAILED" }
             });
             return res.json({ RspCode: "02", Message: "Payment Failed" });
+        }
+    }
+    catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+// POST /api/payment/vnpay-confirm (Xác nhận thanh toán VNPAY trên client / sandbox với IDOR protection)
+router.post("/vnpay-confirm", auth_1.authenticateToken, async (req, res) => {
+    try {
+        const user = req.user;
+        const { orderId, responseCode = "00" } = req.body;
+        if (!orderId) {
+            return res.status(400).json({ RspCode: "99", Message: "Thiếu mã đơn hàng" });
+        }
+        const order = await db_1.db.order.findUnique({ where: { id: orderId } });
+        if (!order) {
+            return res.status(404).json({ RspCode: "01", Message: "Không tìm thấy đơn hàng" });
+        }
+        // Bảo mật chống IDOR: Khách hàng chỉ được xác nhận thanh toán cho đơn của chính mình
+        if (user.role === "CUSTOMER" && order.userId && order.userId !== user.id) {
+            return res.status(403).json({ RspCode: "03", Message: "Bạn không có quyền xác nhận thanh toán đơn hàng này" });
+        }
+        if (responseCode === "00") {
+            await db_1.db.order.update({
+                where: { id: orderId },
+                data: { paymentStatus: "COMPLETED", status: "CONFIRMED" }
+            });
+            return res.json({ RspCode: "00", Message: "Xác nhận thanh toán thành công" });
+        }
+        else {
+            await db_1.db.order.update({
+                where: { id: orderId },
+                data: { paymentStatus: "FAILED" }
+            });
+            return res.json({ RspCode: "02", Message: "Thanh toán thất bại" });
         }
     }
     catch (err) {
@@ -141,6 +179,10 @@ router.post("/momo-ipn", async (req, res) => {
                 console.warn(`[MoMo IPN] ⚠️ Chữ ký không hợp lệ cho đơn hàng ${orderId}!`);
                 return res.status(400).json({ message: "Invalid Signature - Xác thực chữ ký MoMo thất bại" });
             }
+        }
+        else if (process.env.NODE_ENV === "production") {
+            // Trong môi trường production, bắt buộc phải có chữ ký MoMo hợp lệ
+            return res.status(400).json({ message: "Missing Signature - Thiếu chữ ký xác thực từ MoMo" });
         }
         let origOrderId = "";
         if (extraData) {

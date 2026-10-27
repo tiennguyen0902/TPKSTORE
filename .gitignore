@@ -67,6 +67,7 @@ lerna-debug.log*
 pg_data/
 */pg_data/
 backend/data/
+backup_*.sql
 .DS_Store
 Thumbs.db
 ~$*

@@ -20,6 +20,24 @@ import { Order } from "../types";
 import { api } from "../services/api";
 import { Pagination } from "./Pagination";
 
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  PENDING:    ["CONFIRMED", "CANCELLED"],
+  CONFIRMED:  ["PROCESSING", "CANCELLED"],
+  PROCESSING: ["SHIPPING", "CANCELLED"],
+  SHIPPING:   ["DELIVERED"],
+  DELIVERED:  [],
+  CANCELLED:  []
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: "Chờ xác nhận",
+  CONFIRMED: "Đã xác nhận",
+  PROCESSING: "Đang đóng gói",
+  SHIPPING: "Đang giao hàng",
+  DELIVERED: "Giao thành công",
+  CANCELLED: "Đã hủy"
+};
+
 export const AdminOrders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "returns">("all");
@@ -53,7 +71,7 @@ export const AdminOrders: React.FC = () => {
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
       await api.updateOrderStatus(orderId, newStatus);
-      setToastMsg(`Đã cập nhật trạng thái đơn ${orderId} thành "${newStatus}".`);
+      setToastMsg(`Đã cập nhật trạng thái đơn ${orderId} thành "${STATUS_LABELS[newStatus] || newStatus}".`);
       fetchOrders();
       setTimeout(() => setToastMsg(""), 3000);
     } catch (err: any) {
@@ -425,18 +443,24 @@ export const AdminOrders: React.FC = () => {
                         </span>
                       </td>
                       <td className="p-4 whitespace-nowrap">
-                        <select
-                          value={o.status}
-                          onChange={(e) => handleStatusChange(o.id, e.target.value)}
-                          className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-rose-500 cursor-pointer"
-                        >
-                          <option value="PENDING">Chờ xác nhận</option>
-                          <option value="CONFIRMED">Đã xác nhận</option>
-                          <option value="PROCESSING">Đang đóng gói</option>
-                          <option value="SHIPPING">Đang giao hàng</option>
-                          <option value="DELIVERED">Giao thành công</option>
-                          <option value="CANCELLED">Đã hủy</option>
-                        </select>
+                        {(() => {
+                          const nextStatuses = [o.status, ...(ALLOWED_TRANSITIONS[o.status] || [])];
+                          const isFinal = (ALLOWED_TRANSITIONS[o.status] || []).length === 0;
+                          return (
+                            <select
+                              value={o.status}
+                              onChange={(e) => handleStatusChange(o.id, e.target.value)}
+                              disabled={isFinal}
+                              className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-rose-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {nextStatuses.map((st) => (
+                                <option key={st} value={st}>
+                                  {STATUS_LABELS[st] || st}
+                                </option>
+                              ))}
+                            </select>
+                          );
+                        })()}
                       </td>
                       <td className="p-4 text-right whitespace-nowrap">
                         <button

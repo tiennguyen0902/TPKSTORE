@@ -533,9 +533,10 @@ export const api = {
   },
 
   async confirmVnpayIpn(orderId: string, responseCode: string = "00") {
-    const res = await fetch(`${API_BASE}/payment/vnpay-ipn`, {
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...getAuthHeader() };
+    const res = await fetch(`${API_BASE}/payment/vnpay-confirm`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ orderId, responseCode, transactionNo: `VNPAY_${Date.now()}` })
     });
     return res.json();

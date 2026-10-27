@@ -44,8 +44,25 @@ app.use((_req, res, next) => {
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     next();
 });
-// Middlewares
-app.use((0, cors_1.default)({ origin: true, credentials: true }));
+// Middlewares & CORS Whitelist
+const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000")
+    .split(",")
+    .map(o => o.trim())
+    .filter(Boolean);
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        // Cho phép requests không có origin (server-to-server, curl, test) hoặc nằm trong whitelist
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            callback(new Error(`Origin ${origin} không được phép bởi chính sách bảo mật CORS.`));
+        }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+}));
 app.use(express_1.default.json({ limit: "10mb" }));
 app.use(express_1.default.urlencoded({ extended: true, limit: "10mb" }));
 // Request logger

@@ -508,6 +508,66 @@ function createModelProxy(modelName) {
                         }
                         return null;
                     }
+                    if (method === "updateMany") {
+                        let count = 0;
+                        const where = options.where || {};
+                        for (let i = 0; i < fallback.products.length; i++) {
+                            const p = fallback.products[i];
+                            let matches = true;
+                            if (where.id && p.id !== where.id) {
+                                matches = false;
+                            }
+                            if (where.stock !== undefined) {
+                                const currentStock = typeof p.stock === "number" && !isNaN(p.stock) ? p.stock : 0;
+                                if (typeof where.stock === "object" && where.stock !== null) {
+                                    if (typeof where.stock.gte === "number" && currentStock < where.stock.gte) {
+                                        matches = false;
+                                    }
+                                    if (typeof where.stock.gt === "number" && currentStock <= where.stock.gt) {
+                                        matches = false;
+                                    }
+                                    if (typeof where.stock.lte === "number" && currentStock > where.stock.lte) {
+                                        matches = false;
+                                    }
+                                    if (typeof where.stock.lt === "number" && currentStock >= where.stock.lt) {
+                                        matches = false;
+                                    }
+                                }
+                                else if (typeof where.stock === "number" && currentStock !== where.stock) {
+                                    matches = false;
+                                }
+                            }
+                            if (matches) {
+                                const currentNum = typeof p.stock === "number" && !isNaN(p.stock) ? p.stock : 0;
+                                let updatedStock = currentNum;
+                                if (options.data && options.data.stock !== undefined) {
+                                    if (typeof options.data.stock === "object" && options.data.stock !== null) {
+                                        if (typeof options.data.stock.decrement === "number") {
+                                            updatedStock = Math.max(0, currentNum - options.data.stock.decrement);
+                                        }
+                                        else if (typeof options.data.stock.increment === "number") {
+                                            updatedStock = currentNum + options.data.stock.increment;
+                                        }
+                                    }
+                                    else {
+                                        const parsed = parseInt(options.data.stock, 10);
+                                        updatedStock = isNaN(parsed) ? currentNum : Math.max(0, parsed);
+                                    }
+                                }
+                                fallback.products[i] = {
+                                    ...p,
+                                    ...(options.data || {}),
+                                    stock: updatedStock,
+                                    updatedAt: new Date()
+                                };
+                                count++;
+                            }
+                        }
+                        if (count > 0) {
+                            fallback.saveToFile();
+                        }
+                        return { count };
+                    }
                     if (method === "delete") {
                         fallback.products = fallback.products.filter(p => p.id !== options.where.id);
                         fallback.saveToFile();
