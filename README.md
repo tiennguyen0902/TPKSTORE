@@ -14,7 +14,7 @@
 [![Prisma ORM](https://img.shields.io/badge/Prisma-5.22.0-2D3748.svg)](https://www.prisma.io/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Test_Suite-20%2F20_Pass_(100%25)-success.svg)](https://github.com/tiennguyen0902/TPKSTORE)
+[![Tests](https://img.shields.io/badge/Test_Suites-33%2F33_Pass_(100%25)-success.svg)](https://github.com/tiennguyen0902/TPKSTORE)
 
 ---
 
@@ -30,29 +30,30 @@
    - [3.5. Thuật Toán Tìm Kiếm Sản Phẩm Thông Minh (Smart Tokenized Search)](#35-thuật-toán-tìm-kiếm-sản-phẩm-thông-minh-smart-tokenized-search)
    - [3.6. Quản Lý Kho Hàng 2 Lớp (Inbound & Outbound) & Lọc Phiếu Theo Nhân Viên](#36-quản-lý-kho-hàng-2-lớp-inbound--outbound--lọc-phiếu-theo-nhân-viên)
    - [3.7. Trợ Lý AI Đa Phương Thức (Voice STT/TTS, Multimodal Vision, Dual Engine)](#37-trợ-lý-ai-đa-phương-thức-voice-stttts-multimodal-vision-dual-engine)
-   - [3.8. AI Dự Báo Doanh Thu (Prophet-ARIMA) & Phân Tích Tồn Kho An Toàn](#38-ai-dự-báo-doanh-thu-prophet-arima--phân-tích-tồn-kho-an-toàn)
-   - [3.9. Cổng Thanh Toán Đa Dạng (VNPAY Sandbox, Ví MoMo, Tiền Mặt Tại Quầy)](#39-cổng-thanh-toán-đa-dạng-vnpay-sandbox-ví-momo-tiền-mặt-tại-quầy)
+   - [3.8. AI Dự Báo Doanh Thu (Mô Phỏng Xu Hướng & Chu Kỳ Tuần) & Phân Tích Cảnh Báo Tồn Kho](#38-ai-dự-báo-doanh-thu-mô-phỏng-xu-hướng--chu-kỳ-tuần--phân-tích-cảnh-báo-tồn-kho)
+   - [3.9. Cổng Thanh Toán Đa Dạng (VNPAY Giả Lập, Ví MoMo Test, Tiền Mặt Tại Quầy)](#39-cổng-thanh-toán-đa-dạng-vnpay-giả-lập-ví-momo-test-tiền-mặt-tại-quầy)
    - [3.10. Architecture Studio & AI Security Auditor](#310-architecture-studio--ai-security-auditor)
 4. [Tech Stack Toàn Diện](#4-tech-stack-toàn-diện)
 5. [Bộ Kiểm Thử Tự Động (Automated Test Suite)](#5-bộ-kiểm-thử-tự-động-automated-test-suite)
 6. [Cài Đặt Môi Trường (ENV)](#6-cài-đặt-môi-trường-env)
 7. [Hướng Dẫn Khởi Chạy](#7-hướng-dẫn-khởi-chạy)
    - [Cách 1: Khởi Chạy Từng Phân Hệ (Local Dev)](#cách-1--khởi-chạy-từng-phân-hệ-local-dev)
-   - [Cách 2: Khởi Chạy Toàn Bộ Bằng Docker Compose (Production Ready)](#cách-2--khởi-chạy-toàn-bộ-bằng-docker-compose-production-ready)
+   - [Cách 2: Khởi Chạy Toàn Bộ Bằng Docker Compose](#cách-2--khởi-chạy-toàn-bộ-bằng-docker-compose)
    - [Hướng Dẫn Khởi Chạy Mô Hình AI Cục Bộ (Ollama)](#hướng-dẫn-khởi-chạy-mô-hình-ai-cục-bộ-ollama)
 8. [Tài Khoản Demo Hệ Thống](#8-tài-khoản-demo-hệ-thống)
-9. [Đội Ngũ Thực Hiện](#9-đội-ngũ-thực-hiện)
+9. [Hạn Chế Đã Biết](#9-hạn-chế-đã-biết)
+10. [Đội Ngũ Thực Hiện](#10-đội-ngũ-thực-hiện)
 
 ---
 
 ## 1. Tổng Quan Hệ Thống & Kiến Trúc 5 Tầng
 
-Hệ thống được thiết kế theo mô hình **Kiến trúc Phân tầng 5 lớp (5-Tier Layered Architecture)** chuẩn công nghiệp kết hợp với **AI Microservices Ecosystem** và **Local AI Engine**, đảm bảo tính mở rộng cao (Scalability), độ sẵn sàng cao (High Availability), và bảo mật dữ liệu tuyệt đối (Zero Trust RBAC).
+Hệ thống được thiết kế theo mô hình **Kiến trúc Phân tầng 5 lớp (5-Tier Layered Architecture)** chuẩn công nghiệp kết hợp với **AI Microservices Ecosystem** và **Local AI Engine**, đảm bảo tính mở rộng cao (Scalability), độ sẵn sàng cao (High Availability), và phân quyền chặt chẽ (Zero Trust RBAC).
 
 ```
                      ┌──────────────────────────────────────────────┐
                      │       NGINX REVERSE PROXY / GATEWAY          │
-                     │         (Port 80/443, SSL, Load Balancing)   │
+                     │       (Port 8088, Reverse Proxy HTTP)        │
                      └──────────────────────┬───────────────────────┘
                                             │
            ┌────────────────────────────────┴────────────────────────────────┐
@@ -71,12 +72,15 @@ Hệ thống được thiết kế theo mô hình **Kiến trúc Phân tầng 5 
  ┌─────────────────────────────────┐             ┌──────────────────────────────────┐  ┌──────────────────────────────────┐
  │        3. DOMAIN LAYER          │             │       4. REPOSITORY LAYER        │  │     5. INFRASTRUCTURE LAYER      │
  │   • Business Entities & Models  │             │   • PostgreSQL 15 (Prisma ORM)   │  │   • Local AI (Ollama / LLaVA)    │
- │   • POS Walk-in Customer Core   │             │   • Fallback JSON Store Engine   │  │   • Cloud AI: Gemini 3.x Series  │
+ │   • POS Walk-in Customer Core   │             │   • Fallback JSON Store Engine   │  │   • Cloud AI: Gemini Series      │
  │   • Profit Margin Calculator    │             │   • Full-Text Search Engine      │  │   • Python FastAPI AI Service    │
- │   • 2-Step Inbound/Outbound     │             │   • Token Rotation Blacklist     │  │   • Redis 7 In-Memory Cache      │
- │   • Cart & Order State Machine  │             │   • Warranty & Points Ledger     │  │   • VNPAY & MoMo Gateways        │
+ │   • 2-Step Inbound/Outbound     │             │   • Refresh Token SHA-256 (DB)   │  │   • Token Blacklist (In-Memory)  │
+ │   • Cart & Order State Machine  │             │   • Dynamic Loyalty Points Calc  │  │   • VNPAY & MoMo Test Gateways   │
  └─────────────────────────────────┘             └──────────────────────────────────┘  └──────────────────────────────────┘
 ```
+
+> **Lưu ý về phiên làm việc & bộ đệm:**  
+> Hệ thống không sử dụng Redis. Refresh token được băm SHA-256 và lưu trữ trực tiếp trong bảng `refresh_tokens` của PostgreSQL. Danh sách thu hồi Access token (Token Blacklist) và bộ đếm giới hạn đăng nhập được quản lý bằng cấu trúc `Map` có cơ chế tự động dọn dẹp (TTL) trong bộ nhớ RAM của tiến trình backend.
 
 ---
 
@@ -87,8 +91,8 @@ TPKSTORE/                               ← Root thư mục dự án
 │
 ├── 📄 .env.example                     ← Template biến môi trường
 ├── 📄 .gitignore                       ← Danh sách tệp loại trừ Git
-├── 📄 docker-compose.yml               ← Điều phối 6 containers (Postgres, Redis, BE, FE, AI, Nginx)
-├── 📄 nginx.conf                       ← Cấu hình Nginx Reverse Proxy & Load Balancing
+├── 📄 docker-compose.yml               ← Điều phối 5 containers (Postgres, BE, FE, AI, Nginx)
+├── 📄 nginx.conf                       ← Cấu hình Nginx Reverse Proxy cổng 8088
 ├── 📄 openapi.yaml                     ← Đặc tả 30+ endpoints chuẩn OpenAPI 3.0
 ├── 📄 package.json                     ← Root scripts điều phối toàn dự án
 ├── 📄 README.md                        ← Tài liệu hướng dẫn toàn diện
@@ -98,8 +102,8 @@ TPKSTORE/                               ← Root thư mục dự án
 │   ├── 📄 requirements.txt             ← fastapi, uvicorn, requests, pydantic, numpy
 │   ├── 📄 app.py                       ← REST API: Chat RAG, Recommender, Forecast, Safety Stock
 │   ├── 📄 recommender.py               ← Hybrid Engine (Content-Based + Collaborative Filtering)
-│   ├── 📄 forecaster.py                ← Mô phỏng chuỗi thời gian Prophet-ARIMA
-│   ├── 📄 inventory_analyzer.py        ← Tính toán tồn kho an toàn & tốc độ bán hàng (Daily Velocity)
+│   ├── 📄 forecaster.py                ← Dự báo mô phỏng xu hướng & tính chu kỳ tuần (Simulated Demo)
+│   ├── 📄 inventory_analyzer.py        ← Phân tích cảnh báo tồn kho theo ngưỡng
 │   └── 📄 knowledge_base.py            ← Cơ sở tri thức chính sách & FAQ cửa hàng
 │
 ├── 🖥️ backend/                         ← Core Backend (Node.js / Express / TypeScript)
@@ -107,16 +111,20 @@ TPKSTORE/                               ← Root thư mục dự án
 │   ├── 📄 package.json
 │   ├── 📄 tsconfig.json
 │   ├── 🗄️ prisma/
-│   │   ├── 📄 schema.prisma            ← Schema CSDL 12+ bảng: User, Product, Category, StockTicket, StockMovement...
+│   │   ├── 📄 schema.prisma            ← Schema CSDL 14 bảng: User, RefreshToken, Customer, Category, Product, Cart, CartItem, Order, OrderItem, Payment, StockTicket, StockMovement, AIInteraction, SystemSettings
+│   │   ├── 📁 migrations/              ← Lịch sử di chuyển CSDL Prisma
 │   │   └── 📄 seed.ts                  ← Script nạp CSDL sản phẩm thật & tài khoản mẫu
 │   ├── 🧪 tests/
-│   │   └── 📄 automated_verification.js ← Bộ kiểm thử tự động 20/20 test cases (100% PASS)
+│   │   ├── 📄 automated_verification.js ← Bộ kiểm thử tự động đặc tả kỹ thuật 20/20 test cases
+│   │   └── 📄 regression_fixes.js       ← Bộ kiểm thử hồi quy nghiệp vụ 5/5 test cases
+│   ├── 🧪 test/
+│   │   └── 📄 core_business_ai.test.js  ← Bộ kiểm thử nghiệp vụ lõi & AI 8/8 test cases
 │   └── 📁 src/
 │       ├── 📄 index.ts                 ← Khởi động Express, CORS, gắn route
 │       ├── 📄 db.ts                    ← Khởi tạo Prisma Client & FallbackStore
 │       ├── 📄 mockData.ts              ← Dữ liệu khởi tạo: sản phẩm công nghệ thật, tài khoản mẫu
 │       ├── 📁 middleware/
-│       │   └── 📄 auth.ts              ← JWT Verification, Refresh Token Rotation, RBAC authorize()
+│       │   └── 📄 auth.ts              ← JWT Verification, Refresh Token SHA-256, RBAC authorize()
 │       ├── 📁 services/
 │       │   ├── 📄 aiOrchestratorService.ts  ← AI Orchestrator: Gemini API & Ollama Local routing
 │       │   ├── 📄 productSearchService.ts   ← Smart Tokenized Search Engine
@@ -132,8 +140,8 @@ TPKSTORE/                               ← Root thư mục dự án
 │           ├── 📄 categoryRoutes.ts    ← CRUD danh mục hàng hóa
 │           ├── 📄 cartRoutes.ts        ← Thao tác giỏ hàng đồng bộ CSDL
 │           ├── 📄 orderRoutes.ts       ← Đơn hàng trực tuyến & POS bán tại quầy, phiếu bảo hành
-│           ├── 📄 paymentRoutes.ts     ← Cổng thanh toán VNPAY Sandbox & MoMo
-│           ├── 📄 aiRoutes.ts          ← AI Orchestrator: Local AI (Ollama), Gemini 3.x+, Voice & Vision RAG, Product Advice thật
+│           ├── 📄 paymentRoutes.ts     ← Cổng thanh toán VNPAY giả lập & MoMo test
+│           ├── 📄 aiRoutes.ts          ← AI Orchestrator: Local AI (Ollama), Gemini 3.x+, Voice & Vision RAG
 │           ├── 📄 userRoutes.ts        ← Tra cứu SĐT khách lẻ, tạo nhanh khách tại quầy, cấp quyền AI
 │           └── 📄 settingsRoutes.ts    ← Cấu hình hệ thống & tham số kết nối Local AI / Gemini
 │
@@ -162,9 +170,9 @@ TPKSTORE/                               ← Root thư mục dự án
 │           ├── 📄 ProductModal.tsx     ← Chi tiết sản phẩm, bộ chọn màu thực tế & dung lượng
 │           ├── 📄 CartView.tsx         ← Trang quản lý giỏ hàng mua sắm
 │           ├── 📄 CheckoutView.tsx     ← Đặt hàng, Chế độ Bán Quầy (POS Mode) miễn ship 0đ
-│           ├── 📄 CounterPosView.tsx   ← Giao diện Bán Hàng Tại Quầy POS chuyên nghiệp cho Nhân viên
-│           ├── 📄 VnpayModal.tsx       ← Giả lập cổng thanh toán VNPAY Sandbox chuẩn ngân hàng
-│           ├── 📄 MomoModal.tsx        ← Giả lập quét mã thanh toán Ví điện tử MoMo
+│           ├── 📄 CounterPosView.tsx   ← Giao diện Bán Hàng Tại Quầy POS chuyên nghiệp
+│           ├── 📄 VnpayModal.tsx       ← Giả lập luồng thanh toán VNPAY trong hệ thống
+│           ├── 📄 MomoModal.tsx        ← Thanh toán Ví MoMo qua API môi trường test
 │           ├── 📄 AuthView.tsx         ← Giao diện Đăng nhập / Đăng ký tài khoản
 │           ├── 📄 LoginModal.tsx       ← Modal đăng nhập nhanh không chuyển trang
 │           ├── 📄 ProfileView.tsx      ← Xem và chỉnh sửa thông tin cá nhân
@@ -177,8 +185,8 @@ TPKSTORE/                               ← Root thư mục dự án
 │           ├── 📄 AdminOrders.tsx      ← Quản lý danh sách đơn hàng & trạng thái vận chuyển
 │           ├── 📄 AdminCustomers.tsx   ← Quản trị khách hàng: Điểm tích lũy, kích hoạt Chat AI
 │           ├── 📄 StockTicketsView.tsx ← Quản lý phiếu xuất/nhập kho: Lọc theo Staff, Duyệt/Từ chối
-│           ├── 📄 AdminAiForecast.tsx  ← Biểu đồ dự báo doanh thu chuỗi thời gian AI (Prophet-ARIMA)
-│           ├── 📄 AdminInventoryAlerts.tsx ← Bảng cảnh báo cạn kho & nút duyệt bổ sung nhanh
+│           ├── 📄 AdminAiForecast.tsx  ← Biểu đồ dự báo doanh thu mô phỏng xu hướng & chu kỳ tuần
+│           ├── 📄 AdminInventoryAlerts.tsx ← Bảng cảnh báo cạn kho theo ngưỡng & nút duyệt bổ sung
 │           ├── 📄 AdminSettings.tsx    ← Cài đặt mô hình AI: Tích hợp tab cấu hình Local AI Ollama
 │           ├── 📄 ArchitectureStudio.tsx ← Trực quan hóa kiến trúc 5 tầng & kiểm tra an ninh AI
 │           ├── 📄 StaffDashboard.tsx   ← Cổng vận hành Staff: Mặc định mở Bàn Bán Hàng Tại Quầy (POS)
@@ -208,14 +216,14 @@ Trong thực tế bán lẻ thiết bị công nghệ, **90% khách hàng ghé c
 * **Tra cứu & Tạo nhanh bằng Số điện thoại (Zero-friction)**:
   * `GET /api/users/lookup?phone=...`: Nhân viên nhập 10 chữ số điện thoại, hệ thống **truy vấn trực tiếp vào CSDL User** để kiểm tra hồ sơ khách hàng, số điểm tích lũy hiện có, tổng chi tiêu và lịch sử đơn hàng/bảo hành trước đó.
   * `POST /api/users/quick-customer`: Nếu là khách hàng mới, hệ thống tự động khởi tạo hồ sơ ngầm với vai trò `CUSTOMER` mà không bắt khách phải cung cấp email hay tạo mật khẩu rườm rà.
-* **Tích điểm tự động (Loyalty Program)**: Cứ mỗi **10.000 VNĐ** thanh toán = **1 điểm thưởng tích lũy**.
+* **Tích điểm tự động (Loyalty Program)**: Điểm thưởng được tính toán động tại thời điểm tra cứu bằng `Math.floor(tổng chi tiêu / 10.000)` (không lưu trực tiếp trường riêng trong CSDL).
 * **Giao diện POS Bán Hàng Tại Quầy Chuyên Dụng (`CounterPosView.tsx`)**:
   * Tích hợp trực tiếp làm tab mặc định tại **Cổng Vận Hành Staff** (`/staff`) và **Admin / Manager Panel** (`/admin/pos`).
   * Có nút bấm truy cập nhanh **"Bán Tại Quầy (POS)"** ngay trên thanh Navbar cho nhân viên và quản lý.
   * Bộ lọc nhanh sản phẩm theo danh mục, tìm kiếm tức thì theo tên/mã, hiển thị tồn kho thời gian thực (Real-time Stock Badge) chống bán vượt kho.
   * Giỏ hàng bán tại quầy hỗ trợ: tăng/giảm số lượng, chiết khấu giảm giá, tính tiền khách đưa và **tự động tính tiền thừa trả lại khách**.
-  * Tùy chọn phương thức thanh toán: **Tiền mặt tại quầy (COD)**, **Quét mã QR VNPay Sandbox**, **Ví điện tử MoMo**.
-  * **Phiếu Bảo Hành Điện Tử & Hóa Đơn Bán Lẻ In Ngay**: Xuất modal hóa đơn và phiếu bảo hành chính hãng (12 - 24 tháng theo từng mặt hàng) có thể in ngay cho khách mang về.
+  * Tùy chọn phương thức thanh toán: **Tiền mặt tại quầy (COD)**, **Quét mã QR VNPay giả lập**, **Ví điện tử MoMo**.
+  * **Phiếu Bảo Hành Điện Tử & Hóa Đơn Bán Lẻ In Ngay**: Phiếu bảo hành được tự động sinh khi tạo đơn hàng bán tại quầy (POS Mode), thời hạn bảo hành 12 - 24 tháng theo từng mặt hàng, có thể in ngay kèm hóa đơn bán lẻ cho khách mang về.
 * **Chế độ POS trong luồng Checkout chuẩn (`CheckoutView.tsx`)**:
   * Khi nhân viên tư vấn khách trên trang Storefront, bật công tắc **"Chế độ Bán Hàng Tại Quầy"**: tự động miễn phí vận chuyển 0đ (Nhận tại quầy), tự động điền địa chỉ showroom `Mua trực tiếp tại quầy - TPKSTORE`, gắn tên nhân viên tư vấn và kích hoạt bảo hành theo SĐT khách.
 
@@ -242,17 +250,18 @@ Hệ thống thiết lập hàng rào bảo mật nghiêm ngặt theo 4 vai trò
 * **Giá**: Quản lý giá bán, giá niêm yết, giá vốn (cost) và biên lợi nhuận sản phẩm.
 * **Danh mục**: Toàn quyền CRUD các danh mục sản phẩm (Category).
 * **Tài khoản**: Quản trị tài khoản người dùng, phân quyền các vai trò trong hệ thống, cấp quyền truy cập.
-* **Doanh thu**: Giám sát doanh thu toàn bộ hệ thống, báo cáo lãi/lỗ chi tiết, phân tích dòng tiền và dự báo tài chính AI (Prophet-ARIMA).
+* **Doanh thu**: Giám sát doanh thu toàn bộ hệ thống, báo cáo lãi/lỗ chi tiết, phân tích dòng tiền và biểu đồ dự báo kinh doanh.
 * **Toàn bộ hệ thống**: Cấu hình các cổng thanh toán, thiết lập AI Provider (Gemini API Cloud / Ollama Local), giám sát Architecture Studio và toàn bộ hệ thống.
 
-#### 👔 MANAGER (Quản lý kho hàng)
+#### 👔 MANAGER (Quản lý kho hàng & Bán quầy)
+* **Bán hàng tại quầy (POS)**: Được quyền thao tác giao diện Bán Hàng Tại Quầy (POS Mode), tra cứu SĐT khách lẻ, tạo đơn hàng tại quầy và xuất hóa đơn/phiếu bảo hành.
 * **Quản lý nghiệp vụ kho**: Điều hành toàn bộ hoạt động xuất - nhập kho và kiểm soát hàng tồn kho.
 * **Nhập kho**: Lập và thực thi các phiếu nhập kho từ nhà cung cấp.
 * **Xuất kho**: Lập các phiếu xuất kho điều chuyển, xuất mẫu hoặc xuất quầy.
 * **Duyệt yêu cầu**: Thẩm định và phê duyệt hoặc từ chối các yêu cầu xuất kho từ nhân viên bán hàng (STAFF) hoặc đề xuất từ AI.
 * **Kiểm kê**: Thực hiện kiểm đếm thực tế và đối chiếu với số liệu hệ thống.
 * **Điều chỉnh tồn**: Điều chỉnh số lượng tồn kho theo số liệu kiểm kê thực tế (`POST /api/inventory/adjustment`), tự động ghi nhật ký bất biến `StockMovement`.
-* **Cảnh báo tồn kho**: Theo dõi danh sách cảnh báo cạn kho thông minh (Smart Inventory & Safety Stock Alerts), thời gian cạn hàng dự kiến.
+* **Cảnh báo tồn kho**: Theo dõi danh sách cảnh báo cạn kho theo ngưỡng (`CRITICAL`, `HIGH`, `MEDIUM`).
 * **Xem thông tin sản phẩm**: Tra cứu danh sách và chi tiết sản phẩm ở chế độ chỉ đọc (Read-only); **không có quyền** sửa tên, giá bán, danh mục hay xóa sản phẩm.
 
 #### 👷 STAFF (Nhân viên bán hàng)
@@ -268,7 +277,7 @@ Hệ thống thiết lập hàng rào bảo mật nghiêm ngặt theo 4 vai trò
 ---
 
 ### 3.4. Sản Phẩm Công Nghệ Thực Tế Đa Biến Thể (Màu Sắc & Dung Lượng Chuẩn Hãng)
-Hệ thống sử dụng dữ liệu sản phẩm công nghệ thật 100%:
+Hệ thống sử dụng dữ liệu sản phẩm công nghệ thực tế:
 * **Đầy đủ màu sắc theo công bố của nhà sản xuất**:
   * *Samsung Galaxy Z Fold6 5G AI Foldable*: Chuẩn 5 màu chính hãng (Xám Titan, Đen Titan, Xanh Maya, Trắng Titan, Nâu Da).
   * *iPhone 16 Pro Max*: Chuẩn 4 màu Titan (Titan Sa Mạc, Titan Tự Nhiên, Titan Trắng, Titan Đen).
@@ -301,26 +310,29 @@ Hệ thống sử dụng dữ liệu sản phẩm công nghệ thật 100%:
 ### 3.7. Trợ Lý AI Đa Phương Thức (Voice STT/TTS, Multimodal Vision, Dual Engine)
 Khung chat nổi thông minh (`FloatingChatWidget`) đóng vai trò là một chuyên gia bán hàng ảo:
 * **Hỗ trợ 2 Nhà Cung Cấp Mô Hình**:
-  * 🤖 **Local AI (Ollama)**: Chạy hoàn toàn cục bộ trên máy tính, bảo mật riêng tư 100%, không phát sinh chi phí gọi API. Tương thích: `llava` (thị giác), `llama3.2-vision`, `phi3`, `qwen2.5`, `mistral`.
+  * 🤖 **Local AI (Ollama)**: Chạy hoàn toàn cục bộ trên máy tính, bảo vệ quyền riêng tư dữ liệu, không phát sinh chi phí gọi API ngoài. Tương thích: `llava` (thị giác), `llama3.2-vision`, `phi3`, `qwen2.5`, `mistral`.
   * ✨ **Google Gemini Cloud (Thế hệ 3.x+)**: Tích hợp các mô hình `gemini-3.5-flash`, `gemini-3.1-flash-lite`, `gemini-3.6-flash`, `gemini-3.7-flash`, `gemini-3.8-flash`, `gemini-3.5-pro`.
 * **Nhận Diện Giọng Nói (Speech-to-Text)**: Tích hợp Web Speech API chuẩn tiếng Việt (`vi-VN`) với hiệu ứng sóng âm thời gian thực.
-* **Đọc Câu Trả Lời Thành Tiếng (Text-to-Speech)**: Tự động lọc bỏ ký tự Markdown và đọc to câu trả lời bằng giọng đọc tiếng Việt truyền cảm (`SpeechSynthesis`).
+* **Đọc Câu Trả Lời Thành Tiếng (Text-to-Speech)**: Tự động lọc bỏ ký tự Markdown và đọc to câu trả lời bằng giọng đọc tiếng Việt (`SpeechSynthesis`).
 * **Truy Vấn Bằng Hình Ảnh (Multimodal Vision)**: Tải ảnh, kéo thả ảnh hoặc **Dán ảnh chụp màn hình trực tiếp từ clipboard (`Ctrl+V`)** để AI phân tích model máy và gợi ý sản phẩm còn hàng trong kho.
 * **Kiểm Soát Tồn Kho RAG Chặt Chẽ**: AI chỉ gợi ý các sản phẩm đang có số lượng tồn kho > 0, ngăn ngừa việc tư vấn hàng hết kho.
-* **Product Advice qua AI Orchestrator thật**: Endpoint `/api/ai/product-advice` gửi ngữ cảnh sản phẩm thực tế từ CSDL sang Gemini hoặc Ollama và trả lời tư vấn thật sự; không ghép chuỗi template giả.
+* **Product Advice qua AI Orchestrator thật**: Endpoint `/api/ai/product-advice` gửi ngữ cảnh sản phẩm thực tế từ CSDL sang Gemini hoặc Ollama và trả lời tư vấn thực tế; không ghép chuỗi template giả.
 
 ---
 
-### 3.8. AI Dự Báo Doanh Thu (Prophet-ARIMA) & Phân Tích Tồn Kho An Toàn
-* **Dự báo chuỗi thời gian**: Dự báo doanh thu 30 / 60 / 90 ngày tới với khoảng tin cậy 95%, chỉ số độ chính xác **R² Score 95.88%**, **MAPE 4.12%**.
-* **Phân tích tồn kho an toàn (Safety Stock Analyzer)**: Đánh giá tốc độ tiêu thụ hàng ngày (Daily Sales Velocity) và thời gian giao hàng của nhà cung ứng (Lead Time), phân thành 4 cấp độ: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`.
+### 3.8. AI Dự Báo Doanh Thu (Mô Phỏng Xu Hướng & Chu Kỳ Tuần) & Phân Tích Cảnh Báo Tồn Kho
+* **Dự báo mô phỏng xu hướng & mùa vụ**: Dự báo doanh thu 30 / 60 / 90 ngày tới được mô phỏng dựa trên hàm xu hướng tuyến tính kết hợp chu kỳ dao động theo tuần (Weekly Seasonality). Dữ liệu mang tính chất minh họa kịch bản, chưa huấn luyện trên tập dữ liệu bán hàng thực tế và không cung cấp các chỉ số sai số (như MAPE, RMSE hay R² Score).
+* **Cảnh báo tồn kho theo ngưỡng (Threshold-based Alerts)**: Hệ thống phân loại mức độ cảnh báo tồn kho dựa trên các ngưỡng số lượng thực tế:
+  * Số lượng tồn ≤ 3: Mức NGUY CẤP (`CRITICAL`)
+  * Số lượng tồn ≤ 5: Mức CAO (`HIGH`)
+  * Số lượng tồn ≤ 10: Mức TRUNG BÌNH (`MEDIUM`)
 * **Duyệt nhập hàng 1-Click**: Tự động tạo phiếu nhập hàng tức thì ngay từ bảng cảnh báo cạn kho.
 
 ---
 
-### 3.9. Cổng Thanh Toán Đa Dạng (VNPAY Sandbox, Ví MoMo, Tiền Mặt Tại Quầy)
-* **VNPAY Sandbox**: Giả lập cổng thanh toán VNPAY Sandbox chuẩn ngân hàng thương mại. Hỗ trợ thẻ test NCB (`9704198526191432152`, Tên `NGUYEN VAN A`, Ngày phát hành `07/15`, OTP `123456`).
-* **Ví Điện Tử MoMo**: Giả lập quét mã QR MoMo và xác nhận giao dịch tự động.
+### 3.9. Cổng Thanh Toán Đa Dạng (VNPAY Giả Lập, Ví MoMo Test, Tiền Mặt Tại Quầy)
+* **VNPAY Giả Lập**: Giả lập luồng thanh toán VNPAY trong hệ thống, mô phỏng giao diện nhập thông tin thẻ và xác thực OTP nội bộ (Hỗ trợ thẻ test NCB: `9704198526191432152`, Tên `NGUYEN VAN A`, Ngày phát hành `07/15`, OTP `123456`).
+* **Ví Điện Tử MoMo**: Tích hợp gọi trực tiếp API môi trường test của MoMo (`test-payment.momo.vn`) để tạo yêu cầu thanh toán quét mã QR.
 * **Tiền mặt tại quầy (COD/Cash)**: Tích hợp cho đơn mua trực tiếp tại quầy hoặc nhận hàng thanh toán tại nhà.
 
 ---
@@ -328,7 +340,7 @@ Khung chat nổi thông minh (`FloatingChatWidget`) đóng vai trò là một ch
 ### 3.10. Architecture Studio & AI Security Auditor
 * **5-Tier Canvas**: Trực quan hóa cấu trúc phân tầng và trạng thái kết nối thời gian thực giữa 5 tầng kiến trúc.
 * **OpenAPI 3.0 Studio**: Trình duyệt tương tác trực tiếp với 30+ API endpoints.
-* **AI Security Audit**: Khi có Gemini API Key, gửi cấu hình Components & Connections sang AI để phân tích cấu trúc thực tế và đưa ra điểm số thật. Khi AI offline, hiển thị trạng thái `unavailable` — **không tự cho điểm giả**.
+* **AI Security Audit**: Phân tích an ninh kiến trúc hệ thống bằng trí tuệ nhân tạo. **Lưu ý:** Tính năng này chỉ hoạt động khi hệ thống được cấu hình `GEMINI_API_KEY` hợp lệ. Khi AI offline hoặc không có API key, hệ thống hiển thị trạng thái `unavailable` thay vì tự tạo điểm số giả.
 
 ---
 
@@ -340,24 +352,34 @@ Khung chat nổi thông minh (`FloatingChatWidget`) đóng vai trò là một ch
 | **Tương Tác Đa Phương Thức** | Web Speech API (STT & TTS), Clipboard Paste API | Nhận diện giọng nói, đọc câu trả lời tiếng Việt, dán ảnh màn hình |
 | **Backend Core** | Node.js, Express, TypeScript, Prisma ORM, JWT, Bcrypt | REST API, RBAC 4 Tầng, Giao dịch nguyên tử (Atomic Transactions) |
 | **AI Orchestrator** | TypeScript Service (`aiOrchestratorService.ts`) | Điều phối gọi thật Gemini Cloud API & Ollama Local AI theo lựa chọn Provider |
-| **AI Local Engine** | Ollama Local Engine (`llava`, `llama3.2-vision`, `phi3`) | Chat AI nội bộ offline, phân tích hình ảnh, bảo mật dữ liệu tuyệt đối |
-| **Cloud AI & Microservices** | Python 3.10+, FastAPI, Uvicorn, Google Gemini 3.x API | Dự báo chuỗi thời gian Prophet-ARIMA, Phân tích tồn kho an toàn, RAG Chat |
-| **Cơ Sở Dữ Liệu & Bộ Đệm**| PostgreSQL 15, Redis 7, Fallback JSON Store | Lưu trữ quan hệ, Blacklist Token, Fallback đảm bảo chạy 100% |
-| **Cổng Thanh Toán** | VNPAY Sandbox Simulator, MoMo QR Simulator | Thanh toán điện tử chuẩn ngân hàng và ví điện tử |
-| **Hạ Tầng & Điều Phối** | Docker, Docker Compose, Nginx Reverse Proxy | Điều phối 6 dịch vụ, cân bằng tải, SSL/TLS |
+| **AI Local Engine** | Ollama Local Engine (`llava`, `llama3.2-vision`, `phi3`) | Chat AI nội bộ offline, phân tích hình ảnh, bảo vệ quyền riêng tư dữ liệu |
+| **Cloud AI & Microservices** | Python 3.10+, FastAPI, Uvicorn, Google Gemini 3.x API | Dự báo mô phỏng xu hướng & tuần hoàn, Phân tích cảnh báo tồn kho, RAG Chat |
+| **Cơ Sở Dữ Liệu & Bộ Đệm**| PostgreSQL 15, Fallback JSON Store, In-Memory TTL Cache | Lưu trữ quan hệ 14 bảng, Refresh Token SHA-256 (bảng `refresh_tokens`), Token Blacklist in-memory với TTL |
+| **Cổng Thanh Toán** | VNPAY Simulator, MoMo Test API (`test-payment.momo.vn`) | Thanh toán điện tử giả lập và ví điện tử môi trường test |
+| **Hạ Tầng & Điều Phối** | Docker, Docker Compose, Nginx Reverse Proxy | Điều phối 5 dịch vụ, Reverse proxy cổng 8088 (chưa cấu hình SSL) |
 
 ---
 
-## 5. Bộ Kiểm Thử Tự Động (Automated Verification Test Suite)
+## 5. Bộ Kiểm Thử Tự Động (Automated Test Suite)
 
-Dự án tích hợp bộ kiểm thử tự động toàn diện chuẩn hóa theo yêu cầu kỹ thuật (Mục 20), kiểm chứng toàn bộ **20 tiêu chí** theo 4 ma trận (RBAC, Kho, AI Multi-Provider, Đơn hàng):
+Dự án tích hợp 3 bộ kiểm thử tự động toàn diện trên hệ cơ sở dữ liệu thật với kết quả đạt **33/33 tests PASS (100%)**:
+
+1. **Bộ kiểm thử đặc tả kỹ thuật (`backend/tests/automated_verification.js`)**: 20/20 test cases đạt 100% PASS.
+2. **Bộ kiểm thử nghiệp vụ lõi & AI (`backend/test/core_business_ai.test.js`)**: 8/8 test cases đạt 100% PASS.
+3. **Bộ kiểm thử hồi quy nghiệp vụ (`backend/tests/regression_fixes.js`)**: 5/5 test cases đạt 100% PASS.
 
 ```bash
-# Chạy bộ kiểm thử tự động chuẩn hóa 20 tiêu chí
+# Chạy bộ kiểm thử 1: Đặc tả kỹ thuật RBAC, Kho, AI & Đơn hàng (20 tests)
 node backend/tests/automated_verification.js
+
+# Chạy bộ kiểm thử 2: Nghiệp vụ sản phẩm, giỏ hàng, POS & AI Fallback (8 tests)
+node backend/test/core_business_ai.test.js
+
+# Chạy bộ kiểm thử 3: Kiểm thử hồi quy chống bán vượt kho, chuyển trạng thái, RBAC POS (5 tests)
+node backend/tests/regression_fixes.js
 ```
 
-### Kết Quả Kiểm Thử Toàn Diện (20/20 PASS — 100%):
+### Kết Quả Kiểm Thử Toàn Diện (33/33 PASS — 100%):
 
 ```
 ================================================================
@@ -389,7 +411,7 @@ All 4 roles authenticated successfully.
 [PASS] AI-05: STAFF blocked from AI stock ticket approval (403 Forbidden)
 [PASS] AI-06: MANAGER AI stock proposal creates PENDING ticket (Stock unchanged)
 [PASS] AI-07: ADMIN business-qa & forecast endpoints accessible with role auth (QA: 200, Forecast: 200)
-[PASS] AI-08: AI Multi-provider status endpoint reports live availability
+[PASS] AI-08: AI Multi-provider status endpoint reports live availability: Providers: api:online, local:online
 
 --- 4. Order Transactions & Stock Movements Matrix ---
 [PASS] ORDER-01: Order creation decrements stock and writes StockMovement (SALE)
@@ -397,11 +419,36 @@ All 4 roles authenticated successfully.
 ================================================================
 TEST RESULTS: 20/20 PASSED (0 FAILED)
 ================================================================
+
+================================================================
+       CORE BUSINESS & AI RESILIENCE TEST SUITE
+================================================================
+[PASS] TEST 1: Public product catalog & search works without auth
+[PASS] TEST 2: Customer can add to cart, update quantity, and fetch cart
+[PASS] TEST 3: Staff creates POS order for walk-in customer -> instant stock decrement & warranty issued
+[PASS] TEST 4: Manager & Admin can access profit and margin dashboard
+[PASS] TEST 5: Customer cannot access manager/admin inventory routes (403)
+[PASS] TEST 6: Dual-engine AI advice works when Gemini online or gracefully falls back to Ollama
+[PASS] TEST 7: AI chat rejects injection attempts on internal profit/cost data
+[PASS] TEST 8: Stock ticket lifecycle (Create PENDING -> Approve -> Atomic Stock Update)
+================================================================
+TEST RESULTS: 8/8 PASSED (0 FAILED)
+================================================================
+
+================================================================
+       TPKSTORE REGRESSION & BUG FIXES TEST SUITE               
+================================================================
+[PASS] REG-01: DELIVERED order cannot be reverted to PENDING (Status: 400)
+[PASS] REG-02: PENDING order can transition to CONFIRMED (Status: 200)
+[PASS] REG-03: Concurrent order checkout prevents overselling (Success: 1, Failed: 1, Final Stock: 0)
+[PASS] REG-04: MANAGER role is authorized to execute POS checkout (Status: 201)
+[PASS] REG-05: Registration rejects weak password under 8 chars / missing numbers (Status: 400)
+================================================================
+TEST RESULTS: 5/5 PASSED (0 FAILED)
+================================================================
 ```
 
-> **Tài liệu hướng dẫn chi tiết & đặc tả kỹ thuật:**
-> - 📘 [Hướng Dẫn Cài Đặt & Vận Hành AI Multi-Provider](docs/HUONG_DAN_CAI_DAT_VA_VAN_HANH_AI.md)
-> - 📝 [Technical Changelog RBAC & Inventory Standardization](docs/CHANGELOG_RBAC_INVENTORY_AI.md)
+> **Ghi chú quan trọng về kiểm thử AI:** Bộ kiểm thử AI xác nhận phân quyền, định tuyến và phản hồi dự phòng; chưa đánh giá chất lượng câu trả lời khi provider offline.
 
 ---
 
@@ -418,10 +465,9 @@ Các biến môi trường cấu hình chính:
 | Tên Biến | Mô Tả | Mặc Định / Gợi Ý |
 | :--- | :--- | :--- |
 | `PORT` | Cổng chạy Backend API | `5000` |
-| `JWT_ACCESS_SECRET` | Khóa bí mật ký JWT Access Token (15 phút) | `super_secret_jwt_access_key_shopbee_2026` |
-| `JWT_REFRESH_SECRET` | Khóa bí mật ký JWT Refresh Token (7 ngày) | `super_secret_jwt_refresh_key_shopbee_2026` |
+| `JWT_ACCESS_SECRET` | Khóa bí mật ký JWT Access Token (7 ngày) | `super_secret_jwt_access_key_shopbee_2026` |
+| `JWT_REFRESH_SECRET` | Khóa bí mật ký JWT Refresh Token (30 ngày) | `super_secret_jwt_refresh_key_shopbee_2026` |
 | `DATABASE_URL` | Chuỗi kết nối PostgreSQL | `postgresql://postgres:postgres@localhost:5432/shopbee` |
-| `REDIS_URL` | Chuỗi kết nối Redis Cache | `redis://localhost:6379` |
 | `LOCAL_AI_URL` | Địa chỉ máy chủ AI Local (Ollama) | `http://localhost:11434` |
 | `LOCAL_AI_MODEL` | Tên mô hình AI Local mặc định | `llava` *(hoặc `llama3.2-vision`, `phi3`)* |
 | `GEMINI_API_KEY` | Khóa Google Gemini API Key | *(Lấy miễn phí tại [Google AI Studio](https://aistudio.google.com/))* |
@@ -450,7 +496,7 @@ npm run build
 npm run dev
 # → Backend REST API hoạt động tại: http://localhost:5000/api
 ```
-*(Backend tự động kích hoạt `FallbackStore` nếu máy tính chưa cài PostgreSQL, đảm bảo dự án luôn chạy thành công 100%).*
+*(Backend hỗ trợ chế độ `FallbackStore` trong môi trường phát triển khi chưa kết nối PostgreSQL).*
 
 #### Bước 3: Khởi động Frontend UI
 ```bash
@@ -462,9 +508,9 @@ npm run dev
 
 ---
 
-### Cách 2 — Khởi Chạy Toàn Bộ Bằng Docker Compose (Production Ready)
+### Cách 2 — Khởi Chạy Toàn Bộ Bằng Docker Compose
 
-Khởi chạy đồng loạt toàn bộ 6 dịch vụ chỉ với 1 câu lệnh:
+Khởi chạy đồng loạt toàn bộ 5 dịch vụ (PostgreSQL, Backend, Frontend, AI Microservice, Nginx Reverse Proxy cổng 8088):
 
 ```bash
 # Xây dựng và khởi chạy ngầm tất cả container
@@ -478,7 +524,8 @@ docker-compose logs -f
 ```
 
 **Các cổng truy cập:**
-* **Giao diện Web & POS Quầy:** [http://localhost:3000](http://localhost:3000)
+* **Giao diện Web & POS Quầy qua Nginx:** [http://localhost:8088](http://localhost:8088)
+* **Giao diện Web trực tiếp Frontend:** [http://localhost:3000](http://localhost:3000)
 * **Backend Core API:** [http://localhost:5000/api](http://localhost:5000/api)
 * **AI Microservice Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
 
@@ -508,20 +555,30 @@ Tất cả tài khoản demo đều có mật khẩu chung là: `Password123@` v
 | Vai Trò | Email Đăng Nhập | Mật Khẩu | Quyền Hạn Thực Tế Trong Hệ Thống |
 | :--- | :--- | :--- | :--- |
 | 👑 **ADMIN** | `admin@example.com` | `Password123@` | **Toàn quyền Quản trị Tối cao:**<br>• Độc quyền thêm/sửa/xóa sản phẩm & cấu hình màu sắc<br>• Báo cáo Doanh thu, Giá vốn (COGS) & Lợi nhuận gộp (Profit)<br>• Cấu hình mô hình AI Local & Gemini Cloud<br>• Sử dụng Bàn Bán Hàng Tại Quầy (POS Mode)<br>• Architecture Studio & AI Security Auditor |
-| 👔 **MANAGER** | `manager@example.com` | `Password123@` | **Quản Lý Kho Hàng & Nghiệp Vụ Kho:**<br>• Kiểm soát toàn bộ xuất - nhập kho (Inbound / Outbound)<br>• Phê duyệt / Từ chối phiếu xuất nhập kho của từng Staff<br>• Kiểm kê & Điều chỉnh tồn kho thực tế (`ADJUSTMENT`)<br>• Theo dõi cảnh báo cạn kho & tồn kho an toàn AI<br>• *Khóa chỉ xem sản phẩm (không sửa/xóa danh mục/doanh thu)* |
+| 👔 **MANAGER** | `manager@example.com` | `Password123@` | **Quản Lý Kho Hàng & Bán Quầy:**<br>• Sử dụng Bàn Bán Hàng Tại Quầy (POS Mode) để bán hàng trực tiếp, tạo đơn và in hóa đơn/phiếu bảo hành<br>• Kiểm soát toàn bộ xuất - nhập kho (Inbound / Outbound)<br>• Phê duyệt / Từ chối phiếu xuất nhập kho của từng Staff<br>• Kiểm kê & Điều chỉnh tồn kho thực tế (`ADJUSTMENT`)<br>• Theo dõi cảnh báo cạn kho theo ngưỡng (`CRITICAL`, `HIGH`, `MEDIUM`)<br>• *Khóa chỉ xem sản phẩm (không sửa/xóa danh mục/doanh thu)* |
 | 👷 **STAFF 1** | `staff@example.com` | `Password123@` | **Nhân Viên Tư Vấn & Bán Hàng Tại Quầy (POS):**<br>• **Bàn Bán Hàng POS tại quầy**: Tra cứu SĐT khách lẻ, xuất hóa đơn, tích điểm & in phiếu bảo hành 12-24 tháng<br>• Lập phiếu đề xuất Xuất kho (chờ Manager duyệt)<br>• Tra cứu tồn kho sản phẩm tức thì phục vụ tư vấn<br>• *Không có quyền lập phiếu nhập kho hoặc điều chỉnh tồn* |
 | 👷 **STAFF 2** | `staff2@example.com` | `Password123@` | **Nhân Viên Bán Hàng & Vận Hành 2** *(tương tự Staff 1)* |
-| 🛒 **CUSTOMER** | `customer@example.com` | `Password123@` | **Khách Hàng Mua Sắm Trực Tuyến:**<br>• Tìm kiếm thông minh, lọc danh mục theo ngân sách<br>• Đặt hàng thanh toán COD, VNPAY Sandbox, Ví MoMo<br>• Tra cứu thời hạn bảo hành điện tử theo SĐT<br>• Trợ lý AI Bán hàng: Nói bằng giọng nói, dán ảnh sản phẩm |
+| 🛒 **CUSTOMER** | `customer@example.com` | `Password123@` | **Khách Hàng Mua Sắm Trực Tuyến:**<br>• Tìm kiếm thông minh, lọc danh mục theo ngân sách<br>• Đặt hàng thanh toán COD, VNPAY giả lập, Ví MoMo test<br>• Tra cứu thời hạn bảo hành điện tử theo SĐT<br>• Trợ lý AI Bán hàng: Nói bằng giọng nói, dán ảnh sản phẩm |
 
 ---
 
-## 9. Đội Ngũ Thực Hiện
+## 9. Hạn Chế Đã Biết
+
+1. **Dự báo doanh thu mang tính mô phỏng:** Thuật toán dự báo được xây dựng dựa trên hàm xu hướng kết hợp mùa vụ theo tuần để phục vụ minh họa kịch bản giao diện, chưa được huấn luyện trên tập dữ liệu chuỗi thời gian thực tế của doanh nghiệp và không có chỉ số sai số thống kê (như MAPE, RMSE, R²).
+2. **Cảnh báo tồn kho theo ngưỡng:** Hệ thống phân loại mức độ cảnh báo dựa trên các ngưỡng số lượng cố định (≤3 CRITICAL, ≤5 HIGH, ≤10 MEDIUM), chưa tính toán tự động dựa trên Daily Sales Velocity và Lead Time thực tế.
+3. **Cổng thanh toán VNPAY giả lập:** Luồng thanh toán VNPAY hiện được giả lập trực tiếp trong hệ thống, chưa đấu nối API chính thức của VNPAY. Trong khi đó, MoMo gọi API trên môi trường test `test-payment.momo.vn`.
+4. **Bộ nhớ tạm (RAM) cho bảo mật & giới hạn:** Bộ đếm khóa đăng nhập và danh sách thu hồi token (Token Blacklist) được lưu trong bộ nhớ RAM của tiến trình backend, sẽ được đặt lại khi khởi động lại server.
+5. **Mã xác thực OTP:** Hệ thống chưa tích hợp dịch vụ gửi email SMTP; mã OTP được trả về trực tiếp trong phản hồi API ở chế độ phát triển (development).
+
+---
+
+## 10. Đội Ngũ Thực Hiện
 
 | Thành Viên | Vai Trò Chính | Trách Nhiệm Chi Tiết |
 | :--- | :--- | :--- |
 | **Thang Quốc Khải** | **Team Leader & AI Architect** | • Thiết kế Kiến trúc Phân tầng 5 lớp (5-Tier Layered Architecture)<br>• Tích hợp AI Microservices, Local AI Ollama & Trợ lý Đa phương thức (Voice & Vision RAG)<br>• Xây dựng Backend Core API, Phân quyền RBAC 4 Tầng & Mô-đun Quản lý Lợi nhuận (Cost/Profit) |
 | **Nguyễn Đình Tiến** | **Frontend Lead & UI/UX** | • Thiết kế toàn bộ Giao diện UI/UX Dark Mode Glassmorphism<br>• Xây dựng Giao diện Bán Hàng Tại Quầy POS (`CounterPosView`) & Chế độ POS Checkout<br>• Widget Trợ lý AI tích hợp Web Speech API & Multimodal Image I/O |
-| **Nguyễn Hồng Phúc** | **Database & QA Lead** | • Thiết kế CSDL PostgreSQL (Prisma ORM) & Quy trình kiểm soát kho 2 lớp<br>• Xây dựng luồng tạo nhanh Khách lẻ bằng SĐT & Tích điểm/Bảo hành<br>• Xây dựng bộ kiểm thử tự động **20/20 test cases** đạt chuẩn 100% PASS |
+| **Nguyễn Hồng Phúc** | **Database & QA Lead** | • Thiết kế CSDL PostgreSQL (Prisma ORM) & Quy trình kiểm soát kho 2 lớp<br>• Xây dựng luồng tạo nhanh Khách lẻ bằng SĐT & Tích điểm/Bảo hành<br>• Xây dựng các bộ kiểm thử tự động đạt chuẩn **33/33 test cases (100% PASS)** |
 
 ---
 
