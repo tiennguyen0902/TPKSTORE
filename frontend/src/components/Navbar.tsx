@@ -418,8 +418,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {user.role === "STAFF" && (
                       <>
                         <button 
+                          onClick={() => { navigate("/admin/orders"); setShowUserDropdown(false); }}
+                          className="w-full text-left px-4 py-2 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
+                        >
+                          <ShoppingBag className="w-3.5 h-3.5 text-rose-600" /> Duyệt & Quản Lý Đơn Hàng
+                        </button>
+                        <button 
                           onClick={() => { navigate("/pos"); setShowUserDropdown(false); }}
-                          className="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-bold border-t border-slate-100 mt-1"
+                          className="w-full text-left px-4 py-2 text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-bold"
                         >
                           <Store className="w-3.5 h-3.5 text-emerald-600" /> Bàn Tư Vấn Bán Quầy (POS)
                         </button>
@@ -427,7 +433,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onClick={() => { navigate("/warehouse"); setShowUserDropdown(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 font-bold"
                         >
-                          <Boxes className="w-3.5 h-3.5 text-blue-600" /> Cổng Quản Lý Kho Hàng
+                          <Boxes className="w-3.5 h-3.5 text-blue-600" /> Cổng Kho Hàng
                         </button>
                       </>
                     )}

@@ -423,8 +423,8 @@ router.get("/my", auth_1.authenticateToken, async (req, res) => {
         return res.status(500).json({ error: "Lỗi truy vấn đơn hàng: " + err.message });
     }
 });
-// GET /api/orders (Admin / Manager / Staff view all orders)
-router.get("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER", "STAFF"]), async (req, res) => {
+// GET /api/orders (Admin / Staff view all orders — MANAGER chỉ quản lý kho, không truy cập đơn hàng online)
+router.get("/", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "STAFF"]), async (req, res) => {
     try {
         const { status, search } = req.query;
         const where = {};
@@ -464,18 +464,23 @@ router.get("/:id", auth_1.authenticateToken, async (req, res) => {
         if (!order) {
             return res.status(404).json({ error: "Không tìm thấy đơn hàng." });
         }
+        // Quản lý kho không có quyền truy cập đơn hàng online
+        if (user.role === "MANAGER") {
+            return res.status(403).json({ error: "Quản lý kho không có quyền truy cập đơn hàng online." });
+        }
         // Customers can only view their own orders
         if (user.role === "CUSTOMER" && order.userId !== user.id) {
             return res.status(403).json({ error: "Bạn không có quyền xem đơn hàng này." });
         }
+        return res.json(order);
         return res.json(order);
     }
     catch (err) {
         return res.status(500).json({ error: "Lỗi truy vấn: " + err.message });
     }
 });
-// PUT /api/orders/:id/status (Admin / Manager / Staff update state machine)
-router.put("/:id/status", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "MANAGER", "STAFF"]), async (req, res) => {
+// PUT /api/orders/:id/status (Admin / Staff update state machine — MANAGER chỉ quản lý kho, không duyệt đơn online)
+router.put("/:id/status", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMIN", "STAFF"]), async (req, res) => {
     try {
         const order = await db_1.db.order.findUnique({
             where: { id: req.params.id },
@@ -560,6 +565,9 @@ router.put("/:id/status", auth_1.authenticateToken, (0, auth_1.authorize)(["ADMI
 router.post("/:id/cancel", auth_1.authenticateToken, async (req, res) => {
     try {
         const user = req.user;
+        if (user.role === "MANAGER") {
+            return res.status(403).json({ error: "Quản lý kho không có quyền hủy đơn hàng trực tuyến." });
+        }
         const whereClause = { id: req.params.id };
         if (user.role === "CUSTOMER") {
             whereClause.userId = user.id;

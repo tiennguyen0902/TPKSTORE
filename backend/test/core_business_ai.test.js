@@ -181,6 +181,60 @@ async function runTestSuite() {
     assert.strictEqual(deniedRes.status, 403, "Khách hàng thường truy cập API quản trị phải bị từ chối 403 Forbidden");
   });
 
+  // 8. Test RBAC: STAFF duyệt đơn hàng online & MANAGER bị chặn đơn hàng online
+  let staffToken = "";
+  let managerToken = "";
+
+  await it("TC-RBAC-01: Đăng nhập Staff và Manager để kiểm tra ranh giới quyền hạn", async () => {
+    const staffRes = await request("/auth/login", {
+      method: "POST",
+      body: { email: "staff@example.com", password: "Password123@" }
+    });
+    assert.strictEqual(staffRes.status, 200);
+    assert.strictEqual(staffRes.data.user.role, "STAFF");
+    staffToken = staffRes.data.tokens.accessToken;
+
+    const mgrRes = await request("/auth/login", {
+      method: "POST",
+      body: { email: "manager@example.com", password: "Password123@" }
+    });
+    assert.strictEqual(mgrRes.status, 200);
+    assert.strictEqual(mgrRes.data.user.role, "MANAGER");
+    managerToken = mgrRes.data.tokens.accessToken;
+  });
+
+  await it("TC-RBAC-02: STAFF được phép truy vấn danh sách đơn hàng online (200 OK)", async () => {
+    const res = await request("/orders", {
+      headers: { Authorization: `Bearer ${staffToken}` }
+    });
+    assert.strictEqual(res.status, 200, "STAFF phải được xem danh sách đơn hàng để duyệt");
+    assert.ok(Array.isArray(res.data.orders));
+  });
+
+  await it("TC-RBAC-03: MANAGER bị chặn xem danh sách đơn hàng online (403 Forbidden)", async () => {
+    const res = await request("/orders", {
+      headers: { Authorization: `Bearer ${managerToken}` }
+    });
+    assert.strictEqual(res.status, 403, "MANAGER chỉ quản lý kho, không có quyền xem đơn hàng online");
+  });
+
+  await it("TC-RBAC-04: MANAGER bị chặn cập nhật trạng thái đơn hàng trực tuyến (403 Forbidden)", async () => {
+    const res = await request("/orders/test-order/status", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${managerToken}` },
+      body: { status: "CONFIRMED" }
+    });
+    assert.strictEqual(res.status, 403, "MANAGER không được duyệt hoặc đổi trạng thái đơn hàng");
+  });
+
+  await it("TC-RBAC-05: MANAGER bị chặn hủy đơn hàng trực tuyến (403 Forbidden)", async () => {
+    const res = await request("/orders/test-order/cancel", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${managerToken}` }
+    });
+    assert.strictEqual(res.status, 403, "MANAGER không được thao tác hủy đơn hàng trực tuyến");
+  });
+
   console.log("\n==================================================================");
   console.log(`🏁 TỔNG KẾT KIỂM THỬ: ${passedCount}/${totalCount} TEST CASES THÀNH CÔNG (${Math.round((passedCount/totalCount)*100)}%)`);
   console.log("==================================================================");

@@ -315,12 +315,16 @@ const MainApp: React.FC = () => {
 
   const isAdminRoute = currentView.startsWith("admin_");
 
-  // Giới hạn quyền hạn Quản lý kho (MANAGER): Nghiệp vụ kho (Nhập/xuất, duyệt, kiểm kê, cảnh báo tồn, xem sản phẩm)
+  // MANAGER: chỉ được vào khu vực quản lý kho, không được POS và các chức năng quản trị khác
   const isManagerAllowedView = ["admin_inventory", "admin_stock_tickets", "admin_inventory_alerts", "admin_products"].includes(currentView);
   const isManagerRestrictedView = !isLoading && user?.role === "MANAGER" && (
     currentView === "pos_counter" ||
     (isAdminRoute && !isManagerAllowedView)
   );
+
+  // STAFF: được duyệt đơn hàng + bán hàng POS + xem kho, không được xem dashboard tài chính / danh mục / tài khoản / cài đặt
+  const isStaffAllowedAdminView = ["admin_orders", "admin_products", "admin_stock_tickets", "admin_inventory", "admin_inventory_alerts"].includes(currentView);
+  const isStaffRestrictedView = !isLoading && user?.role === "STAFF" && isAdminRoute && !isStaffAllowedAdminView;
 
   if (isManagerRestrictedView) {
     return (
@@ -363,8 +367,50 @@ const MainApp: React.FC = () => {
     );
   }
 
+  // STAFF cố vào khu vực admin bị cấm (dashboard tài chính, danh mục, tài khoản, cài đặt, studio)
+  if (isStaffRestrictedView) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
+        <Navbar
+          currentView={currentView}
+          setCurrentView={handleNavigateView}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={handleSelectCategory}
+        />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <div className="max-w-md w-full p-8 rounded-3xl bg-white border border-slate-200 text-center space-y-4 shadow-xl">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center mx-auto">
+              <ShieldAlert className="w-7 h-7" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">Giới Hạn Quyền Nhân Viên</h2>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Nhân viên (STAFF) không có quyền truy cập khu vực này. Vui lòng quay lại trang duyệt đơn hàng hoặc POS.
+            </p>
+            <div className="pt-2 flex justify-center gap-3">
+              <button
+                onClick={() => navigate("/admin/orders")}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition-colors"
+              >
+                Quản lý đơn hàng
+              </button>
+              <button
+                onClick={() => navigate("/pos")}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-md shadow-rose-600/30 transition-colors"
+              >
+                Bàn POS bán hàng
+              </button>
+            </div>
+          </div>
+        </main>
+        <Footer onNavigateCategory={handleSelectCategory} />
+      </div>
+    );
+  }
+
   // Route Protection: Admin & Warehouse Manager Portal
-  if (!isLoading && isAdminRoute && user?.role !== "ADMIN" && user?.role !== "MANAGER") {
+  if (!isLoading && isAdminRoute && user?.role !== "ADMIN" && user?.role !== "MANAGER" && user?.role !== "STAFF") {
     return (
       <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
         <Navbar
@@ -466,7 +512,7 @@ const MainApp: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-sm text-slate-900 tracking-wider">SHOPBEE</span>
               <span className="text-[10px] uppercase font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
-                {user?.role === "MANAGER" ? "MANAGER" : "ADMIN"}
+                {user?.role === "STAFF" ? "STAFF" : user?.role === "MANAGER" ? "MANAGER" : "ADMIN"}
               </span>
             </div>
             <button

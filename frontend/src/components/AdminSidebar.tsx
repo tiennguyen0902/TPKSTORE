@@ -35,8 +35,28 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }) => {
   const { user, logout } = useAuth();
   const isManager = user?.role === "MANAGER";
+  const isStaff = user?.role === "STAFF";
 
-  const navSections = isManager ? [
+  // Nav sections cho từng role
+  const staffNavSections = [
+    {
+      title: "XỬ LÝ ĐƠN HÀNG",
+      items: [
+        { id: "admin_orders", label: "Đơn Hàng Online", icon: <ShoppingBag className="w-4 h-4 text-rose-500" /> },
+        { id: "admin_pos", label: "Bàn Tư Vấn POS", icon: <Store className="w-4 h-4 text-blue-500" /> }
+      ]
+    },
+    {
+      title: "KHO HÀNG",
+      items: [
+        { id: "admin_stock_tickets", label: "Phiếu Xuất / Nhập Kho", icon: <ArrowDownToLine className="w-4 h-4 text-amber-500" /> },
+        { id: "admin_products", label: "Sản Phẩm Tồn Kho", icon: <Package className="w-4 h-4 text-slate-500" /> },
+        { id: "admin_inventory_alerts", label: "Cảnh Báo Cạn Kho AI", icon: <AlertTriangle className="w-4 h-4 text-amber-400" /> }
+      ]
+    }
+  ];
+
+  const managerNavSections = [
     {
       title: "NGHIỆP VỤ KHO HÀNG",
       items: [
@@ -46,7 +66,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         { id: "admin_products", label: "Xem Thông Tin Sản Phẩm", icon: <Package className="w-4 h-4 text-slate-500" /> }
       ]
     }
-  ] : [
+  ];
+
+  const adminNavSections = [
     {
       title: "DOANH THU & TỔNG QUAN",
       items: [
@@ -81,6 +103,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     }
   ];
 
+  const navSections = isStaff ? staffNavSections : isManager ? managerNavSections : adminNavSections;
+
   return (
     <>
       {/* Mobile Backdrop */}
@@ -107,11 +131,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 <div className="flex items-center gap-1.5">
                   <span className="font-extrabold text-sm text-slate-900 tracking-wider">SHOPBEE</span>
                   <span className="text-[9px] uppercase font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
-                    {isManager ? "MANAGER" : "ADMIN"}
+                    {isStaff ? "STAFF" : isManager ? "MANAGER" : "ADMIN"}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-500 font-medium">
-                  {isManager ? "ĐIỀU HÀNH KHO HÀNG" : "BẢNG QUẢN TRỊ TỐI CAO"}
+                  {isStaff ? "XỬ LÝ ĐƠN HÀNG & BÁN HÀNG" : isManager ? "ĐIỀU HÀNH KHO HÀNG" : "BẢNG QUẢN TRỊ TỐI CAO"}
                 </p>
               </div>
             </div>

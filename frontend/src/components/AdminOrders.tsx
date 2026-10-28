@@ -14,11 +14,14 @@ import {
   Download,
   DollarSign,
   Wallet,
-  PiggyBank
+  PiggyBank,
+  Lock
 } from "lucide-react";
 import { Order } from "../types";
 import { api } from "../services/api";
 import { Pagination } from "./Pagination";
+import { useAuth } from "../context/AuthContext";
+
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   PENDING:    ["CONFIRMED", "CANCELLED"],
@@ -39,7 +42,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export const AdminOrders: React.FC = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const [orders, setOrders] = useState<Order[]>([]);
+
   const [activeTab, setActiveTab] = useState<"all" | "returns">("all");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -294,7 +300,7 @@ export const AdminOrders: React.FC = () => {
         <div>
           <h1 className="text-2xl font-black text-slate-900">Quản Lý Đơn Hàng</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Xử lý quy trình giao hàng, đổi trả và theo dõi lợi nhuận từng đơn ({totalItems} đơn)
+            {isAdmin ? "Xử lý quy trình giao hàng, đổi trả và theo dõi lợi nhuận từng đơn" : "Duyệt đơn hàng, cập nhật trạng thái và xử lý giao hàng"} ({totalItems} đơn)
             {totalPages > 1 && (
               <span className="ml-2 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-semibold text-[10px]">
                 Trang {safeCurrentPage}/{totalPages}
@@ -305,14 +311,17 @@ export const AdminOrders: React.FC = () => {
 
         {/* Actions & Tabs */}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors shadow-xs"
-            title="Xuất danh sách đơn hàng kèm chi phí vốn và lợi nhuận ra file Excel / CSV"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Xuất Excel / CSV</span>
-          </button>
+          {/* Chỉ ADMIN mới được xuất CSV có thông tin lợi nhuận */}
+          {isAdmin && (
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors shadow-xs"
+              title="Xuất danh sách đơn hàng kèm chi phí vốn và lợi nhuận ra file Excel / CSV"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Xuất Excel / CSV</span>
+            </button>
+          )}
 
           <div className="flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-2xl text-xs overflow-x-auto max-w-full">
             <button
@@ -335,24 +344,45 @@ export const AdminOrders: React.FC = () => {
         </div>
       </div>
 
-      {/* Financial Summary Cards for Orders */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TỔNG DOANH THU ĐƠN HÀNG</p>
-          <p className="text-xl font-black text-blue-600 mt-1">{totalRevenue.toLocaleString("vi-VN")} đ</p>
-          <p className="text-[10px] text-slate-500 mt-0.5">100% giá trị các đơn đặt hàng</p>
+      {/* Financial Summary Cards — Chỉ ADMIN mới thấy doanh thu / giá vốn / lợi nhuận */}
+      {isAdmin ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TỔNG DOANH THU ĐƠN HÀNG</p>
+            <p className="text-xl font-black text-blue-600 mt-1">{totalRevenue.toLocaleString("vi-VN")} đ</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">100% giá trị các đơn đặt hàng</p>
+          </div>
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TỔNG GIÁ VỐN HÀNG XUẤT (COST 75%)</p>
+            <p className="text-xl font-black text-slate-700 mt-1">{totalCost.toLocaleString("vi-VN")} đ</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">Chi phí vốn sản phẩm kho xuất</p>
+          </div>
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 shadow-2xs">
+            <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">TỔNG LỢI NHUẬN THỰC THU (PROFIT 25%)</p>
+            <p className="text-xl font-black text-emerald-700 mt-1">+{totalProfit.toLocaleString("vi-VN")} đ</p>
+            <p className="text-[10px] text-emerald-700 font-bold mt-0.5">Biên độ lợi nhuận ròng 25.0%</p>
+          </div>
         </div>
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TỔNG GIÁ VỐN HÀNG XUẤT (COST 75%)</p>
-          <p className="text-xl font-black text-slate-700 mt-1">{totalCost.toLocaleString("vi-VN")} đ</p>
-          <p className="text-[10px] text-slate-500 mt-0.5">Chi phí vốn sản phẩm kho xuất</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CHỜ DUYỆT</p>
+            <p className="text-xl font-black text-amber-600 mt-1">{orders.filter(o => o.status === "PENDING").length} đơn</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">Đơn hàng cần xác nhận</p>
+          </div>
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ĐANG XỬ LÝ</p>
+            <p className="text-xl font-black text-blue-600 mt-1">{orders.filter(o => ["CONFIRMED","PROCESSING","SHIPPING"].includes(o.status)).length} đơn</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">Đã duyệt, đang chuẩn bị / giao</p>
+          </div>
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 shadow-2xs">
+            <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">HOÀN THÀNH HÔM NAY</p>
+            <p className="text-xl font-black text-emerald-700 mt-1">{orders.filter(o => o.status === "DELIVERED").length} đơn</p>
+            <p className="text-[10px] text-emerald-700 font-bold mt-0.5">Giao thành công</p>
+          </div>
         </div>
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 shadow-2xs">
-          <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">TỔNG LỢI NHUẬN THỰC THU (PROFIT 25%)</p>
-          <p className="text-xl font-black text-emerald-700 mt-1">+{totalProfit.toLocaleString("vi-VN")} đ</p>
-          <p className="text-[10px] text-emerald-700 font-bold mt-0.5">Biên độ lợi nhuận ròng 25.0%</p>
-        </div>
-      </div>
+      )}
+
 
       {toastMsg && (
         <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in shadow-xs">
@@ -398,7 +428,7 @@ export const AdminOrders: React.FC = () => {
                 <th className="p-4">Mã Đơn</th>
                 <th className="p-4">Khách Hàng</th>
                 <th className="p-4">Ngày Đặt</th>
-                <th className="p-4">Doanh Thu & Lợi Nhuận</th>
+                <th className="p-4">{isAdmin ? "Doanh Thu & Lợi Nhuận" : "Tổng Tiền"}</th>
                 <th className="p-4">Thanh Toán</th>
                 <th className="p-4">Trạng Thái Đơn</th>
                 <th className="p-4 text-right">Chi Tiết</th>
@@ -429,12 +459,14 @@ export const AdminOrders: React.FC = () => {
                       </td>
                       <td className="p-4 whitespace-nowrap">
                         <p className="font-black text-slate-900">{o.finalAmount.toLocaleString("vi-VN")} đ</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-slate-400">Vốn: {Math.round(o.finalAmount * 0.75).toLocaleString("vi-VN")} đ</span>
-                          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                            +{Math.round(o.finalAmount * 0.25).toLocaleString("vi-VN")} đ
-                          </span>
-                        </div>
+                        {isAdmin && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] text-slate-400">Vốn: {Math.round(o.finalAmount * 0.75).toLocaleString("vi-VN")} đ</span>
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                              +{Math.round(o.finalAmount * 0.25).toLocaleString("vi-VN")} đ
+                            </span>
+                          </div>
+                        )}
                       </td>
                       <td className="p-4 whitespace-nowrap">
                         <span className="font-semibold text-slate-800">{o.paymentMethod}</span>
@@ -443,24 +475,71 @@ export const AdminOrders: React.FC = () => {
                         </span>
                       </td>
                       <td className="p-4 whitespace-nowrap">
-                        {(() => {
-                          const nextStatuses = [o.status, ...(ALLOWED_TRANSITIONS[o.status] || [])];
-                          const isFinal = (ALLOWED_TRANSITIONS[o.status] || []).length === 0;
-                          return (
-                            <select
-                              value={o.status}
-                              onChange={(e) => handleStatusChange(o.id, e.target.value)}
-                              disabled={isFinal}
-                              className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-rose-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                        <div className="flex flex-col gap-1.5">
+                          {/* Nút thao tác nhanh 1-click cho nhân viên */}
+                          {o.status === "PENDING" && (
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(o.id, "CONFIRMED")}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shadow-sm shadow-emerald-600/30 transition-all hover:scale-105 active:scale-95"
+                              title="Bấm để duyệt đơn hàng ngay"
                             >
-                              {nextStatuses.map((st) => (
-                                <option key={st} value={st}>
-                                  {STATUS_LABELS[st] || st}
-                                </option>
-                              ))}
-                            </select>
-                          );
-                        })()}
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Duyệt Đơn</span>
+                            </button>
+                          )}
+                          {o.status === "CONFIRMED" && (
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(o.id, "PROCESSING")}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] shadow-sm shadow-blue-600/30 transition-all hover:scale-105 active:scale-95"
+                              title="Bắt đầu đóng gói đơn hàng"
+                            >
+                              <span>📦 Đóng gói</span>
+                            </button>
+                          )}
+                          {o.status === "PROCESSING" && (
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(o.id, "SHIPPING")}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] shadow-sm shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95"
+                              title="Giao cho shipper vận chuyển"
+                            >
+                              <Truck className="w-3.5 h-3.5" />
+                              <span>Giao hàng</span>
+                            </button>
+                          )}
+                          {o.status === "SHIPPING" && (
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(o.id, "DELIVERED")}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-[11px] shadow-sm transition-all hover:scale-105 active:scale-95"
+                              title="Xác nhận giao hàng thành công"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Hoàn tất</span>
+                            </button>
+                          )}
+
+                          {(() => {
+                            const nextStatuses = [o.status, ...(ALLOWED_TRANSITIONS[o.status] || [])];
+                            const isFinal = (ALLOWED_TRANSITIONS[o.status] || []).length === 0;
+                            return (
+                              <select
+                                value={o.status}
+                                onChange={(e) => handleStatusChange(o.id, e.target.value)}
+                                disabled={isFinal}
+                                className="bg-slate-50 border border-slate-300 rounded-xl px-2 py-0.5 text-[11px] text-slate-800 focus:outline-none focus:border-rose-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {nextStatuses.map((st) => (
+                                  <option key={st} value={st}>
+                                    {STATUS_LABELS[st] || st}
+                                  </option>
+                                ))}
+                              </select>
+                            );
+                          })()}
+                        </div>
                       </td>
                       <td className="p-4 text-right whitespace-nowrap">
                         <button
@@ -483,7 +562,7 @@ export const AdminOrders: React.FC = () => {
                                 {o.note && <p className="text-slate-500 italic mt-1">Ghi chú: {o.note}</p>}
                               </div>
                               <div>
-                                <p className="font-bold text-slate-800 mb-1">Danh sách sản phẩm & Phân tích lợi nhuận:</p>
+                                <p className="font-bold text-slate-800 mb-1">Danh sách sản phẩm{isAdmin ? " & Phân tích lợi nhuận" : ""}:</p>
                                 <div className="space-y-1.5">
                                   {o.items?.map((item) => {
                                     const itemRev = item.price * item.quantity;
@@ -494,20 +573,23 @@ export const AdminOrders: React.FC = () => {
                                         <div>
                                           <p className="font-bold text-slate-800">• {item.product?.name || item.productId}</p>
                                           <p className="text-[10px] text-slate-500 mt-0.5">
-                                            SL: {item.quantity} | Giá bán: {item.price.toLocaleString("vi-VN")} đ | Giá vốn (75%): {Math.round(item.price * 0.75).toLocaleString("vi-VN")} đ
+                                            SL: {item.quantity} | Giá bán: {item.price.toLocaleString("vi-VN")} đ{isAdmin ? ` | Giá vốn (75%): ${Math.round(item.price * 0.75).toLocaleString("vi-VN")} đ` : ""}
                                           </p>
                                         </div>
                                         <div className="text-right">
                                           <p className="font-black text-slate-900">{itemRev.toLocaleString("vi-VN")} đ</p>
-                                          <p className="text-[10px] font-bold text-emerald-600">
-                                            Lãi: +{itemProfit.toLocaleString("vi-VN")} đ (25%)
-                                          </p>
+                                          {isAdmin && (
+                                            <p className="text-[10px] font-bold text-emerald-600">
+                                              Lãi: +{itemProfit.toLocaleString("vi-VN")} đ (25%)
+                                            </p>
+                                          )}
                                         </div>
                                       </div>
                                     );
                                   })}
                                 </div>
                               </div>
+
                             </div>
 
                             <div className="flex justify-end pt-2 border-t border-slate-100">

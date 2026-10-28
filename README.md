@@ -241,38 +241,47 @@ Hệ thống giải quyết bài toán quản trị tài chính cốt lõi của
 
 ---
 
-### 3.3. Phân Quyền Đa Tầng (RBAC 4 Cấp Độ Độc Lập)
+### 3.3. Phân Quyền Đa Tầng Chuẩn Hóa (RBAC 4 Cấp Độ Độc Lập)
 
-Hệ thống thiết lập hàng rào bảo mật nghiêm ngặt theo 4 vai trò độc lập với ranh giới đặc quyền chuẩn hóa:
+Hệ thống thiết lập hàng rào bảo mật nghiêm ngặt theo 4 vai trò độc lập với ranh giới đặc quyền chuẩn hóa theo đúng bài toán kinh doanh thực tế:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        MA TRẬN PHÂN QUYỀN SHOPBEE                      │
+├─────────────┬─────────────┬─────────────┬─────────────┬────────────────┤
+│ NGHIỆP VỤ   │    ADMIN    │   MANAGER   │    STAFF    │    CUSTOMER    │
+├─────────────┼─────────────┼─────────────┼─────────────┼────────────────┤
+│ Lãi / Lỗ    │  ✅ Độc quyền│    ❌ Cấm    │    ❌ Cấm    │     ❌ Cấm     │
+│ Duyệt Đơn   │     ✅      │    ❌ Cấm    │  ✅ Phụ trách│     ❌ Cấm     │
+│ Bán POS     │     ✅      │    ❌ Cấm    │  ✅ Phụ trách│     ❌ Cấm     │
+│ Quản Lý Kho │     ✅      │  ✅ Phụ trách│  ✅ Đề xuất  │     ❌ Cấm     │
+│ Mua Sắm     │     ✅      │     ✅      │     ✅      │  ✅ Phụ trách  │
+└─────────────┴─────────────┴─────────────┴─────────────┴────────────────┘
+```
 
 #### 👑 ADMIN (Quản trị viên tối cao)
-* **Quản lý Master Data của sản phẩm**: Toàn quyền quản trị dữ liệu gốc của sản phẩm (tên, thông số kỹ thuật, hình ảnh, biến thể).
-* **Giá**: Quản lý giá bán, giá niêm yết, giá vốn (cost) và biên lợi nhuận sản phẩm.
-* **Danh mục**: Toàn quyền CRUD các danh mục sản phẩm (Category).
-* **Tài khoản**: Quản trị tài khoản người dùng, phân quyền các vai trò trong hệ thống, cấp quyền truy cập.
-* **Doanh thu**: Giám sát doanh thu toàn bộ hệ thống, báo cáo lãi/lỗ chi tiết, phân tích dòng tiền và biểu đồ dự báo kinh doanh.
-* **Toàn bộ hệ thống**: Cấu hình các cổng thanh toán, thiết lập AI Provider (Gemini API Cloud / Ollama Local), giám sát Architecture Studio và toàn bộ hệ thống.
+* **Độc quyền biết dữ liệu tài chính (Lãi/Lỗ)**: Là vai trò **duy nhất** được truy cập Dashboard Doanh thu & Lợi nhuận, xem bảng giá vốn hàng bán (COGS), biên lợi nhuận % và tổng lợi nhuận thực thu, xuất báo cáo CSV tài chính.
+* **Quản lý Master Data**: Toàn quyền thêm, sửa, xóa sản phẩm, danh mục sản phẩm (Category), cấu hình biến thể và màu sắc.
+* **Quản lý tài khoản**: Phân quyền, khóa/mở tài khoản nhân sự và khách hàng.
+* **Cấu hình hệ thống**: Thiết lập AI Provider (Gemini API Cloud / Ollama Local), giám sát Architecture Studio và toàn bộ hệ thống.
 
-#### 👔 MANAGER (Quản lý kho hàng & Bán quầy)
-* **Bán hàng tại quầy (POS)**: Được quyền thao tác giao diện Bán Hàng Tại Quầy (POS Mode), tra cứu SĐT khách lẻ, tạo đơn hàng tại quầy và xuất hóa đơn/phiếu bảo hành.
-* **Quản lý nghiệp vụ kho**: Điều hành toàn bộ hoạt động xuất - nhập kho và kiểm soát hàng tồn kho.
-* **Nhập kho**: Lập và thực thi các phiếu nhập kho từ nhà cung cấp.
-* **Xuất kho**: Lập các phiếu xuất kho điều chuyển, xuất mẫu hoặc xuất quầy.
-* **Duyệt yêu cầu**: Thẩm định và phê duyệt hoặc từ chối các yêu cầu xuất kho từ nhân viên bán hàng (STAFF) hoặc đề xuất từ AI.
-* **Kiểm kê**: Thực hiện kiểm đếm thực tế và đối chiếu với số liệu hệ thống.
-* **Điều chỉnh tồn**: Điều chỉnh số lượng tồn kho theo số liệu kiểm kê thực tế (`POST /api/inventory/adjustment`), tự động ghi nhật ký bất biến `StockMovement`.
-* **Cảnh báo tồn kho**: Theo dõi danh sách cảnh báo cạn kho theo ngưỡng (`CRITICAL`, `HIGH`, `MEDIUM`).
-* **Xem thông tin sản phẩm**: Tra cứu danh sách và chi tiết sản phẩm ở chế độ chỉ đọc (Read-only); **không có quyền** sửa tên, giá bán, danh mục hay xóa sản phẩm.
+#### 👔 MANAGER (Quản lý kho hàng chuyên trách)
+* **Chuyên trách nghiệp vụ kho**: Điều hành toàn bộ hoạt động xuất - nhập kho và kiểm soát hàng tồn kho thực tế.
+* **Xuất / Nhập kho 2 lớp**: Lập phiếu nhập kho từ nhà cung cấp, thẩm định và **phê duyệt / từ chối** các phiếu xuất/nhập kho do nhân viên (STAFF) đề xuất.
+* **Kiểm kê & Điều chỉnh tồn**: Thực hiện kiểm đếm thực tế, điều chỉnh tồn kho (`POST /api/inventory/adjustment`), tự động ghi nhật ký bất biến `StockMovement`.
+* **Cảnh báo tồn kho AI**: Theo dõi danh sách cảnh báo cạn kho theo ngưỡng (`CRITICAL`, `HIGH`, `MEDIUM`).
+* **Bảo mật phân quyền**: **Không có quyền** xem dữ liệu lãi/lỗ hay doanh thu; **không có quyền** duyệt đơn hàng online hay thao tác bán quầy POS; chỉ xem thông tin tồn kho sản phẩm (Read-only).
 
-#### 👷 STAFF (Nhân viên bán hàng)
-* **Bán hàng**: Thao tác giao diện Bán hàng tại quầy (POS Mode), tạo đơn hàng nhanh cho khách lẻ bằng số điện thoại, xuất hóa đơn và kích hoạt bảo hành điện tử.
-* **Xem tồn**: Tra cứu tức thì số lượng tồn kho khả dụng của từng mã sản phẩm để phục vụ bán hàng.
-* **Yêu cầu xuất kho**: Lập phiếu yêu cầu xuất kho (phiếu loại `EXPORT` ở trạng thái `PENDING`) khi cần lấy hàng từ kho; **không có quyền** tự duyệt phiếu, không có quyền lập phiếu nhập kho và không có quyền điều chỉnh tồn kho.
-* **Tư vấn khách**: Sử dụng Trợ lý AI Bán hàng tra cứu nhanh sản phẩm phù hợp với nhu cầu, tầm giá và sở thích của khách hàng.
+#### 👷 STAFF (Nhân viên bán hàng & vận hành — Staff 1, Staff 2,... đồng quyền)
+* **Duyệt đơn hàng online của khách**: Chịu trách nhiệm trực tiếp tiếp nhận và duyệt đơn hàng online của khách từ trạng thái `PENDING` (Chờ duyệt) ➔ `CONFIRMED` (Đã xác nhận) ➔ `PROCESSING` (Đang đóng gói) ➔ `SHIPPING` (Giao hàng) ➔ `DELIVERED` (Hoàn tất) với cơ chế duyệt 1-click tiện lợi.
+* **Bàn bán hàng tại quầy (POS Mode)**: Tư vấn bán hàng trực tiếp tại quầy, tra cứu khách hàng bằng SĐT, xuất hóa đơn tức thì và kích hoạt bảo hành điện tử.
+* **Kho & Hàng tồn**: Tra cứu tồn kho khả dụng để tư vấn khách; lập phiếu đề xuất xuất kho (`EXPORT` trạng thái `PENDING`) để quản lý kho duyệt.
+* **Bảo mật phân quyền**: **Không thấy** số liệu giá vốn, lợi nhuận hay doanh thu tổng của cửa hàng (chỉ thấy tổng giá tiền thanh toán của khách trên đơn).
 
-#### 🛒 CUSTOMER (Khách hàng)
-* **Mua hàng**: Khám phá danh mục, tìm kiếm thông minh, thêm vào giỏ hàng, đặt hàng trực tuyến (COD, VNPAY, MoMo), theo dõi trạng thái đơn hàng cá nhân.
-* **Nhận tư vấn sản phẩm**: Trò chuyện với Trợ lý AI tư vấn chọn sản phẩm (Cloud API hoặc Local AI); **hệ thống tự động ngăn chặn** các câu hỏi liên quan đến doanh thu nội bộ, lợi nhuận hoặc giá vốn cửa hàng.
+#### 🛒 CUSTOMER (Khách hàng mua sắm trực tuyến)
+* **Mua sắm trực tuyến**: Tìm kiếm thông minh, xem chi tiết sản phẩm đa biến thể, đặt hàng thanh toán COD, VNPAY, MoMo.
+* **Quản lý đơn hàng cá nhân**: Theo dõi tiến độ đơn hàng theo thời gian thực; có quyền tự hủy đơn khi đơn còn ở trạng thái `PENDING` hoặc `CONFIRMED`.
+* **Trợ lý AI Mua sắm**: Tương tác bằng văn bản hoặc giọng nói/hình ảnh để nhận tư vấn chọn đồ (hệ thống tự động ngăn chặn mọi câu hỏi về lãi lỗ hay bí mật kinh doanh).
 
 ---
 
@@ -559,11 +568,11 @@ Tất cả tài khoản demo đều có mật khẩu chung là: `Password123@` v
 
 | Vai Trò | Email Đăng Nhập | Mật Khẩu | Quyền Hạn Thực Tế Trong Hệ Thống |
 | :--- | :--- | :--- | :--- |
-| 👑 **ADMIN** | `admin@example.com` | `Password123@` | **Toàn quyền Quản trị Tối cao:**<br>• Độc quyền thêm/sửa/xóa sản phẩm & cấu hình màu sắc<br>• Báo cáo Doanh thu, Giá vốn (COGS) & Lợi nhuận gộp (Profit)<br>• Cấu hình mô hình AI Local & Gemini Cloud<br>• Sử dụng Bàn Bán Hàng Tại Quầy (POS Mode)<br>• Architecture Studio & AI Security Auditor |
-| 👔 **MANAGER** | `manager@example.com` | `Password123@` | **Quản Lý Kho Hàng & Bán Quầy:**<br>• Sử dụng Bàn Bán Hàng Tại Quầy (POS Mode) để bán hàng trực tiếp, tạo đơn và in hóa đơn/phiếu bảo hành<br>• Kiểm soát toàn bộ xuất - nhập kho (Inbound / Outbound)<br>• Phê duyệt / Từ chối phiếu xuất nhập kho của từng Staff<br>• Kiểm kê & Điều chỉnh tồn kho thực tế (`ADJUSTMENT`)<br>• Theo dõi cảnh báo cạn kho theo ngưỡng (`CRITICAL`, `HIGH`, `MEDIUM`)<br>• *Khóa chỉ xem sản phẩm (không sửa/xóa danh mục/doanh thu)* |
-| 👷 **STAFF 1** | `staff@example.com` | `Password123@` | **Nhân Viên Tư Vấn & Bán Hàng Tại Quầy (POS):**<br>• **Bàn Bán Hàng POS tại quầy**: Tra cứu SĐT khách lẻ, xuất hóa đơn, tích điểm & in phiếu bảo hành 12-24 tháng<br>• Lập phiếu đề xuất Xuất kho (chờ Manager duyệt)<br>• Tra cứu tồn kho sản phẩm tức thì phục vụ tư vấn<br>• *Không có quyền lập phiếu nhập kho hoặc điều chỉnh tồn* |
-| 👷 **STAFF 2** | `staff2@example.com` | `Password123@` | **Nhân Viên Bán Hàng & Vận Hành 2** *(tương tự Staff 1)* |
-| 🛒 **CUSTOMER** | `customer@example.com` | `Password123@` | **Khách Hàng Mua Sắm Trực Tuyến:**<br>• Tìm kiếm thông minh, lọc danh mục theo ngân sách<br>• Đặt hàng thanh toán COD, VNPAY giả lập, Ví MoMo test<br>• Tra cứu thời hạn bảo hành điện tử theo SĐT<br>• Trợ lý AI Bán hàng: Nói bằng giọng nói, dán ảnh sản phẩm |
+| 👑 **ADMIN** | `admin@example.com` | `Password123@` | **Toàn quyền Quản trị Tối cao:**<br>• **Độc quyền xem báo cáo tài chính**: Doanh thu tổng, Giá vốn (COGS) & Lợi nhuận gộp (Profit 25%), xuất file CSV tài chính<br>• Toàn quyền thêm/sửa/xóa sản phẩm, danh mục & tài khoản hệ thống<br>• Cấu hình mô hình AI Local & Gemini Cloud, Architecture Studio<br>• Duyệt đơn hàng online & Bàn Bán Hàng Tại Quầy (POS Mode) |
+| 👔 **MANAGER** | `manager@example.com` | `Password123@` | **Quản Lý & Điều Hành Kho Hàng:**<br>• Kiểm soát toàn bộ nghiệp vụ xuất - nhập kho (Inbound / Outbound)<br>• Phê duyệt / Từ chối phiếu xuất nhập kho của nhân viên<br>• Kiểm kê & Điều chỉnh tồn kho thực tế (`ADJUSTMENT`)<br>• Theo dõi cảnh báo cạn kho AI theo ngưỡng (`CRITICAL`, `HIGH`, `MEDIUM`)<br>• *Tuyệt đối không xem dữ liệu lãi/lỗ; không duyệt đơn online hay bán POS* |
+| 👷 **STAFF 1** | `staff@example.com` | `Password123@` | **Nhân Viên Bán Hàng & Duyệt Đơn (Đồng quyền):**<br>• **Duyệt đơn hàng trực tuyến của khách**: Chuyển trạng thái đơn `PENDING` ➔ `CONFIRMED` (Duyệt đơn) ➔ `PROCESSING` ➔ `SHIPPING` ➔ `DELIVERED`<br>• **Bàn Bán Hàng POS tại quầy**: Tra cứu SĐT khách lẻ, xuất hóa đơn, tích điểm & in phiếu bảo hành 12-24 tháng<br>• Lập phiếu đề xuất Xuất kho hàng (chờ Quản lý kho duyệt)<br>• Tra cứu tồn kho sản phẩm tức thì phục vụ tư vấn khách<br>• *Không thấy số liệu giá vốn/lợi nhuận (chỉ thấy tổng tiền bill của khách)* |
+| 👷 **STAFF 2** | `staff2@example.com` | `Password123@` | **Nhân Viên Bán Hàng & Duyệt Đơn 2** *(đầy đủ quyền duyệt đơn, POS và đề xuất kho hoàn toàn tương tự Staff 1)* |
+| 🛒 **CUSTOMER** | `customer@example.com` | `Password123@` | **Khách Hàng Mua Sắm Trực Tuyến:**<br>• Tìm kiếm thông minh, lọc danh mục theo ngân sách<br>• Đặt hàng thanh toán COD, VNPAY giả lập, Ví MoMo test<br>• Tra cứu lịch sử đơn hàng cá nhân, tự hủy đơn khi chờ duyệt<br>• Trợ lý AI Bán hàng: Nói bằng giọng nói, dán ảnh sản phẩm (chặn lộ dữ liệu lãi lỗ) |
 
 ---
 
